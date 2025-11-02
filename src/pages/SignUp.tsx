@@ -7,11 +7,13 @@ import { useNavigate } from "react-router-dom";
 import { Check, X } from "lucide-react";
 
 const SignUp = () => {
-  const [step, setStep] = useState<"email" | "otp" | "password">("email");
+  const [step, setStep] = useState<"email" | "otp" | "password" | "profile">("email");
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const navigate = useNavigate();
@@ -26,10 +28,14 @@ const SignUp = () => {
       // Handle OTP verification and move to password step
       console.log("OTP verification:", otp);
       setStep("password");
-    } else {
-      // Handle password setup
+    } else if (step === "password") {
+      // Handle password setup and move to profile step
       console.log("Password setup:", password);
-      // Navigate to next step or dashboard
+      setStep("profile");
+    } else {
+      // Handle profile completion
+      console.log("Profile completion:", { firstName, lastName });
+      // Navigate to dashboard or next page
     }
   };
 
@@ -110,7 +116,8 @@ const SignUp = () => {
             <h1 className="text-3xl font-bold">adtua</h1>
           </div>
 
-          <h2 className="text-3xl font-bold mb-8">Sign up to Adtua</h2>
+          {step === "profile" && <h2 className="text-3xl font-bold mb-8">Let's get to know you</h2>}
+          {step !== "profile" && <h2 className="text-3xl font-bold mb-8">Sign up to Adtua</h2>}
           
           {step === "email" ? (
             <form onSubmit={handleContinue} className="space-y-6">
@@ -217,7 +224,7 @@ const SignUp = () => {
                 Step 1 of 3
               </p>
             </form>
-          ) : (
+          ) : step === "password" ? (
             <form onSubmit={handleContinue} className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="password" className="text-base">
@@ -375,6 +382,47 @@ const SignUp = () => {
 
               <p className="text-center text-sm text-muted-foreground">
                 Step 2 of 3
+              </p>
+            </form>
+          ) : (
+            <form onSubmit={handleContinue} className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="firstName" className="text-base">
+                  First Name
+                </Label>
+                <Input
+                  id="firstName"
+                  type="text"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  className="h-12 rounded-lg"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="lastName" className="text-base">
+                  Last Name
+                </Label>
+                <Input
+                  id="lastName"
+                  type="text"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  className="h-12 rounded-lg"
+                  required
+                />
+              </div>
+
+              <Button 
+                type="submit" 
+                className="w-full h-12 text-base font-medium rounded-lg"
+              >
+                Submit
+              </Button>
+
+              <p className="text-center text-sm text-muted-foreground">
+                Step 3 of 3
               </p>
             </form>
           )}

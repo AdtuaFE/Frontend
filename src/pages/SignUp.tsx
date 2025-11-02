@@ -45,12 +45,6 @@ const SignUp = () => {
     // Handle resend logic
   };
 
-  // Common passwords list (simplified)
-  const commonPasswords = [
-    "password", "123456", "12345678", "qwerty", "abc123", "monkey", 
-    "1234567", "letmein", "trustno1", "dragon", "baseball", "iloveyou"
-  ];
-
   // Password validation rules
   const passwordValidation = useMemo(() => {
     return {
@@ -58,9 +52,9 @@ const SignUp = () => {
       hasUpperAndLower: /[a-z]/.test(password) && /[A-Z]/.test(password),
       hasNumberOrSymbol: /[0-9!@#$%^&*(),.?":{}|<>]/.test(password),
       notContainsEmail: !password.toLowerCase().includes(email.toLowerCase().split('@')[0]),
-      notCommon: !commonPasswords.some(common => password.toLowerCase().includes(common))
+      passwordsMatch: confirmPassword === "" || password === confirmPassword
     };
-  }, [password, email]);
+  }, [password, confirmPassword, email]);
 
   const isPasswordValid = Object.values(passwordValidation).every(Boolean);
 
@@ -361,13 +355,13 @@ const SignUp = () => {
                     </span>
                   </li>
                   <li className="flex items-start gap-2 text-sm">
-                    {passwordValidation.notCommon ? (
+                    {passwordValidation.passwordsMatch ? (
                       <Check className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
                     ) : (
                       <X className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
                     )}
-                    <span className={passwordValidation.notCommon ? "text-green-600" : "text-muted-foreground"}>
-                      is not commonly used
+                    <span className={passwordValidation.passwordsMatch ? "text-green-600" : "text-muted-foreground"}>
+                      passwords does not match
                     </span>
                   </li>
                 </ul>

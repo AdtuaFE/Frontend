@@ -48,8 +48,7 @@ const Onboarding = () => {
         adBudget,
         adCreativesReady
       });
-      // Navigate to dashboard or next step
-      // navigate("/dashboard");
+      navigate("/dashboard");
     }
   };
 
@@ -63,8 +62,7 @@ const Onboarding = () => {
 
   const handleDoItLater = () => {
     console.log("Skipping step:", step);
-    // Navigate to dashboard
-    // navigate("/dashboard");
+    navigate("/dashboard");
   };
 
   return (

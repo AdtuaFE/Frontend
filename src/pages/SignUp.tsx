@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { useNavigate } from "react-router-dom";
+import { Check, X } from "lucide-react";
 
 const SignUp = () => {
   const [step, setStep] = useState<"email" | "otp" | "password">("email");
@@ -36,6 +37,25 @@ const SignUp = () => {
     console.log("Resending email to:", email);
     // Handle resend logic
   };
+
+  // Common passwords list (simplified)
+  const commonPasswords = [
+    "password", "123456", "12345678", "qwerty", "abc123", "monkey", 
+    "1234567", "letmein", "trustno1", "dragon", "baseball", "iloveyou"
+  ];
+
+  // Password validation rules
+  const passwordValidation = useMemo(() => {
+    return {
+      minLength: password.length >= 8,
+      hasUpperAndLower: /[a-z]/.test(password) && /[A-Z]/.test(password),
+      hasNumberOrSymbol: /[0-9!@#$%^&*(),.?":{}|<>]/.test(password),
+      notContainsEmail: !password.toLowerCase().includes(email.toLowerCase().split('@')[0]),
+      notCommon: !commonPasswords.some(common => password.toLowerCase().includes(common))
+    };
+  }, [password, email]);
+
+  const isPasswordValid = Object.values(passwordValidation).every(Boolean);
 
   const handleGoogleSignUp = () => {
     // Handle Google signup
@@ -290,16 +310,65 @@ const SignUp = () => {
               </div>
 
               <div>
-                <p className="text-sm font-medium mb-2">Create a password that:</p>
-                <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
-                  <li>Between 8-72 characters</li>
-                  <li>At least one uppercase, lowercase, a number and character</li>
+                <p className="text-sm font-medium mb-3">Create a password that:</p>
+                <ul className="space-y-2">
+                  <li className="flex items-start gap-2 text-sm">
+                    {passwordValidation.minLength ? (
+                      <Check className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                    ) : (
+                      <X className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                    )}
+                    <span className={passwordValidation.minLength ? "text-green-600" : "text-muted-foreground"}>
+                      contains at least 8 characters
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2 text-sm">
+                    {passwordValidation.hasUpperAndLower ? (
+                      <Check className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                    ) : (
+                      <X className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                    )}
+                    <span className={passwordValidation.hasUpperAndLower ? "text-green-600" : "text-muted-foreground"}>
+                      contains both lower (a-z) and upper case letters (A-Z)
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2 text-sm">
+                    {passwordValidation.hasNumberOrSymbol ? (
+                      <Check className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                    ) : (
+                      <X className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                    )}
+                    <span className={passwordValidation.hasNumberOrSymbol ? "text-green-600" : "text-muted-foreground"}>
+                      contains at least one number (0-9) or a symbol
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2 text-sm">
+                    {passwordValidation.notContainsEmail ? (
+                      <Check className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                    ) : (
+                      <X className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                    )}
+                    <span className={passwordValidation.notContainsEmail ? "text-green-600" : "text-muted-foreground"}>
+                      does not contain your email address
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2 text-sm">
+                    {passwordValidation.notCommon ? (
+                      <Check className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                    ) : (
+                      <X className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                    )}
+                    <span className={passwordValidation.notCommon ? "text-green-600" : "text-muted-foreground"}>
+                      is not commonly used
+                    </span>
+                  </li>
                 </ul>
               </div>
 
               <Button 
                 type="submit" 
                 className="w-full h-12 text-base font-medium rounded-lg"
+                disabled={!isPasswordValid || password !== confirmPassword}
               >
                 Continue
               </Button>

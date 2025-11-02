@@ -8,11 +8,13 @@ import { Input } from "@/components/ui/input";
 
 const Onboarding = () => {
   const [showBanner, setShowBanner] = useState(true);
-  const [step, setStep] = useState<"role" | "type" | "business">("role");
+  const [step, setStep] = useState<"role" | "type" | "business" | "budget">("role");
   const [selectedRole, setSelectedRole] = useState<"broadcaster" | "advertiser" | "both" | null>(null);
   const [accountType, setAccountType] = useState<"business" | "individual" | null>(null);
   const [businessTypes, setBusinessTypes] = useState<string[]>([]);
   const [customBusiness, setCustomBusiness] = useState("");
+  const [adBudget, setAdBudget] = useState("");
+  const [adCreativesReady, setAdCreativesReady] = useState<"yes" | "no" | null>(null);
   const navigate = useNavigate();
 
   const businessOptions = [
@@ -35,12 +37,16 @@ const Onboarding = () => {
   const handleNext = () => {
     if (step === "type" && accountType === "business") {
       setStep("business");
+    } else if (step === "business") {
+      setStep("budget");
     } else {
       console.log("Onboarding complete:", { 
         selectedRole, 
         accountType, 
         businessTypes, 
-        customBusiness 
+        customBusiness,
+        adBudget,
+        adCreativesReady
       });
       // Navigate to dashboard or next step
       // navigate("/dashboard");
@@ -56,7 +62,7 @@ const Onboarding = () => {
   };
 
   const handleDoItLater = () => {
-    console.log("Skipping business type selection");
+    console.log("Skipping step:", step);
     // Navigate to dashboard
     // navigate("/dashboard");
   };
@@ -87,7 +93,7 @@ const Onboarding = () => {
             <div 
               className="h-full bg-primary transition-all" 
               style={{ 
-                width: step === "role" ? "33.33%" : step === "type" ? "66.66%" : "100%" 
+                width: step === "role" ? "25%" : step === "type" ? "50%" : step === "business" ? "75%" : "100%" 
               }}
             />
           </div>
@@ -194,7 +200,7 @@ const Onboarding = () => {
                 </div>
               </div>
             </>
-          ) : (
+          ) : step === "business" ? (
             <>
               <h2 className="text-3xl font-bold text-center mb-12">
                 Let's setup your dashboard
@@ -253,6 +259,73 @@ const Onboarding = () => {
                     style={{ backgroundColor: "#FF8A00" }}
                   >
                     Continue
+                  </Button>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <h2 className="text-3xl font-bold text-center mb-12">
+                Let's setup your dashboard
+              </h2>
+
+              <div className="max-w-xl mx-auto space-y-8">
+                <div className="space-y-4">
+                  <Label className="text-base text-center block">
+                    What is your ad budget?
+                  </Label>
+                  <div className="relative max-w-sm mx-auto">
+                    <Input
+                      type="number"
+                      value={adBudget}
+                      onChange={(e) => setAdBudget(e.target.value)}
+                      className="h-12 rounded-lg text-right pr-8"
+                      placeholder=""
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-base text-muted-foreground">
+                      $
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <Label className="text-base text-center block">
+                    Do you have your ad creatives ready?
+                  </Label>
+                  <RadioGroup
+                    value={adCreativesReady || ""}
+                    onValueChange={(value) => setAdCreativesReady(value as "yes" | "no")}
+                    className="flex gap-8 justify-center"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="yes" id="creatives-yes" />
+                      <Label htmlFor="creatives-yes" className="font-normal cursor-pointer">
+                        Yes
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="no" id="creatives-no" />
+                      <Label htmlFor="creatives-no" className="font-normal cursor-pointer">
+                        No
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+
+                <div className="flex items-center justify-center gap-6 pt-4">
+                  <button
+                    onClick={handleDoItLater}
+                    className="text-foreground hover:text-primary text-base"
+                  >
+                    Do it later
+                  </button>
+                  <Button
+                    onClick={handleNext}
+                    disabled={!adBudget || !adCreativesReady}
+                    className="px-12 h-12 text-base font-medium rounded-lg"
+                    style={{ backgroundColor: "#FF8A00" }}
+                  >
+                    Submit
                   </Button>
                 </div>
               </div>

@@ -35,7 +35,8 @@ const SignUp = () => {
     } else {
       // Handle profile completion
       console.log("Profile completion:", { firstName, lastName });
-      // Navigate to dashboard or next page
+      // Navigate to onboarding
+      navigate("/onboarding");
     }
   };
 

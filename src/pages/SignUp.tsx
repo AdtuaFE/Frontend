@@ -6,9 +6,13 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import { useNavigate } from "react-router-dom";
 
 const SignUp = () => {
-  const [step, setStep] = useState<"email" | "otp">("email");
+  const [step, setStep] = useState<"email" | "otp" | "password">("email");
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const navigate = useNavigate();
 
   const handleContinue = (e: React.FormEvent) => {
@@ -17,9 +21,13 @@ const SignUp = () => {
       // Move to OTP step
       setStep("otp");
       console.log("Email signup:", email);
-    } else {
-      // Handle OTP verification
+    } else if (step === "otp") {
+      // Handle OTP verification and move to password step
       console.log("OTP verification:", otp);
+      setStep("password");
+    } else {
+      // Handle password setup
+      console.log("Password setup:", password);
       // Navigate to next step or dashboard
     }
   };
@@ -144,7 +152,7 @@ const SignUp = () => {
                 Sign up with Google
               </Button>
             </form>
-          ) : (
+          ) : step === "otp" ? (
             <form onSubmit={handleContinue} className="space-y-6">
               <div className="space-y-2">
                 <p className="text-base text-muted-foreground mb-6">
@@ -187,6 +195,117 @@ const SignUp = () => {
 
               <p className="text-center text-sm text-muted-foreground">
                 Step 1 of 3
+              </p>
+            </form>
+          ) : (
+            <form onSubmit={handleContinue} className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="password" className="text-base">
+                  New Password
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="h-12 rounded-lg pr-10"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      {showPassword ? (
+                        <>
+                          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                          <line x1="2" y1="2" x2="22" y2="22" />
+                        </>
+                      ) : (
+                        <>
+                          <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </>
+                      )}
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword" className="text-base">
+                  Reenter Password
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="confirmPassword"
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="h-12 rounded-lg pr-10"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      {showConfirmPassword ? (
+                        <>
+                          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                          <line x1="2" y1="2" x2="22" y2="22" />
+                        </>
+                      ) : (
+                        <>
+                          <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </>
+                      )}
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-sm font-medium mb-2">Create a password that:</p>
+                <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+                  <li>Between 8-72 characters</li>
+                  <li>At least one uppercase, lowercase, a number and character</li>
+                </ul>
+              </div>
+
+              <Button 
+                type="submit" 
+                className="w-full h-12 text-base font-medium rounded-lg"
+              >
+                Continue
+              </Button>
+
+              <p className="text-center text-sm text-muted-foreground">
+                Step 2 of 3
               </p>
             </form>
           )}

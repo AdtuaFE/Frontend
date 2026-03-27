@@ -403,9 +403,6 @@ const OnboardingForm = () => {
             <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <h2 className="text-2xl font-semibold text-[#18181b]">Submit intake form</h2>
-                <p className="mt-2 text-sm leading-6 text-[#5f6368]">
-                  No API call is made yet. This just simulates a successful save so the UI flow is ready for backend wiring later.
-                </p>
               </div>
 
               <Button type="submit" className="h-12 rounded-xl bg-[#ff8a00] px-8 text-base font-medium text-white hover:bg-[#e77700]">

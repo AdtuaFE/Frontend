@@ -183,7 +183,7 @@ const OnboardingForm = () => {
 
               <div className="space-y-2">
                 <Label htmlFor="lastName">Last name</Label>
-                <Input id="lastName" name="lastName" value={formData.lastName} onChange={handleChange} placeholder="Sharma" className={inputClassName} required />
+                <Input id="lastName" name="lastName" value={formData.lastName} onChange={handleChange} placeholder="Patel" className={inputClassName} required />
               </div>
 
               <div className="space-y-2">

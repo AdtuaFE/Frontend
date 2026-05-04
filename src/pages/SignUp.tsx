@@ -178,7 +178,7 @@ const SignUp = () => {
             <form onSubmit={handleContinue} className="space-y-6">
               <div className="space-y-2">
                 <p className="text-base text-muted-foreground mb-6">
-                  Enter the code sent to
+                  Enter the code sent to <span className="font-medium text-foreground">{email}</span>
                 </p>
                 <div className="flex justify-center">
                   <InputOTP

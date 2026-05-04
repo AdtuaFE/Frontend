@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Home, Square, Video, BarChart3, Menu, CircleCheck, Circle } from "lucide-react";
+import { Home, Square, Video, BarChart3, Settings, Menu, CircleCheck, Circle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,12 +12,13 @@ const Dashboard = () => {
     { icon: Square, label: "Browse", active: false },
     { icon: Video, label: "My Campaigns", active: false },
     { icon: BarChart3, label: "Analytics", active: false },
+    { icon: Settings, label: "Settings", active: false },
   ];
 
   const checklistItems = [
     { title: "Complete Sign up", subtitle: "Enter your preferences", completed: true },
-    { title: "Create a campaign", subtitle: "Learn how to create a campaign", completed: false },
-    { title: "Create a campaign", subtitle: "Learn how to create a campaign", completed: false },
+    { title: "Create a campaign", subtitle: "Learn how to create your first campaign", completed: false },
+    { title: "Launch your first ad", subtitle: "Publish and start reaching your audience", completed: false },
   ];
 
   return (
@@ -119,7 +120,8 @@ const Dashboard = () => {
             
             {/* Empty State */}
             <div className="flex flex-col items-center justify-center py-20">
-              <p className="text-muted-foreground text-lg mb-6">There's nothing here.</p>
+              <p className="text-muted-foreground text-lg mb-2">No campaigns yet.</p>
+              <p className="text-muted-foreground text-sm mb-6">Create your first campaign to start reaching your audience.</p>
               <Button
                 className="h-12 px-8 text-base font-medium rounded-lg"
                 style={{ backgroundColor: "#FF8A00" }}

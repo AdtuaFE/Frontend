@@ -106,7 +106,7 @@ const Onboarding = () => {
           {step === "role" ? (
             <>
               <h2 className="mb-12 text-center text-3xl font-bold">
-                Welcome name, How do you want to primarily use Adtua?
+                Welcome! How do you want to primarily use Adtua?
               </h2>
 
               <div className="mb-8 grid gap-6 md:grid-cols-2">

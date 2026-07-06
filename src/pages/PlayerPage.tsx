@@ -9,11 +9,6 @@ type Creative = {
   mime_type: string;
 };
 
-type PlayerData =
-  | { pairing_code: string }
-  | { active: false }
-  | { active: true; creative: null; slot?: { label: string } }
-  | { active: true; creative: Creative; slot?: { label: string }; duration_seconds: number; booking_id?: number; asset_id?: number };
 
 type ViewState =
   | { tag: 'loading' }
@@ -157,6 +152,7 @@ function Player({ deviceId }: { deviceId: string }) {
           autoPlay
           muted
           playsInline
+          onPlay={e => { (e.target as HTMLVideoElement).muted = false; }}
           onEnded={async () => {
             if (booking_id && asset_id) await reportPlayed(deviceId, booking_id, asset_id, duration);
             poll();

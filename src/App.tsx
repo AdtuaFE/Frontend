@@ -16,6 +16,7 @@ import CampaignDetail from "./pages/CampaignDetail";
 import BookingDetail from "./pages/BookingDetail";
 import SpaceDetail from "./pages/SpaceDetail";
 import BrowseCampaigns from "./pages/BrowseCampaigns";
+import Bookings from "./pages/Bookings";
 import NotFound from "./pages/NotFound";
 import PlayerPage from "./pages/PlayerPage";
 
@@ -40,6 +41,7 @@ const App = () => (
             <Route path="/bookings/:id" element={<ProtectedRoute><BookingDetail /></ProtectedRoute>} />
             <Route path="/spaces/:id" element={<ProtectedRoute><SpaceDetail /></ProtectedRoute>} />
             <Route path="/campaigns" element={<ProtectedRoute><BrowseCampaigns /></ProtectedRoute>} />
+            <Route path="/bookings" element={<ProtectedRoute><Bookings /></ProtectedRoute>} />
             <Route path="/player" element={<PlayerPage />} />
             <Route path="/player/:deviceId" element={<PlayerPage />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

@@ -35,8 +35,8 @@ type Space = {
   postal_code: string | null;
   address_line1: string | null;
   address_line2: string | null;
-  lat: number | null;
-  lng: number | null;
+  geo_lat: number | null;
+  geo_lng: number | null;
   width_px: number | null;
   height_px: number | null;
   size_label: string | null;

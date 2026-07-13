@@ -24,6 +24,8 @@ type Space = {
   cpm: number;
   est_daily_impressions: number | null;
   is_active: boolean;
+  geo_lat: number | null;
+  geo_lng: number | null;
   distance_km?: number;
 };
 

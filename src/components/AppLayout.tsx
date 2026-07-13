@@ -1,30 +1,25 @@
 import { useState, type ReactNode } from "react";
-import { Home, Square, Video, BarChart3, Menu } from "lucide-react";
+import { ChevronDown, Plus } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { ProfileModal } from "@/components/ProfileModal";
 
-export type NavKey = "home" | "browse" | "campaigns" | "analytics";
-
-const NAV_ITEMS: { key: NavKey; icon: typeof Home; label: string; path?: string }[] = [
-  { key: "home",      icon: Home,     label: "Home",         path: "/dashboard" },
-  { key: "browse",    icon: Square,   label: "Browse",       path: "/browse" },
-  { key: "campaigns", icon: Video,    label: "Campaigns",    path: "/campaigns" },
-  { key: "analytics", icon: BarChart3, label: "Analytics" },
-];
+export type NavKey = "home" | "browse" | "campaigns" | "bookings" | "analytics";
 
 type Props = {
   children: ReactNode;
   activeNav: NavKey;
+  noPadding?: boolean;
+  rightSlot?: ReactNode;
+  onNewCampaign?: () => void;
 };
 
-export function AppLayout({ children, activeNav }: Props) {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+export function AppLayout({ children, activeNav, noPadding, rightSlot, onNewCampaign }: Props) {
   const [profileOpen, setProfileOpen] = useState(false);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const isBroadcaster = user?.roles.includes("broadcaster") ?? false;
+  const isAdvertiser = user?.roles.includes("advertiser") ?? false;
 
   const initials =
     [user?.first_name?.[0], user?.last_name?.[0]].filter(Boolean).join("").toUpperCase() || "U";
@@ -34,75 +29,104 @@ export function AppLayout({ children, activeNav }: Props) {
     navigate("/signin");
   };
 
+  const navCls = (key: NavKey) =>
+    `px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+      activeNav === key
+        ? "bg-[#FFE5CC] text-foreground"
+        : "text-muted-foreground hover:bg-accent hover:text-foreground"
+    }`;
+
   return (
     <>
-    <div className="h-screen bg-background flex overflow-hidden">
-      {/* Sidebar */}
-      <aside
-        className={`${sidebarOpen ? "w-64" : "w-0"} transition-all duration-300 bg-background border-r flex flex-col shrink-0 overflow-y-auto`}>
-        {sidebarOpen && (
-          <div className="flex-1 flex flex-col">
-            <div className="p-6 flex items-center gap-3">
-              <h1 className="text-2xl font-bold">adtua</h1>
-              <button onClick={() => setSidebarOpen(false)} className="p-1.5 hover:bg-accent rounded-md">
-                <Menu className="h-5 w-5" />
+      <div className="h-screen bg-background flex flex-col overflow-hidden">
+        {/* TOP NAV */}
+        <header className="h-14 border-b shrink-0 px-6 flex items-center gap-1">
+          {/* Logo */}
+          <button
+            onClick={() => navigate("/dashboard")}
+            className="text-xl font-bold mr-5 hover:opacity-75 transition-opacity">
+            adtua
+          </button>
+
+          {/* Primary nav */}
+          <nav className="flex items-center gap-0.5">
+            <button onClick={() => navigate("/browse")} className={navCls("browse")}>
+              Browse
+            </button>
+
+            {/* Campaigns with hover dropdown */}
+            <div className="relative group">
+              <button className={`${navCls("campaigns")} flex items-center gap-1`}>
+                Campaigns
+                <ChevronDown className="h-3.5 w-3.5 opacity-60" />
               </button>
+              {/* pt-1 bridges the gap between button and dropdown so hover doesn't break */}
+              <div className="absolute top-full left-0 pt-1 hidden group-hover:block z-50">
+                <div className="bg-background border rounded-lg shadow-lg py-1 min-w-[190px]">
+                  <button
+                    onClick={() => navigate("/campaigns")}
+                    className="w-full px-4 py-2 text-sm text-left hover:bg-accent transition-colors">
+                    Browse campaigns
+                  </button>
+                  {isAdvertiser && (
+                    <>
+                      <div className="border-t mx-3 my-1" />
+                      <button
+                        onClick={onNewCampaign}
+                        className="w-full px-4 py-2 text-sm text-left hover:bg-accent transition-colors flex items-center gap-2 font-medium text-[#ff8a00]">
+                        <Plus className="h-4 w-4" />
+                        New Campaign
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
-            <nav className="flex-1 px-3">
-              {NAV_ITEMS.filter(item => item.key !== "campaigns" || isBroadcaster).map((item) => (
+
+            <button onClick={() => navigate("/bookings")} className={navCls("bookings")}>
+              Bookings
+            </button>
+          </nav>
+
+          <div className="flex-1" />
+
+          {/* Right side */}
+          {rightSlot && <div className="mr-3">{rightSlot}</div>}
+
+          {/* Avatar with dropdown */}
+          <div className="relative group">
+            <button
+              className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff8a00]"
+              title="Your profile">
+              <Avatar className="h-8 w-8 hover:ring-2 hover:ring-[#ff8a00] transition-all">
+                <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+              </Avatar>
+            </button>
+            <div className="absolute top-full right-0 pt-1 hidden group-hover:block z-50">
+              <div className="bg-background border rounded-lg shadow-lg py-1 min-w-[160px]">
                 <button
-                  key={item.key}
-                  onClick={() => item.path && navigate(item.path)}
-                  disabled={!item.path}
-                  className={`w-full flex items-center gap-3 px-4 py-3 mb-1 rounded-lg text-sm transition-colors
-                    ${activeNav === item.key
-                      ? "bg-[#FFE5CC] text-foreground"
-                      : "text-muted-foreground hover:bg-accent hover:text-foreground"}
-                    ${!item.path ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}`}>
-                  <item.icon className="h-5 w-5" />
-                  <span>{item.label}</span>
+                  onClick={() => setProfileOpen(true)}
+                  className="w-full px-4 py-2 text-sm text-left hover:bg-accent transition-colors">
+                  Profile
                 </button>
-              ))}
-            </nav>
-            <div className="p-6 border-t space-y-3">
-              <p className="text-sm text-muted-foreground">
-                {user?.first_name} {user?.last_name}
-              </p>
-              <button
-                onClick={handleLogout}
-                className="text-sm text-muted-foreground hover:text-foreground underline">
-                Sign out
-              </button>
+                <div className="border-t mx-3 my-1" />
+                <button
+                  onClick={handleLogout}
+                  className="w-full px-4 py-2 text-sm text-left hover:bg-accent transition-colors text-muted-foreground">
+                  Sign out
+                </button>
+              </div>
             </div>
           </div>
-        )}
-      </aside>
-
-      {/* Content */}
-      <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-20 border-b px-8 flex items-center justify-between shrink-0">
-          {!sidebarOpen && (
-            <button onClick={() => setSidebarOpen(true)} className="p-1.5 hover:bg-accent rounded-md">
-              <Menu className="h-5 w-5" />
-            </button>
-          )}
-          <div className="flex-1" />
-          <button
-            onClick={() => setProfileOpen(true)}
-            className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff8a00]"
-            title="Your profile">
-            <Avatar className="h-10 w-10 hover:ring-2 hover:ring-[#ff8a00] transition-all">
-              <AvatarFallback>{initials}</AvatarFallback>
-            </Avatar>
-          </button>
         </header>
-        <main className="flex-1 p-8 overflow-auto">
+
+        {/* Content */}
+        <main className={noPadding ? "flex-1 overflow-hidden" : "flex-1 p-8 overflow-auto"}>
           {children}
         </main>
       </div>
-    </div>
 
-    <ProfileModal open={profileOpen} onOpenChange={setProfileOpen} />
+      <ProfileModal open={profileOpen} onOpenChange={setProfileOpen} />
     </>
   );
 }

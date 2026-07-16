@@ -193,7 +193,7 @@ function MapView({ allSpaces, mySpaces, isAdvertiser, isBroadcaster, selectedId,
   onSelect: (id: number) => void;
   onBook: (info: SpaceInfo) => void;
 }) {
-  const mySpaceIds = new Set(mySpaces.map(s => s.id));
+  const mySpaceIds = isBroadcaster ? new Set(mySpaces.map(s => s.id)) : new Set<number>();
 
   const mapSpaces: MapSpace[] = allSpaces
     .filter((s): s is BrowseSpace & { geo_lat: number; geo_lng: number } =>
@@ -591,7 +591,7 @@ const Dashboard = () => {
       activeNav="home"
       noPadding={viewMode === 'map'}
       rightSlot={toggle}
-      onNewCampaign={() => setCampaignModalOpen(true)}>
+>
 
       {viewMode === 'map' ? (
         <MapView

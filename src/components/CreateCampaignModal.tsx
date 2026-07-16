@@ -99,7 +99,7 @@ export function CreateCampaignModal({ open, onOpenChange }: Props) {
         start_date: formData.startDate || undefined,
         end_date: formData.endDate || undefined,
         visibility: formData.visibility,
-        status: "draft",
+        status: "active",
       });
       await queryClient.invalidateQueries({ queryKey: ["campaigns"] });
       setCampaignFormData(empty);

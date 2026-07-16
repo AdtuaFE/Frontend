@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,8 +44,7 @@ const fmtTime = (t: string) => t.slice(0, 5);
 export function CreateBookingModal({ open, onOpenChange, space }: Props) {
   const queryClient = useQueryClient();
   const [campaignId, setCampaignId] = useState("");
-  const [slotId, setSlotId] = useState("");
-  const [playbacks, setPlaybacks] = useState("");
+  const [selectedSlots, setSelectedSlots] = useState<Record<number, string>>({});
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -67,35 +66,66 @@ export function CreateBookingModal({ open, onOpenChange, space }: Props) {
 
   useEffect(() => {
     if (!open) {
-      setCampaignId(""); setSlotId(""); setPlaybacks("");
+      setCampaignId(""); setSelectedSlots({});
       setStartDate(""); setEndDate(""); setErrors({});
     }
   }, [open]);
 
-  // Auto-select single slot
+  // Auto-check when there's only one slot
   useEffect(() => {
-    if (slots.length === 1 && !slotId) setSlotId(String(slots[0].id));
-  }, [slots, slotId]);
+    if (slots.length === 1) {
+      setSelectedSlots(prev => Object.keys(prev).length === 0 ? { [slots[0].id]: "" } : prev);
+    }
+  }, [slots]);
 
   const clearError = (key: string) => setErrors(prev => ({ ...prev, [key]: "" }));
 
-  const selectedSlot = slots.find(s => String(s.id) === slotId);
+  const toggleSlot = (slotId: number) => {
+    setSelectedSlots(prev => {
+      if (slotId in prev) {
+        const { [slotId]: _, ...rest } = prev;
+        return rest;
+      }
+      return { ...prev, [slotId]: "" };
+    });
+    clearError("slots");
+  };
+
+  const updateSlotPlaybacks = (slotId: number, value: string) => {
+    setSelectedSlots(prev => ({ ...prev, [slotId]: value }));
+    clearError("slots");
+  };
+
   const durationDays = startDate && endDate
     ? Math.round((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86400000)
     : 0;
-  const estimatedPrice = selectedSlot && space && Number(playbacks) > 0 && durationDays > 0
-    ? Number(playbacks) * durationDays *
-      (space.cpm / 1000) * selectedSlot.est_impressions_per_playback * selectedSlot.price_multiplier
-    : null;
+
+  const selectedSlotEntries = Object.entries(selectedSlots);
+  const rawEstimate = durationDays > 0 && selectedSlotEntries.length > 0 && space
+    ? selectedSlotEntries.reduce((total, [id, pb]) => {
+        const slot = slots.find(s => s.id === Number(id));
+        const plays = Number(pb);
+        if (!slot || plays <= 0) return total;
+        return total + plays * durationDays * (space.cpm / 1000) * slot.est_impressions_per_playback * slot.price_multiplier;
+      }, 0)
+    : 0;
+  const estimatedPrice = rawEstimate > 0 ? rawEstimate : null;
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     const errs: Record<string, string> = {};
     if (!campaignId) errs.campaignId = "Select a campaign";
-    if (!slotId) errs.slotId = "Select a time slot";
-    if (!playbacks || Number(playbacks) < 1) errs.playbacks = "Enter daily playbacks (min 1)";
-    if (selectedSlot && Number(playbacks) > selectedSlot.daily_capacity_playbacks)
-      errs.playbacks = `Max ${selectedSlot.daily_capacity_playbacks} playbacks for this slot`;
+    if (selectedSlotEntries.length === 0) {
+      errs.slots = "Select at least one time slot";
+    } else {
+      for (const [id, pb] of selectedSlotEntries) {
+        const slot = slots.find(s => s.id === Number(id));
+        if (!pb || Number(pb) < 1) { errs.slots = "Enter daily playbacks for each selected slot (min 1)"; break; }
+        if (slot && Number(pb) > slot.daily_capacity_playbacks) {
+          errs.slots = `"${slot.label}" allows max ${slot.daily_capacity_playbacks} plays/day`; break;
+        }
+      }
+    }
     if (!startDate) errs.startDate = "Start date is required";
     if (!endDate) errs.endDate = "End date is required";
     if (startDate && endDate && endDate <= startDate) errs.endDate = "End date must be after start date";
@@ -106,10 +136,12 @@ export function CreateBookingModal({ open, onOpenChange, space }: Props) {
       await api.post("/api/bookings", {
         campaign_id: Number(campaignId),
         space_id: space!.id,
-        slot_id: Number(slotId),
-        daily_playbacks_allocated: Number(playbacks),
         start_date: startDate,
         end_date: endDate,
+        slots: selectedSlotEntries.map(([id, pb]) => ({
+          slot_id: Number(id),
+          daily_playbacks_allocated: Number(pb),
+        })),
       });
       await queryClient.invalidateQueries({ queryKey: ["bookings"] });
       onOpenChange(false);
@@ -160,63 +192,65 @@ export function CreateBookingModal({ open, onOpenChange, space }: Props) {
             <FieldError msg={errors.campaignId} />
           </div>
 
-          {/* Time slot */}
+          {/* Time slots */}
           <div className="space-y-1.5">
-            <Label>Time slot <span className="text-red-500">*</span></Label>
+            <Label>Time slots <span className="text-red-500">*</span></Label>
             {slotsLoading ? (
               <p className="text-sm text-muted-foreground py-2">Loading slots…</p>
             ) : slots.length === 0 ? (
               <p className="text-sm text-muted-foreground py-2">No slots available for this space.</p>
             ) : (
-              <RadioGroup value={slotId} onValueChange={v => { setSlotId(v); clearError("slotId"); }} className="space-y-2">
-                {slots.map(slot => (
-                  <Label
-                    key={slot.id}
-                    htmlFor={`slot-${slot.id}`}
-                    className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition hover:border-[#ff8a00] ${
-                      slotId === String(slot.id) ? "border-[#ff8a00] bg-[#fff8f0]" : "border-border"
-                    }`}>
-                    <RadioGroupItem value={String(slot.id)} id={`slot-${slot.id}`} className="mt-0.5 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-sm font-medium">{slot.label}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {fmtTime(slot.start_time)}–{fmtTime(slot.end_time)} UTC
-                        </span>
-                      </div>
-                      <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
-                        <span>{slot.est_impressions_per_playback} imp/play</span>
-                        <span>{slot.daily_capacity_playbacks.toLocaleString()} plays/day cap</span>
-                        <span>{slot.price_multiplier}× rate</span>
+              <div className="space-y-2">
+                {slots.map(slot => {
+                  const isChecked = slot.id in selectedSlots;
+                  const pb = selectedSlots[slot.id] ?? "";
+                  return (
+                    <div key={slot.id}
+                      className={`rounded-xl border p-3 transition-colors ${isChecked ? "border-[#ff8a00] bg-[#fff8f0]" : "border-border"}`}>
+                      <div className="flex items-start gap-3">
+                        <Checkbox
+                          id={`slot-${slot.id}`}
+                          checked={isChecked}
+                          onCheckedChange={() => toggleSlot(slot.id)}
+                          className="mt-0.5 shrink-0 data-[state=checked]:bg-[#ff8a00] data-[state=checked]:border-[#ff8a00]"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <label htmlFor={`slot-${slot.id}`} className="text-sm font-medium cursor-pointer">
+                            {slot.label}
+                            <span className="ml-2 text-xs font-normal text-muted-foreground">
+                              {fmtTime(slot.start_time)}–{fmtTime(slot.end_time)} UTC
+                            </span>
+                          </label>
+                          <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+                            <span>{slot.est_impressions_per_playback} imp/play</span>
+                            <span>{slot.daily_capacity_playbacks.toLocaleString()} plays/day cap</span>
+                            <span>{slot.price_multiplier}× rate</span>
+                          </div>
+                          {isChecked && (
+                            <div className="mt-2 flex items-center gap-2">
+                              <label htmlFor={`pb-${slot.id}`} className="text-xs text-muted-foreground shrink-0">
+                                Daily playbacks
+                              </label>
+                              <Input
+                                id={`pb-${slot.id}`}
+                                type="number" min="1"
+                                max={slot.daily_capacity_playbacks}
+                                value={pb}
+                                onChange={e => updateSlotPlaybacks(slot.id, e.target.value)}
+                                placeholder="e.g. 48"
+                                className="h-8 w-28 text-sm rounded-md border-[#d7dce3] shadow-none focus-visible:ring-[#ff8a00]"
+                              />
+                              <span className="text-xs text-muted-foreground">max {slot.daily_capacity_playbacks}</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </Label>
-                ))}
-              </RadioGroup>
+                  );
+                })}
+              </div>
             )}
-            <FieldError msg={errors.slotId} />
-          </div>
-
-          {/* Daily playbacks */}
-          <div className="space-y-1.5">
-            <Label htmlFor="bk-playbacks">
-              Daily playbacks <span className="text-red-500">*</span>
-              {selectedSlot && (
-                <span className="ml-2 text-xs font-normal text-muted-foreground">
-                  max {selectedSlot.daily_capacity_playbacks.toLocaleString()}/day
-                </span>
-              )}
-            </Label>
-            <Input
-              id="bk-playbacks"
-              type="number" min="1"
-              max={selectedSlot?.daily_capacity_playbacks}
-              value={playbacks}
-              onChange={e => { setPlaybacks(e.target.value); clearError("playbacks"); }}
-              placeholder="e.g. 48"
-              className={errors.playbacks ? inputErrCn : inputCn}
-            />
-            <FieldError msg={errors.playbacks} />
+            <FieldError msg={errors.slots} />
           </div>
 
           {/* Dates */}
@@ -243,7 +277,7 @@ export function CreateBookingModal({ open, onOpenChange, space }: Props) {
               Estimated total:{" "}
               <strong>${estimatedPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
               <span className="ml-2 text-xs opacity-75">
-                {durationDays} day{durationDays !== 1 ? "s" : ""} × {playbacks} plays/day
+                {durationDays} day{durationDays !== 1 ? "s" : ""} across {selectedSlotEntries.length} slot{selectedSlotEntries.length !== 1 ? "s" : ""}
               </span>
             </div>
           )}

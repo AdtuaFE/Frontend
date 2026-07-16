@@ -1,7 +1,6 @@
 import { FormEvent, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,9 +28,10 @@ type MySpace = {
   is_active: boolean;
 };
 
+type SlotEntry = { slotId: string; playbacks: string };
+
 type SpaceSelection = {
-  slotId: string;
-  playbacks: string;
+  slots: SlotEntry[];
   price: string;
 };
 
@@ -70,12 +70,16 @@ export function SubmitOfferModal({ open, onOpenChange, campaignId, campaignBudge
     try {
       const slots = await api.get<Slot[]>(`/api/spaces/${spaceId}/slots`);
       setSlotsMap(prev => ({ ...prev, [spaceId]: slots }));
-      // Auto-select if single slot
+      // Auto-check single slot
       if (slots.length === 1) {
-        setSelected(prev => prev[spaceId] !== undefined
-          ? { ...prev, [spaceId]: { ...prev[spaceId], slotId: String(slots[0].id) } }
-          : prev
-        );
+        setSelected(prev => {
+          if (prev[spaceId] === undefined) return prev;
+          const existing = prev[spaceId];
+          if (existing.slots.length === 0) {
+            return { ...prev, [spaceId]: { ...existing, slots: [{ slotId: String(slots[0].id), playbacks: "" }] } };
+          }
+          return prev;
+        });
       }
     } catch {
       setSlotsMap(prev => ({ ...prev, [spaceId]: [] }));
@@ -91,12 +95,33 @@ export function SubmitOfferModal({ open, onOpenChange, campaignId, campaignBudge
         return rest;
       }
       fetchSlots(spaceId);
-      return { ...prev, [spaceId]: { slotId: "", playbacks: "", price: cpm != null ? String(cpm) : "" } };
+      return { ...prev, [spaceId]: { slots: [], price: cpm != null ? String(cpm) : "" } };
     });
   };
 
-  const updateField = (spaceId: number, field: keyof SpaceSelection, value: string) => {
-    setSelected(prev => ({ ...prev, [spaceId]: { ...prev[spaceId], [field]: value } }));
+  const toggleSlot = (spaceId: number, slotId: string) => {
+    setSelected(prev => {
+      if (!prev[spaceId]) return prev;
+      const existing = prev[spaceId];
+      const isChecked = existing.slots.some(sl => sl.slotId === slotId);
+      const newSlots = isChecked
+        ? existing.slots.filter(sl => sl.slotId !== slotId)
+        : [...existing.slots, { slotId, playbacks: "" }];
+      return { ...prev, [spaceId]: { ...existing, slots: newSlots } };
+    });
+  };
+
+  const updateSlotPlaybacks = (spaceId: number, slotId: string, value: string) => {
+    setSelected(prev => {
+      if (!prev[spaceId]) return prev;
+      const existing = prev[spaceId];
+      const newSlots = existing.slots.map(sl => sl.slotId === slotId ? { ...sl, playbacks: value } : sl);
+      return { ...prev, [spaceId]: { ...existing, slots: newSlots } };
+    });
+  };
+
+  const updatePrice = (spaceId: number, value: string) => {
+    setSelected(prev => ({ ...prev, [spaceId]: { ...prev[spaceId], price: value } }));
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -105,11 +130,12 @@ export function SubmitOfferModal({ open, onOpenChange, campaignId, campaignBudge
     if (entries.length === 0) { toast.error("Select at least one space"); return; }
 
     const invalid = entries.some(([, s]) =>
-      !s.slotId || !s.playbacks || Number(s.playbacks) < 1 ||
+      s.slots.length === 0 ||
+      s.slots.some(sl => !sl.slotId || !sl.playbacks || Number(sl.playbacks) < 1) ||
       !s.price || isNaN(Number(s.price)) || Number(s.price) <= 0
     );
     if (invalid) {
-      toast.error("Fill in slot, daily playbacks, and price for each selected space");
+      toast.error("Select slots, fill daily playbacks, and set a price for each space");
       return;
     }
 
@@ -118,9 +144,11 @@ export function SubmitOfferModal({ open, onOpenChange, campaignId, campaignBudge
       await api.post(`/api/campaigns/${campaignId}/offers`, {
         spaces: entries.map(([id, s]) => ({
           space_id: Number(id),
-          slot_id: Number(s.slotId),
-          daily_playbacks_allocated: Number(s.playbacks),
           proposed_price: Number(s.price),
+          slots: s.slots.map(sl => ({
+            slot_id: Number(sl.slotId),
+            daily_playbacks_allocated: Number(sl.playbacks),
+          })),
         })),
         message: message.trim() || undefined,
       });
@@ -173,7 +201,7 @@ export function SubmitOfferModal({ open, onOpenChange, campaignId, campaignBudge
                       className={`rounded-lg border p-3 transition-colors ${
                         isSelected ? "border-[#ff8a00] bg-[#fff8f0]" : "border-border"
                       }`}>
-                      {/* Space header row */}
+                      {/* Space header */}
                       <div className="flex items-center gap-3">
                         <Checkbox
                           id={`os-${s.id}`}
@@ -194,49 +222,59 @@ export function SubmitOfferModal({ open, onOpenChange, campaignId, campaignBudge
                         </div>
                       </div>
 
-                      {/* Expanded form when selected */}
+                      {/* Expanded when selected */}
                       {isSelected && sel && (
                         <div className="mt-3 pt-3 border-t border-[#ffe5cc] space-y-3">
-                          {/* Slot + playbacks */}
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-1">
-                              <Label className="text-xs">Time slot</Label>
-                              {isLoadingSpaceSlots ? (
-                                <p className="text-xs text-muted-foreground py-1">Loading…</p>
-                              ) : (
-                                <Select value={sel.slotId} onValueChange={v => updateField(s.id, "slotId", v)}>
-                                  <SelectTrigger className="h-9 text-xs rounded-lg border-[#d7dce3] focus:ring-[#ff8a00]">
-                                    <SelectValue placeholder="Pick a slot" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {spaceSlots.length === 0 ? (
-                                      <div className="px-2 py-3 text-xs text-muted-foreground">No slots found</div>
-                                    ) : spaceSlots.map(slot => (
-                                      <SelectItem key={slot.id} value={String(slot.id)} className="text-xs">
-                                        {slot.label} · {fmtTime(slot.start_time)}–{fmtTime(slot.end_time)}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              )}
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-xs">
-                                Daily playbacks
-                                {sel.slotId && spaceSlots.find(sl => String(sl.id) === sel.slotId) && (
-                                  <span className="ml-1 font-normal text-muted-foreground">
-                                    (max {spaceSlots.find(sl => String(sl.id) === sel.slotId)!.daily_capacity_playbacks})
-                                  </span>
-                                )}
-                              </Label>
-                              <Input
-                                type="number" min="1"
-                                value={sel.playbacks}
-                                onChange={e => updateField(s.id, "playbacks", e.target.value)}
-                                placeholder="e.g. 48"
-                                className="h-9 text-sm rounded-lg border-[#d7dce3] shadow-none focus-visible:ring-[#ff8a00]"
-                              />
-                            </div>
+                          {/* Slot checkboxes */}
+                          <div className="space-y-1.5">
+                            <p className="text-xs font-medium text-muted-foreground">Time slots</p>
+                            {isLoadingSpaceSlots ? (
+                              <p className="text-xs text-muted-foreground py-1">Loading…</p>
+                            ) : spaceSlots.length === 0 ? (
+                              <p className="text-xs text-muted-foreground py-1">No slots found</p>
+                            ) : (
+                              <div className="space-y-1.5">
+                                {spaceSlots.map(slot => {
+                                  const slotChecked = sel.slots.some(sl => sl.slotId === String(slot.id));
+                                  const slotPb = sel.slots.find(sl => sl.slotId === String(slot.id))?.playbacks ?? "";
+                                  return (
+                                    <div key={slot.id}
+                                      className={`rounded-lg border px-2.5 py-2 transition-colors ${slotChecked ? "border-[#ff8a00] bg-white" : "border-border"}`}>
+                                      <div className="flex items-start gap-2">
+                                        <Checkbox
+                                          id={`slot-${s.id}-${slot.id}`}
+                                          checked={slotChecked}
+                                          onCheckedChange={() => toggleSlot(s.id, String(slot.id))}
+                                          className="mt-0.5 shrink-0 data-[state=checked]:bg-[#ff8a00] data-[state=checked]:border-[#ff8a00]"
+                                        />
+                                        <div className="flex-1 min-w-0">
+                                          <label htmlFor={`slot-${s.id}-${slot.id}`} className="text-xs font-medium cursor-pointer">
+                                            {slot.label}
+                                            <span className="ml-1.5 font-normal text-muted-foreground">
+                                              {fmtTime(slot.start_time)}–{fmtTime(slot.end_time)}
+                                            </span>
+                                          </label>
+                                          {slotChecked && (
+                                            <div className="mt-1.5 flex items-center gap-2">
+                                              <span className="text-xs text-muted-foreground shrink-0">Daily plays</span>
+                                              <Input
+                                                type="number" min="1"
+                                                max={slot.daily_capacity_playbacks}
+                                                value={slotPb}
+                                                onChange={e => updateSlotPlaybacks(s.id, String(slot.id), e.target.value)}
+                                                placeholder="e.g. 48"
+                                                className="h-7 w-24 text-xs rounded-md border-[#d7dce3] shadow-none focus-visible:ring-[#ff8a00]"
+                                              />
+                                              <span className="text-xs text-muted-foreground">max {slot.daily_capacity_playbacks}</span>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
                           </div>
 
                           {/* Proposed price */}
@@ -245,7 +283,7 @@ export function SubmitOfferModal({ open, onOpenChange, campaignId, campaignBudge
                             <Input
                               type="number" min="0" step="0.01"
                               value={sel.price}
-                              onChange={e => updateField(s.id, "price", e.target.value)}
+                              onChange={e => updatePrice(s.id, e.target.value)}
                               placeholder="Price"
                               className="h-8 w-32 text-sm rounded-md border-[#d7dce3] shadow-none focus-visible:ring-[#ff8a00]"
                             />

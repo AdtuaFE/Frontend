@@ -3,7 +3,9 @@ import { ChevronDown, Plus } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { ProfileModal } from "@/components/ProfileModal";
+import { CreateCampaignModal } from "@/components/CreateCampaignModal";
 
 export type NavKey = "home" | "browse" | "campaigns" | "bookings" | "analytics";
 
@@ -12,13 +14,14 @@ type Props = {
   activeNav: NavKey;
   noPadding?: boolean;
   rightSlot?: ReactNode;
-  onNewCampaign?: () => void;
 };
 
-export function AppLayout({ children, activeNav, noPadding, rightSlot, onNewCampaign }: Props) {
+export function AppLayout({ children, activeNav, noPadding, rightSlot }: Props) {
   const [profileOpen, setProfileOpen] = useState(false);
+  const [campaignModalOpen, setCampaignModalOpen] = useState(false);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const isAdvertiser = user?.roles.includes("advertiser") ?? false;
 
   const initials =
@@ -26,6 +29,7 @@ export function AppLayout({ children, activeNav, noPadding, rightSlot, onNewCamp
 
   const handleLogout = async () => {
     await logout();
+    queryClient.clear();
     navigate("/signin");
   };
 
@@ -72,7 +76,7 @@ export function AppLayout({ children, activeNav, noPadding, rightSlot, onNewCamp
                     <>
                       <div className="border-t mx-3 my-1" />
                       <button
-                        onClick={onNewCampaign}
+                        onClick={() => setCampaignModalOpen(true)}
                         className="w-full px-4 py-2 text-sm text-left hover:bg-accent transition-colors flex items-center gap-2 font-medium text-[#ff8a00]">
                         <Plus className="h-4 w-4" />
                         New Campaign
@@ -127,6 +131,7 @@ export function AppLayout({ children, activeNav, noPadding, rightSlot, onNewCamp
       </div>
 
       <ProfileModal open={profileOpen} onOpenChange={setProfileOpen} />
+      <CreateCampaignModal open={campaignModalOpen} onOpenChange={setCampaignModalOpen} />
     </>
   );
 }

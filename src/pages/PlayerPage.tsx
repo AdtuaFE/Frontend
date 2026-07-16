@@ -15,7 +15,8 @@ type ViewState =
   | { tag: 'unpaired'; code: string }
   | { tag: 'off_air' }
   | { tag: 'idle'; slot?: string }
-  | { tag: 'playing'; url: string; mime: string; duration: number; booking_id?: number; asset_id?: number };
+  | { tag: 'filler' }
+  | { tag: 'playing'; url: string; mime: string; duration: number; booking_id?: number; asset_id?: number; filler_seconds: number; is_default: boolean };
 
 async function playerFetch(path: string, opts?: RequestInit) {
   const res = await fetch(`${BASE}${path}`, opts);
@@ -37,7 +38,7 @@ async function reportPlayed(deviceId: string, bookingId: number, assetId: number
 function parsePlayerData(data: Record<string, unknown>): ViewState {
   if (data.pairing_code) return { tag: 'unpaired', code: String(data.pairing_code) };
   if (!data.active) return { tag: 'off_air' };
-  const asset = data.asset as (Creative & { id?: number; booking_id?: number; duration_seconds?: number }) | null | undefined;
+  const asset = data.asset as (Creative & { id?: number; booking_id?: number; duration_seconds?: number; filler_seconds?: number; is_default?: boolean }) | null | undefined;
   if (!asset) return { tag: 'idle', slot: (data.slot as { label?: string } | undefined)?.label };
   const url = asset.signed_url ?? asset.url;
   return {
@@ -47,6 +48,8 @@ function parsePlayerData(data: Record<string, unknown>): ViewState {
     duration: asset.duration_seconds ?? 15,
     booking_id: asset.booking_id,
     asset_id: asset.id,
+    filler_seconds: asset.filler_seconds ?? 0,
+    is_default: asset.is_default ?? false,
   };
 }
 
@@ -71,14 +74,18 @@ function Player({ deviceId }: { deviceId: string }) {
       } else if (next.tag === 'off_air' || next.tag === 'idle') {
         timer.current = setTimeout(poll, 30_000);
       } else if (next.tag === 'playing') {
-        const { mime, duration } = next;
+        const { mime, duration, filler_seconds, is_default } = next;
         if (!mime.startsWith('video/')) {
-          // Images/GIFs: hold for duration then poll
           timer.current = setTimeout(async () => {
-            if (next.booking_id && next.asset_id) {
+            if (!is_default && next.booking_id && next.asset_id) {
               await reportPlayed(deviceId, next.booking_id, next.asset_id, duration);
             }
-            poll();
+            if (!is_default && filler_seconds > 0) {
+              setView({ tag: 'filler' });
+              timer.current = setTimeout(poll, filler_seconds * 1_000);
+            } else {
+              poll();
+            }
           }, duration * 1_000);
         }
         // Videos: poll is triggered by onEnded
@@ -115,6 +122,14 @@ function Player({ deviceId }: { deviceId: string }) {
     );
   }
 
+  if (view.tag === 'filler') {
+    return (
+      <Screen>
+        <p className="text-white/40 text-lg font-bold tracking-widest uppercase">adtua</p>
+      </Screen>
+    );
+  }
+
   // ── Unpaired: show pairing code ─────────────────────────────────────────────
   if (view.tag === 'unpaired') {
     return (
@@ -139,7 +154,7 @@ function Player({ deviceId }: { deviceId: string }) {
   }
 
   // ── Playing ─────────────────────────────────────────────────────────────────
-  const { url, mime, duration, booking_id, asset_id } = view;
+  const { url, mime, duration, booking_id, asset_id, filler_seconds, is_default } = view;
   const isVideo = mime.startsWith('video/');
 
   if (isVideo) {
@@ -154,8 +169,16 @@ function Player({ deviceId }: { deviceId: string }) {
           playsInline
           onPlay={e => { (e.target as HTMLVideoElement).muted = false; }}
           onEnded={async () => {
-            if (booking_id && asset_id) await reportPlayed(deviceId, booking_id, asset_id, duration);
-            poll();
+            if (!is_default && booking_id && asset_id) {
+              await reportPlayed(deviceId, booking_id, asset_id, duration);
+            }
+            if (!is_default && filler_seconds > 0) {
+              setView({ tag: 'filler' });
+              clearTimer();
+              timer.current = setTimeout(poll, filler_seconds * 1_000);
+            } else {
+              poll();
+            }
           }}
         />
         <Watermark />

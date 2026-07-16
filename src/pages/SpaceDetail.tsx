@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
 import {
-  ArrowLeft, Edit2, Trash2, Upload, Star, Plus, ImageIcon, Cpu, Pencil, X,
+  ArrowLeft, Edit2, Trash2, Upload, Star, Plus, ImageIcon, Cpu, Pencil, X, ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -97,6 +97,17 @@ type Device = {
   last_seen_at: string | null;
 };
 
+type AdvertiserBooking = {
+  id: number;
+  campaign_id: number;
+  space_id: number;
+  status: string;
+  start_date: string;
+  end_date: string;
+  total_price: number | null;
+  booking_slots?: { slot_id: number; daily_playbacks_allocated: number }[];
+};
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const fmt = (s: string | null | undefined) =>
@@ -180,6 +191,13 @@ const SpaceDetail = () => {
     queryKey: ["space-devices", Number(id)],
     queryFn: () => api.get<Device[]>(`/api/spaces/${id}/devices`),
     enabled: !!id && !!space && isOwner,
+  });
+
+  const { data: myBookingsForSpace = [] } = useQuery<AdvertiserBooking[]>({
+    queryKey: ["bookings-advertiser"],
+    queryFn: () => api.get<AdvertiserBooking[]>("/api/bookings"),
+    enabled: isAdvertiser && !isOwner && !!space,
+    select: (all) => all.filter(b => b.space_id === space!.id),
   });
 
   const primaryImage = images.find(i => i.is_primary) ?? images[0] ?? null;
@@ -404,6 +422,67 @@ const SpaceDetail = () => {
             )}
           </div>
         </div>
+
+        {/* ── Advertiser: my bookings at this space ───────────────────────────── */}
+        {isAdvertiser && !isOwner && myBookingsForSpace.length > 0 && (() => {
+          const STATUS_COLORS: Record<string, string> = {
+            pending:   "bg-yellow-100 text-yellow-700",
+            accepted:  "bg-green-100 text-green-700",
+            rejected:  "bg-red-100 text-red-700",
+            cancelled: "bg-muted text-muted-foreground",
+            completed: "bg-blue-100 text-blue-700",
+          };
+          const hasActive = myBookingsForSpace.some(b => b.status === "accepted");
+          return (
+            <div className="space-y-3">
+              {hasActive && (
+                <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-green-500 shrink-0" />
+                  <p className="text-sm font-medium text-green-800">
+                    Your ads are currently running at this space.
+                  </p>
+                </div>
+              )}
+              <h2 className="text-lg font-semibold">Your bookings here</h2>
+              <div className="space-y-2">
+                {myBookingsForSpace.map(b => (
+                  <div key={b.id}
+                    className="rounded-xl border bg-card p-4 flex items-start justify-between gap-4">
+                    <div className="space-y-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-medium">Booking #{b.id}</span>
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${STATUS_COLORS[b.status] ?? "bg-muted text-muted-foreground"}`}>
+                          {b.status}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {b.start_date} – {b.end_date}
+                        {b.total_price != null && ` · $${b.total_price.toLocaleString()}`}
+                      </p>
+                      {b.booking_slots && b.booking_slots.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mt-1">
+                          {b.booking_slots.map(bs => {
+                            const label = slots.find(s => s.id === bs.slot_id)?.label ?? `Slot #${bs.slot_id}`;
+                            return (
+                              <span key={bs.slot_id} className="rounded-md bg-muted px-2 py-0.5 text-xs">
+                                {label} · {bs.daily_playbacks_allocated} plays/day
+                              </span>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => navigate(`/bookings/${b.id}`)}
+                      className="shrink-0 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                      View <ExternalLink className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Details */}
         <div className="rounded-xl border bg-card p-6 space-y-6">

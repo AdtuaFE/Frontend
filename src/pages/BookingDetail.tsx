@@ -17,6 +17,11 @@ import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 
+type BookingSlot = {
+  slot_id: number;
+  daily_playbacks_allocated: number;
+};
+
 type Booking = {
   id: number;
   campaign_id: number;
@@ -28,6 +33,7 @@ type Booking = {
   agreed_cpm: number | null;
   total_price: number | null;
   created_at: string;
+  booking_slots?: BookingSlot[];
 };
 
 type Campaign = { id: number; name: string; advertiser_id: number };
@@ -427,6 +433,18 @@ const BookingDetail = () => {
           <Field label="Agreed CPM" value={booking.agreed_cpm != null ? `$${booking.agreed_cpm}` : null} />
           <Field label="Total price"
             value={booking.total_price != null ? `$${booking.total_price.toLocaleString()}` : null} />
+          {booking.booking_slots && booking.booking_slots.length > 0 && (
+            <div className="col-span-2 sm:col-span-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Time slots</p>
+              <div className="mt-1 flex flex-wrap gap-2">
+                {booking.booking_slots.map(bs => (
+                  <span key={bs.slot_id} className="rounded-md bg-muted px-2.5 py-1 text-xs">
+                    Slot #{bs.slot_id} · {bs.daily_playbacks_allocated.toLocaleString()} plays/day
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Broadcaster: accept / reject */}

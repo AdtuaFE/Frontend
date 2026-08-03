@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Local-only mock API for development — never commit
+mock-backend/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

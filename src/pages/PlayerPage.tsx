@@ -9,14 +9,13 @@ type Creative = {
   mime_type: string;
 };
 
-
 type ViewState =
   | { tag: 'loading' }
   | { tag: 'unpaired'; code: string }
   | { tag: 'off_air' }
   | { tag: 'idle'; slot?: string }
   | { tag: 'filler' }
-  | { tag: 'playing'; url: string; mime: string; duration: number; booking_id?: number; asset_id?: number; filler_seconds: number; is_default: boolean };
+  | { tag: 'playing'; url: string; mime: string; duration: number; booking_id?: number; asset_id?: number; filler_seconds: number; idle_seconds: number; is_default: boolean };
 
 async function playerFetch(path: string, opts?: RequestInit) {
   const res = await fetch(`${BASE}${path}`, opts);
@@ -38,7 +37,14 @@ async function reportPlayed(deviceId: string, bookingId: number, assetId: number
 function parsePlayerData(data: Record<string, unknown>): ViewState {
   if (data.pairing_code) return { tag: 'unpaired', code: String(data.pairing_code) };
   if (!data.active) return { tag: 'off_air' };
-  const asset = data.asset as (Creative & { id?: number; booking_id?: number; duration_seconds?: number; filler_seconds?: number; is_default?: boolean }) | null | undefined;
+  const asset = data.asset as (Creative & {
+    id?: number;
+    booking_id?: number;
+    duration_seconds?: number;
+    filler_seconds?: number;
+    idle_seconds?: number;
+    is_default?: boolean;
+  }) | null | undefined;
   if (!asset) return { tag: 'idle', slot: (data.slot as { label?: string } | undefined)?.label };
   const url = asset.signed_url ?? asset.url;
   return {
@@ -49,6 +55,7 @@ function parsePlayerData(data: Record<string, unknown>): ViewState {
     booking_id: asset.booking_id,
     asset_id: asset.id,
     filler_seconds: asset.filler_seconds ?? 0,
+    idle_seconds: asset.idle_seconds ?? 0,
     is_default: asset.is_default ?? false,
   };
 }
@@ -74,13 +81,17 @@ function Player({ deviceId }: { deviceId: string }) {
       } else if (next.tag === 'off_air' || next.tag === 'idle') {
         timer.current = setTimeout(poll, 30_000);
       } else if (next.tag === 'playing') {
-        const { mime, duration, filler_seconds, is_default } = next;
+        const { mime, duration, filler_seconds, idle_seconds, is_default } = next;
         if (!mime.startsWith('video/')) {
+          // Images/GIFs: hold for duration then finish
           timer.current = setTimeout(async () => {
             if (!is_default && next.booking_id && next.asset_id) {
               await reportPlayed(deviceId, next.booking_id, next.asset_id, duration);
             }
-            if (!is_default && filler_seconds > 0) {
+            if (is_default && idle_seconds > 0) {
+              setView({ tag: 'off_air' });
+              timer.current = setTimeout(poll, idle_seconds * 1_000);
+            } else if (!is_default && filler_seconds > 0) {
               setView({ tag: 'filler' });
               timer.current = setTimeout(poll, filler_seconds * 1_000);
             } else {
@@ -88,7 +99,7 @@ function Player({ deviceId }: { deviceId: string }) {
             }
           }, duration * 1_000);
         }
-        // Videos: poll is triggered by onEnded
+        // Videos: completion handled by onEnded
       }
     } catch {
       setView({ tag: 'off_air' });
@@ -101,16 +112,11 @@ function Player({ deviceId }: { deviceId: string }) {
     return clearTimer;
   }, [poll]);
 
-  // ── Off air / idle ──────────────────────────────────────────────────────────
+  // ── Screens ──────────────────────────────────────────────────────────────────
+
   if (view.tag === 'loading') return <Screen />;
 
-  if (view.tag === 'off_air') {
-    return (
-      <Screen>
-        <p className="text-white/20 text-sm font-medium uppercase tracking-[0.25em]">Off Air</p>
-      </Screen>
-    );
-  }
+  if (view.tag === 'off_air') return <OffAirScreen />;
 
   if (view.tag === 'idle') {
     return (
@@ -154,7 +160,7 @@ function Player({ deviceId }: { deviceId: string }) {
   }
 
   // ── Playing ─────────────────────────────────────────────────────────────────
-  const { url, mime, duration, booking_id, asset_id, filler_seconds, is_default } = view;
+  const { url, mime, duration, booking_id, asset_id, filler_seconds, idle_seconds, is_default } = view;
   const isVideo = mime.startsWith('video/');
 
   if (isVideo) {
@@ -172,7 +178,11 @@ function Player({ deviceId }: { deviceId: string }) {
             if (!is_default && booking_id && asset_id) {
               await reportPlayed(deviceId, booking_id, asset_id, duration);
             }
-            if (!is_default && filler_seconds > 0) {
+            if (is_default && idle_seconds > 0) {
+              setView({ tag: 'off_air' });
+              clearTimer();
+              timer.current = setTimeout(poll, idle_seconds * 1_000);
+            } else if (!is_default && filler_seconds > 0) {
               setView({ tag: 'filler' });
               clearTimer();
               timer.current = setTimeout(poll, filler_seconds * 1_000);
@@ -244,6 +254,21 @@ function Screen({ children }: { children?: React.ReactNode }) {
     <div className="fixed inset-0 bg-black flex items-center justify-center overflow-hidden">
       {children}
     </div>
+  );
+}
+
+function OffAirScreen() {
+  return (
+    <Screen>
+      <div className="flex flex-col items-center gap-5 select-none">
+        <span className="text-[#ff8a00]/60 text-3xl font-bold tracking-[0.2em] uppercase">adtua</span>
+        <div className="flex items-center gap-3">
+          <span className="block h-px w-8 bg-white/10" />
+          <p className="text-white/20 text-xs font-semibold uppercase tracking-[0.35em]">Off Air</p>
+          <span className="block h-px w-8 bg-white/10" />
+        </div>
+      </div>
+    </Screen>
   );
 }
 

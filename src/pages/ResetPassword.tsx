@@ -37,7 +37,9 @@ const ResetPassword = () => {
   const validation = useMemo(() => ({
     minLength: password.length >= 8,
     hasUpperAndLower: /[a-z]/.test(password) && /[A-Z]/.test(password),
-    hasNumberOrSymbol: /[0-9!@#$%^&*(),.?":{}|<>]/.test(password),
+    // BE accepts alphanumeric passwords only: at least one digit, no symbols
+    hasNumber: /[0-9]/.test(password),
+    alphanumericOnly: /^[a-zA-Z0-9]*$/.test(password),
     passwordsMatch: confirmPassword === "" || password === confirmPassword,
   }), [password, confirmPassword]);
 
@@ -119,7 +121,8 @@ const ResetPassword = () => {
             <ul className="space-y-2">
               <Rule met={validation.minLength} label="At least 8 characters" />
               <Rule met={validation.hasUpperAndLower} label="Upper and lower case letters" />
-              <Rule met={validation.hasNumberOrSymbol} label="At least one number or symbol" />
+              <Rule met={validation.hasNumber} label="At least one number (0-9)" />
+              <Rule met={validation.alphanumericOnly} label="Only letters and numbers (no symbols)" />
               <Rule met={validation.passwordsMatch} label="Passwords match" />
             </ul>
 

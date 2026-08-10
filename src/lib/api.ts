@@ -25,7 +25,8 @@ async function parseResponse<T>(res: Response): Promise<T> {
   }
   const body = await res.json() as Record<string, unknown>;
   if (!body['success']) {
-    throw new Error((body['error'] as string | undefined) ?? 'Request failed');
+    const msg = (body['error'] ?? body['message']) as string | undefined;
+    throw new Error(msg ?? 'Request failed');
   }
   const { success: _s, ...rest } = body;
   if (body['data'] !== undefined) return body['data'] as T;

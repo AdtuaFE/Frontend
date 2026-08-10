@@ -43,6 +43,7 @@ const SignUp = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [submitError, setSubmitError] = useState("");
   const navigate = useNavigate();
   const { login } = useAuth();
 
@@ -81,6 +82,7 @@ const SignUp = () => {
   const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setSubmitError("");
     try {
       const roles = role === "both" ? ["advertiser", "broadcaster"] : [role];
       const res = await api.post<{ user: User; token: string }>("/api/signup", {
@@ -94,7 +96,12 @@ const SignUp = () => {
       login(res.token, res.user);
       navigate("/dashboard");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to create account");
+      const msg = err instanceof Error && err.message !== "Request failed"
+        ? err.message
+        : "Failed to create account. Please try again.";
+      setSubmitError(msg);
+      // If the BE rejected the password, send the user back to the step where they can fix it
+      if (/password/i.test(msg)) setStep("password");
     } finally {
       setIsLoading(false);
     }
@@ -112,7 +119,9 @@ const SignUp = () => {
   const passwordValidation = useMemo(() => ({
     minLength: password.length >= 8,
     hasUpperAndLower: /[a-z]/.test(password) && /[A-Z]/.test(password),
-    hasNumberOrSymbol: /[0-9!@#$%^&*(),.?":{}|<>]/.test(password),
+    // BE accepts alphanumeric passwords only: at least one digit, no symbols
+    hasNumber: /[0-9]/.test(password),
+    alphanumericOnly: /^[a-zA-Z0-9]*$/.test(password),
     notContainsEmail: !password.toLowerCase().includes(email.toLowerCase().split("@")[0]),
     passwordsMatch: confirmPassword === "" || password === confirmPassword,
   }), [password, confirmPassword, email]);
@@ -234,7 +243,7 @@ const SignUp = () => {
                 <Label htmlFor="password" className="text-base">New Password</Label>
                 <div className="relative">
                   <Input id="password" type={showPassword ? "text" : "password"}
-                    value={password} onChange={(e) => setPassword(e.target.value)}
+                    value={password} onChange={(e) => { setPassword(e.target.value); setSubmitError(""); }}
                     className="h-12 rounded-lg pr-10" required />
                   <button type="button" onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
@@ -259,11 +268,15 @@ const SignUp = () => {
                 <ul className="space-y-2">
                   <ValidationRule met={passwordValidation.minLength} label="contains at least 8 characters" />
                   <ValidationRule met={passwordValidation.hasUpperAndLower} label="contains both lower (a-z) and upper case letters (A-Z)" />
-                  <ValidationRule met={passwordValidation.hasNumberOrSymbol} label="contains at least one number (0-9) or a symbol" />
+                  <ValidationRule met={passwordValidation.hasNumber} label="contains at least one number (0-9)" />
+                  <ValidationRule met={passwordValidation.alphanumericOnly} label="contains only letters and numbers (no symbols)" />
                   <ValidationRule met={passwordValidation.notContainsEmail} label="does not contain your email address" />
                   <ValidationRule met={passwordValidation.passwordsMatch} label="passwords match" />
                 </ul>
               </div>
+              {submitError && (
+                <p className="text-sm text-red-500" role="alert">{submitError}</p>
+              )}
               <Button type="submit" className="w-full h-12 text-base font-medium rounded-lg"
                 disabled={!isPasswordValid || password !== confirmPassword}>
                 Continue
@@ -305,6 +318,9 @@ const SignUp = () => {
                   ))}
                 </RadioGroup>
               </div>
+              {submitError && (
+                <p className="text-sm text-red-500" role="alert">{submitError}</p>
+              )}
               <Button type="submit" className="w-full h-12 text-base font-medium rounded-lg"
                 disabled={isLoading || !firstName}>
                 {isLoading ? "Creating account…" : "Create account"}

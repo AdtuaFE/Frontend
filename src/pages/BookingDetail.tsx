@@ -369,7 +369,7 @@ const BookingDetail = () => {
         <div className="max-w-3xl mx-auto">
           <button onClick={() => navigate("/dashboard")}
             className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6">
-            <ArrowLeft className="h-4 w-4" /> Back to dashboard
+            <ArrowLeft className="h-4 w-4" /> Back
           </button>
           <p className="text-muted-foreground">Booking not found.</p>
         </div>
@@ -386,7 +386,7 @@ const BookingDetail = () => {
       <div className="max-w-3xl mx-auto space-y-8">
         <button onClick={() => navigate("/dashboard")}
           className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="h-4 w-4" /> Back to dashboard
+          <ArrowLeft className="h-4 w-4" /> Back
         </button>
 
         {/* Header */}

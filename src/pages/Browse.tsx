@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api";
+import { fmt } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
@@ -29,9 +30,6 @@ type Space = {
   geo_lng: number | null;
   distance_km?: number;
 };
-
-const fmt = (s: string) =>
-  s.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
 
 function SpaceCard({
   space,

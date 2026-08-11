@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { fmt } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import { loadWizardData } from "@/pages/Onboarding";
 import { AppLayout } from "@/components/AppLayout";
@@ -100,8 +101,6 @@ const OFFER_COLORS: Record<string, string> = {
   rejected: "bg-red-100 text-red-700",
   cancelled:"bg-muted text-muted-foreground",
 };
-
-const fmt = (s: string) => s.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
 
 // ─── Detail panel (map click) ─────────────────────────────────────────────────
 

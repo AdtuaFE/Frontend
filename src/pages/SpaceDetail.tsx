@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { AppLayout } from "@/components/AppLayout";
 import { api } from "@/lib/api";
+import { fmt } from "@/lib/utils";
 import { toast } from "sonner";
 import { EditSpaceModal } from "@/components/EditSpaceModal";
 import { CreateBookingModal, type SpaceInfo } from "@/components/CreateBookingModal";
@@ -110,8 +111,6 @@ type AdvertiserBooking = {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const fmt = (s: string | null | undefined) =>
-  !s ? "" : s.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
 const fmtTime = (t: string) => t.slice(0, 5); // "HH:MM:SS" → "HH:MM"
 
 function Field({ label, value }: { label: string; value?: string | number | null }) {

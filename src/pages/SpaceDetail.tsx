@@ -392,7 +392,7 @@ const SpaceDetail = () => {
               </span>
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
-              {[fmt(space.space_type), space.city, space.country].filter(Boolean).join(" · ")}
+              {[fmt(space.space_type), space.city, space.region, space.country].filter(Boolean).join(" · ")}
             </p>
           </div>
 

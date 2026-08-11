@@ -24,6 +24,7 @@ type MySpace = {
   name: string;
   space_type: string;
   city: string | null;
+  region: string | null;
   cpm: number | null;
   is_active: boolean;
 };
@@ -216,7 +217,7 @@ export function SubmitOfferModal({ open, onOpenChange, campaignId, campaignBudge
                           </label>
                           <p className="text-xs text-muted-foreground capitalize">
                             {s.space_type.replace(/_/g, " ")}
-                            {s.city ? ` · ${s.city}` : ""}
+                            {s.city ? ` · ${[s.city, s.region].filter(Boolean).join(', ')}` : ""}
                             {s.cpm != null ? ` · $${s.cpm} CPM` : ""}
                           </p>
                         </div>

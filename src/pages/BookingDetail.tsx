@@ -37,7 +37,7 @@ type Booking = {
 };
 
 type Campaign = { id: number; name: string; advertiser_id: number };
-type Space = { id: number; name: string; city: string | null; country: string | null };
+type Space = { id: number; name: string; city: string | null; region: string | null; country: string | null };
 
 type Asset = {
   id: number;
@@ -369,7 +369,7 @@ const BookingDetail = () => {
   }
 
   const canCancel = booking.status === "pending" && isBookingAdvertiser;
-  const location = [space?.city, space?.country].filter(Boolean).join(", ") || null;
+  const location = [space?.city, space?.region, space?.country].filter(Boolean).join(", ") || null;
 
   return (
     <AppLayout activeNav="home">

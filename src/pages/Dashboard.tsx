@@ -31,6 +31,7 @@ type MySpace = {
   description: string | null;
   space_type: string;
   city: string | null;
+  region: string | null;
   country: string | null;
   cpm: number | null;
   est_daily_impressions: number | null;
@@ -45,6 +46,7 @@ type BrowseSpace = {
   description: string | null;
   space_type: string;
   city: string | null;
+  region: string | null;
   country: string | null;
   cpm: number;
   est_daily_impressions: number | null;
@@ -123,10 +125,10 @@ function SpaceDetailPanel({ space, isOwn, isAdvertiser, onClose, onBook }: {
         </button>
       </div>
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {(space.city || space.country) && (
+        {(space.city || space.region || space.country) && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <MapPin className="h-3.5 w-3.5 shrink-0" />
-            <span>{[space.city, space.country].filter(Boolean).join(', ')}</span>
+            <span>{[space.city, space.region, space.country].filter(Boolean).join(', ')}</span>
           </div>
         )}
         <div className="flex items-center gap-2 flex-wrap">
@@ -344,7 +346,7 @@ function ListView({
                       </span>
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      {fmt(s.space_type)}{s.city ? ` · ${s.city}` : ''}
+                      {fmt(s.space_type)}{s.city ? ` · ${[s.city, s.region].filter(Boolean).join(', ')}` : ''}
                     </p>
                     {s.cpm != null && (
                       <p className="mt-3 text-sm text-muted-foreground">

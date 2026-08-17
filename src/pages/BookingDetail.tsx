@@ -37,7 +37,8 @@ type Booking = {
 };
 
 type Campaign = { id: number; name: string; advertiser_id: number };
-type Space = { id: number; name: string; city: string | null; country: string | null };
+type Space = { id: number; name: string; city: string | null; region: string | null; country: string | null };
+type Slot = { id: number; label: string; start_time: string; end_time: string };
 
 type Asset = {
   id: number;
@@ -65,6 +66,7 @@ const STATUS_BADGE: Record<string, string> = {
 };
 
 const ACCEPTED_TYPES = "image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime";
+const fmtTime = (t: string) => t.slice(0, 5); // "HH:MM:SS" → "HH:MM"
 
 function Field({ label, value }: { label: string; value?: string | number | null }) {
   if (value == null || value === "") return null;
@@ -205,6 +207,13 @@ const BookingDetail = () => {
   const { data: space } = useQuery<Space>({
     queryKey: ["space", booking?.space_id],
     queryFn: () => api.get<Space>(`/api/spaces/${booking!.space_id}`),
+    enabled: !!booking,
+  });
+
+  // booking_slots only carries slot_id — look up the label/time range from the space's slots.
+  const { data: slots = [] } = useQuery<Slot[]>({
+    queryKey: ["space-slots", booking?.space_id],
+    queryFn: () => api.get<Slot[]>(`/api/spaces/${booking!.space_id}/slots`),
     enabled: !!booking,
   });
 
@@ -360,7 +369,7 @@ const BookingDetail = () => {
         <div className="max-w-3xl mx-auto">
           <button onClick={() => navigate("/dashboard")}
             className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6">
-            <ArrowLeft className="h-4 w-4" /> Back to dashboard
+            <ArrowLeft className="h-4 w-4" /> Back
           </button>
           <p className="text-muted-foreground">Booking not found.</p>
         </div>
@@ -369,14 +378,15 @@ const BookingDetail = () => {
   }
 
   const canCancel = booking.status === "pending" && isBookingAdvertiser;
-  const location = [space?.city, space?.country].filter(Boolean).join(", ") || null;
+  const location = [space?.city, space?.region, space?.country].filter(Boolean).join(", ") || null;
+  const slotById = new Map(slots.map(s => [s.id, s]));
 
   return (
     <AppLayout activeNav="home">
       <div className="max-w-3xl mx-auto space-y-8">
         <button onClick={() => navigate("/dashboard")}
           className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="h-4 w-4" /> Back to dashboard
+          <ArrowLeft className="h-4 w-4" /> Back
         </button>
 
         {/* Header */}
@@ -437,11 +447,17 @@ const BookingDetail = () => {
             <div className="col-span-2 sm:col-span-3">
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Time slots</p>
               <div className="mt-1 flex flex-wrap gap-2">
-                {booking.booking_slots.map(bs => (
-                  <span key={bs.slot_id} className="rounded-md bg-muted px-2.5 py-1 text-xs">
-                    Slot #{bs.slot_id} · {bs.daily_playbacks_allocated.toLocaleString()} plays/day
-                  </span>
-                ))}
+                {booking.booking_slots.map(bs => {
+                  const slot = slotById.get(bs.slot_id);
+                  const slotLabel = slot
+                    ? `${slot.label} ${fmtTime(slot.start_time)}–${fmtTime(slot.end_time)} UTC`
+                    : `Slot #${bs.slot_id}`;
+                  return (
+                    <span key={bs.slot_id} className="rounded-md bg-muted px-2.5 py-1 text-xs">
+                      {slotLabel} · {bs.daily_playbacks_allocated.toLocaleString()} plays/day
+                    </span>
+                  );
+                })}
               </div>
             </div>
           )}

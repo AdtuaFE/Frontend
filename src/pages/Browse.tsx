@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api";
+import { fmt } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
@@ -20,6 +21,7 @@ type Space = {
   space_type: string;
   display_type: string;
   city: string | null;
+  region: string | null;
   country: string | null;
   cpm: number;
   est_daily_impressions: number | null;
@@ -28,9 +30,6 @@ type Space = {
   geo_lng: number | null;
   distance_km?: number;
 };
-
-const fmt = (s: string) =>
-  s.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
 
 function SpaceCard({
   space,
@@ -57,10 +56,10 @@ function SpaceCard({
             <Monitor className="h-3.5 w-3.5" />
             {fmt(space.space_type)}
           </span>
-          {(space.city || space.country) && (
+          {(space.city || space.region || space.country) && (
             <span className="flex items-center gap-1">
               <MapPin className="h-3.5 w-3.5" />
-              {[space.city, space.country].filter(Boolean).join(", ")}
+              {[space.city, space.region, space.country].filter(Boolean).join(", ")}
             </span>
           )}
           {space.distance_km != null && (

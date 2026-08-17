@@ -5,20 +5,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api";
 
-type AdvertiserBooking = {
+type Booking = {
   id: number;
   campaign_id: number;
   space_id: number;
-  status: string;
-  start_date: string;
-  end_date: string;
-  total_price: number | null;
-};
-
-type BroadcasterBooking = {
-  id: number;
-  campaign_id: number;
-  space_id: number;
+  broadcaster_id: number;
   status: string;
   start_date: string;
   end_date: string;
@@ -42,19 +33,22 @@ const Bookings = () => {
   const isBroadcaster = user?.roles.includes("broadcaster") ?? false;
   const isDualRole = isAdvertiser && isBroadcaster;
 
-  const { data: advertiserBookings = [], isLoading: loadingAdv } = useQuery<AdvertiserBooking[]>({
-    queryKey: ["bookings-advertiser"],
-    queryFn: () => api.get<AdvertiserBooking[]>("/api/bookings"),
-    enabled: isAdvertiser,
+  // /api/bookings returns every booking the user is party to — either placed as an
+  // advertiser or landing on a space they broadcast. For dual-role users that's a single
+  // merged list, so split it by comparing broadcaster_id to the current user's id rather
+  // than firing two queries (which would double up bookings under both headings).
+  const { data: bookings = [], isLoading } = useQuery<Booking[]>({
+    queryKey: ["bookings"],
+    queryFn: () => api.get<Booking[]>("/api/bookings"),
+    enabled: isAdvertiser || isBroadcaster,
   });
 
-  const { data: broadcasterBookings = [], isLoading: loadingBc } = useQuery<BroadcasterBooking[]>({
-    queryKey: ["broadcaster-bookings"],
-    queryFn: () => api.get<BroadcasterBooking[]>("/api/broadcaster/bookings/incoming"),
-    enabled: isBroadcaster,
-  });
-
-  const isLoading = loadingAdv || loadingBc;
+  const advertiserBookings = isAdvertiser
+    ? bookings.filter(b => b.broadcaster_id !== user?.id)
+    : [];
+  const broadcasterBookings = isBroadcaster
+    ? bookings.filter(b => b.broadcaster_id === user?.id)
+    : [];
 
   if (isLoading) {
     return (

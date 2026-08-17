@@ -13,6 +13,7 @@ import { EditCampaignModal, type CampaignFields } from "@/components/EditCampaig
 import { SubmitOfferModal } from "@/components/SubmitOfferModal";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api";
+import { fmt } from "@/lib/utils";
 import { toast } from "sonner";
 
 type Campaign = CampaignFields & {
@@ -237,7 +238,7 @@ const CampaignDetail = () => {
                   ? "bg-orange-100 text-orange-700"
                   : "bg-muted text-muted-foreground"
               }`}>
-                {campaign.visibility ?? "private"}
+                {fmt(campaign.visibility) || "Private"}
               </span>
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -292,11 +293,11 @@ const CampaignDetail = () => {
           <Field label="Objective" value={campaign.objective} />
           <Field label="Total budget"
             value={campaign.total_budget != null ? `$${campaign.total_budget.toLocaleString()}` : null} />
-          <Field label="Budget period" value={campaign.budget_period} />
+          <Field label="Budget period" value={fmt(campaign.budget_period)} />
           <Field label="Start date" value={campaign.start_date} />
           <Field label="End date" value={campaign.end_date} />
           <Field label="Target location" value={campaign.location} />
-          <Field label="Ad type" value={campaign.ad_type} />
+          <Field label="Ad type" value={fmt(campaign.ad_type)} />
         </div>
 
         {/* Advertiser: status lifecycle controls */}

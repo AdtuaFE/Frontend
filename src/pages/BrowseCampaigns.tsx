@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { api } from "@/lib/api";
+import { fmt } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,8 +20,6 @@ type Campaign = {
   status: string;
   visibility: string;
 };
-
-const fmt = (s: string) => s.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
 
 function MetaChip({ icon: Icon, label }: { icon: typeof MapPin; label: string }) {
   return (

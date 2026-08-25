@@ -1,7 +1,12 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 
-export function ProtectedRoute({ children }: { children: React.ReactNode }) {
+type ProtectedRouteProps = {
+  children: React.ReactNode;
+  requiredRole?: 'advertiser' | 'broadcaster';
+};
+
+export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
   const { user, isLoading } = useAuth();
 
   if (isLoading) {
@@ -14,6 +19,10 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (!user) {
     return <Navigate to="/signin" replace />;
+  }
+
+  if (requiredRole && !user.roles.includes(requiredRole)) {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;

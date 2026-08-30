@@ -40,7 +40,18 @@ const App = () => (
             <Route path="/campaigns/:id" element={<ProtectedRoute><CampaignDetail /></ProtectedRoute>} />
             <Route path="/bookings/:id" element={<ProtectedRoute><BookingDetail /></ProtectedRoute>} />
             <Route path="/spaces/:id" element={<ProtectedRoute><SpaceDetail /></ProtectedRoute>} />
-            <Route path="/campaigns" element={<ProtectedRoute><BrowseCampaigns /></ProtectedRoute>} />
+            <Route
+              path="/campaigns"
+              element={<ProtectedRoute requiredRole="advertiser"><BrowseCampaigns /></ProtectedRoute>}
+            />
+            <Route
+              path="/campaigns/marketplace"
+              element={
+                <ProtectedRoute requiredRole="broadcaster">
+                  <BrowseCampaigns mode="marketplace" />
+                </ProtectedRoute>
+              }
+            />
             <Route path="/bookings" element={<ProtectedRoute><Bookings /></ProtectedRoute>} />
             <Route path="/player" element={<PlayerPage />} />
             <Route path="/player/:deviceId" element={<PlayerPage />} />

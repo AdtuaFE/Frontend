@@ -23,6 +23,7 @@ export function AppLayout({ children, activeNav, noPadding, rightSlot }: Props) 
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const isAdvertiser = user?.roles.includes("advertiser") ?? false;
+  const isBroadcaster = user?.roles.includes("broadcaster") ?? false;
 
   const initials =
     [user?.first_name?.[0], user?.last_name?.[0]].filter(Boolean).join("").toUpperCase() || "U";
@@ -58,34 +59,45 @@ export function AppLayout({ children, activeNav, noPadding, rightSlot }: Props) 
               Browse
             </button>
 
-            {/* Campaigns with hover dropdown */}
-            <div className="relative group">
-              <button className={`${navCls("campaigns")} flex items-center gap-1`}>
-                Campaigns
-                <ChevronDown className="h-3.5 w-3.5 opacity-60" />
-              </button>
-              {/* pt-1 bridges the gap between button and dropdown so hover doesn't break */}
-              <div className="absolute top-full left-0 pt-1 hidden group-hover:block z-50">
-                <div className="bg-background border rounded-lg shadow-lg py-1 min-w-[190px]">
-                  <button
-                    onClick={() => navigate("/campaigns")}
-                    className="w-full px-4 py-2 text-sm text-left hover:bg-accent transition-colors">
-                    Browse campaigns
-                  </button>
-                  {isAdvertiser && (
-                    <>
-                      <div className="border-t mx-3 my-1" />
+            {/* Campaigns with role-gated hover dropdown */}
+            {(isAdvertiser || isBroadcaster) && (
+              <div className="relative group">
+                <button className={`${navCls("campaigns")} flex items-center gap-1`}>
+                  Campaigns
+                  <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+                </button>
+                {/* pt-1 bridges the gap between button and dropdown so hover doesn't break */}
+                <div className="absolute top-full left-0 pt-1 hidden group-hover:block z-50">
+                  <div className="bg-background border rounded-lg shadow-lg py-1 min-w-[190px]">
+                    {isAdvertiser && (
                       <button
-                        onClick={() => setCampaignModalOpen(true)}
-                        className="w-full px-4 py-2 text-sm text-left hover:bg-accent transition-colors flex items-center gap-2 font-medium text-[#ff8a00]">
-                        <Plus className="h-4 w-4" />
-                        New Campaign
+                        onClick={() => navigate("/campaigns")}
+                        className="w-full px-4 py-2 text-sm text-left hover:bg-accent transition-colors">
+                        All Campaigns
                       </button>
-                    </>
-                  )}
+                    )}
+                    {isBroadcaster && (
+                      <button
+                        onClick={() => navigate("/campaigns/marketplace")}
+                        className="w-full px-4 py-2 text-sm text-left hover:bg-accent transition-colors">
+                        Browse marketplace
+                      </button>
+                    )}
+                    {isAdvertiser && (
+                      <>
+                        <div className="border-t mx-3 my-1" />
+                        <button
+                          onClick={() => setCampaignModalOpen(true)}
+                          className="w-full px-4 py-2 text-sm text-left hover:bg-accent transition-colors flex items-center gap-2 font-medium text-[#ff8a00]">
+                          <Plus className="h-4 w-4" />
+                          New Campaign
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             <button onClick={() => navigate("/bookings")} className={navCls("bookings")}>
               Bookings

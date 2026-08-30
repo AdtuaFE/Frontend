@@ -30,12 +30,18 @@ function MetaChip({ icon: Icon, label }: { icon: typeof MapPin; label: string })
   );
 }
 
-const BrowseCampaigns = () => {
+type BrowseCampaignsProps = {
+  mode?: "owned" | "marketplace";
+};
+
+const BrowseCampaigns = ({ mode = "owned" }: BrowseCampaignsProps) => {
   const navigate = useNavigate();
+  const isMarketplace = mode === "marketplace";
 
   const { data: campaigns = [], isLoading } = useQuery<Campaign[]>({
-    queryKey: ["campaigns-public"],
-    queryFn: () => api.get<Campaign[]>("/api/campaigns/public"),
+    queryKey: [isMarketplace ? "campaigns-public" : "campaigns"],
+    queryFn: () =>
+      api.get<Campaign[]>(isMarketplace ? "/api/campaigns/public" : "/api/campaigns"),
   });
 
   if (isLoading) {
@@ -54,13 +60,17 @@ const BrowseCampaigns = () => {
         <div>
           <h1 className="text-3xl font-bold">Campaigns</h1>
           <p className="mt-1 text-muted-foreground">
-            Browse active campaigns looking for ad spaces.
+            {isMarketplace
+              ? "Browse active campaigns looking for ad spaces."
+              : "View and manage all your campaigns."}
           </p>
         </div>
 
         {campaigns.length === 0 ? (
           <div className="flex items-center justify-center py-20 text-muted-foreground">
-            No active public campaigns right now. Check back soon.
+            {isMarketplace
+              ? "No active public campaigns right now. Check back soon."
+              : "No campaigns yet. Create your first campaign to get started."}
           </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

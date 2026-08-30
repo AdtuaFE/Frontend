@@ -154,7 +154,7 @@ export function EditSpaceModal({ open, onOpenChange, space }: Props) {
     setIsSubmitting(true);
     try {
       const interests = form.interests.split(",").map(i => i.trim()).filter(Boolean);
-      await api.put(`/api/spaces/${space.id}`, {
+      await api.patch(`/api/spaces/${space.id}`, {
         name: form.name,
         description: form.description || undefined,
         space_type: form.spaceType,

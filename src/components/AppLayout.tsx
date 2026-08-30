@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { ProfileModal } from "@/components/ProfileModal";
 import { CreateCampaignModal } from "@/components/CreateCampaignModal";
+import { CreateSpaceModal } from "@/components/CreateSpaceModal";
 
 export type NavKey = "home" | "browse" | "campaigns" | "bookings" | "analytics";
 
@@ -19,6 +20,7 @@ type Props = {
 export function AppLayout({ children, activeNav, noPadding, rightSlot }: Props) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [campaignModalOpen, setCampaignModalOpen] = useState(false);
+  const [spaceModalOpen, setSpaceModalOpen] = useState(false);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -55,9 +57,34 @@ export function AppLayout({ children, activeNav, noPadding, rightSlot }: Props) 
 
           {/* Primary nav */}
           <nav className="flex items-center gap-0.5">
-            <button onClick={() => navigate("/browse")} className={navCls("browse")}>
-              Browse
-            </button>
+            {isBroadcaster ? (
+              <div className="relative group">
+                <button className={`${navCls("browse")} flex items-center gap-1`}>
+                  Browse
+                  <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+                </button>
+                <div className="absolute top-full left-0 pt-1 hidden group-hover:block z-50">
+                  <div className="bg-background border rounded-lg shadow-lg py-1 min-w-[180px]">
+                    <button
+                      onClick={() => navigate("/browse")}
+                      className="w-full px-4 py-2 text-sm text-left hover:bg-accent hover:text-accent-foreground transition-colors">
+                      Browse spaces
+                    </button>
+                    <div className="border-t mx-3 my-1" />
+                    <button
+                      onClick={() => setSpaceModalOpen(true)}
+                      className="w-full px-4 py-2 text-sm text-left hover:bg-accent hover:text-accent-foreground transition-colors flex items-center gap-2 font-medium text-[#ff8a00]">
+                      <Plus className="h-4 w-4" />
+                      New Space
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <button onClick={() => navigate("/browse")} className={navCls("browse")}>
+                Browse
+              </button>
+            )}
 
             {/* Campaigns with role-gated hover dropdown */}
             {(isAdvertiser || isBroadcaster) && (
@@ -72,14 +99,14 @@ export function AppLayout({ children, activeNav, noPadding, rightSlot }: Props) 
                     {isAdvertiser && (
                       <button
                         onClick={() => navigate("/campaigns")}
-                        className="w-full px-4 py-2 text-sm text-left hover:bg-accent transition-colors">
+                        className="w-full px-4 py-2 text-sm text-left hover:bg-accent hover:text-accent-foreground transition-colors">
                         All Campaigns
                       </button>
                     )}
                     {isBroadcaster && (
                       <button
                         onClick={() => navigate("/campaigns/marketplace")}
-                        className="w-full px-4 py-2 text-sm text-left hover:bg-accent transition-colors">
+                        className="w-full px-4 py-2 text-sm text-left hover:bg-accent hover:text-accent-foreground transition-colors">
                         Browse marketplace
                       </button>
                     )}
@@ -88,7 +115,7 @@ export function AppLayout({ children, activeNav, noPadding, rightSlot }: Props) 
                         <div className="border-t mx-3 my-1" />
                         <button
                           onClick={() => setCampaignModalOpen(true)}
-                          className="w-full px-4 py-2 text-sm text-left hover:bg-accent transition-colors flex items-center gap-2 font-medium text-[#ff8a00]">
+                          className="w-full px-4 py-2 text-sm text-left hover:bg-accent hover:text-accent-foreground transition-colors flex items-center gap-2 font-medium text-[#ff8a00]">
                           <Plus className="h-4 w-4" />
                           New Campaign
                         </button>
@@ -122,13 +149,13 @@ export function AppLayout({ children, activeNav, noPadding, rightSlot }: Props) 
               <div className="bg-background border rounded-lg shadow-lg py-1 min-w-[160px]">
                 <button
                   onClick={() => setProfileOpen(true)}
-                  className="w-full px-4 py-2 text-sm text-left hover:bg-accent transition-colors">
+                  className="w-full px-4 py-2 text-sm text-left hover:bg-accent hover:text-accent-foreground transition-colors">
                   Profile
                 </button>
                 <div className="border-t mx-3 my-1" />
                 <button
                   onClick={handleLogout}
-                  className="w-full px-4 py-2 text-sm text-left hover:bg-accent transition-colors text-muted-foreground">
+                  className="w-full px-4 py-2 text-sm text-left hover:bg-accent hover:text-accent-foreground transition-colors text-muted-foreground">
                   Sign out
                 </button>
               </div>
@@ -144,6 +171,7 @@ export function AppLayout({ children, activeNav, noPadding, rightSlot }: Props) 
 
       <ProfileModal open={profileOpen} onOpenChange={setProfileOpen} />
       <CreateCampaignModal open={campaignModalOpen} onOpenChange={setCampaignModalOpen} />
+      <CreateSpaceModal open={spaceModalOpen} onOpenChange={setSpaceModalOpen} />
     </>
   );
 }

@@ -48,7 +48,7 @@ const App = () => (
               path="/campaigns/marketplace"
               element={
                 <ProtectedRoute requiredRole="broadcaster">
-                  <BrowseCampaigns mode="marketplace" />
+                  <BrowseCampaigns isMarketplace />
                 </ProtectedRoute>
               }
             />

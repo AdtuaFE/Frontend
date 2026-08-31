@@ -31,12 +31,11 @@ function MetaChip({ icon: Icon, label }: { icon: typeof MapPin; label: string })
 }
 
 type BrowseCampaignsProps = {
-  mode?: "owned" | "marketplace";
+  isMarketplace?: boolean;
 };
 
-const BrowseCampaigns = ({ mode = "owned" }: BrowseCampaignsProps) => {
+const BrowseCampaigns = ({ isMarketplace = false }: BrowseCampaignsProps) => {
   const navigate = useNavigate();
-  const isMarketplace = mode === "marketplace";
 
   const { data: campaigns = [], isLoading } = useQuery<Campaign[]>({
     queryKey: [isMarketplace ? "campaigns-public" : "campaigns"],

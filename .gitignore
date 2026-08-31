@@ -15,6 +15,11 @@ dist-ssr
 # Local-only mock API for development — never commit
 mock-backend/
 
+# Playwright
+test-results/
+playwright-report/
+e2e/.env
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

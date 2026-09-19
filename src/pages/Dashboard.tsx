@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { CircleCheck, Circle, Plus, MapPin, X, List, Map } from "lucide-react";
+import { CircleCheck, Circle, Plus, MapPin, X, LayoutDashboard, Map } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
@@ -14,6 +14,7 @@ import { CreateSpaceModal } from "@/components/CreateSpaceModal";
 import { BusinessProfileModal } from "@/components/BusinessProfileModal";
 import { CreateBookingModal, type SpaceInfo } from "@/components/CreateBookingModal";
 import { SpaceMap, type MapSpace } from "@/components/SpaceMap";
+import { WelcomeScreen } from "@/components/WelcomeScreen";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -520,13 +521,14 @@ function ListView({
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 const Dashboard = () => {
-  const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
+  const [viewMode, setViewMode] = useState<'map' | 'list'>('list');
   const [campaignModalOpen, setCampaignModalOpen] = useState(false);
   const [spaceModalOpen, setSpaceModalOpen] = useState(false);
   const [bizModalOpen, setBizModalOpen] = useState(false);
   const [bizComplete, setBizComplete] = useState(() => loadWizardData().accountType !== null);
   const [bookingSpace, setBookingSpace] = useState<SpaceInfo | null>(null);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const { user } = useAuth();
   const isAdvertiser = user?.roles.includes("advertiser") ?? false;
@@ -539,17 +541,21 @@ const Dashboard = () => {
     queryFn: () => api.get<BrowseSpace[]>("/api/spaces/search"),
   });
 
-  const { data: mySpaces = [] } = useQuery<MySpace[]>({
+  const { data: mySpaces = [], isLoading: spacesLoading } = useQuery<MySpace[]>({
     queryKey: ["spaces-mine"],
     queryFn: () => api.get<MySpace[]>("/api/spaces/mine"),
     enabled: isBroadcaster,
   });
 
-  const { data: campaigns = [] } = useQuery<Campaign[]>({
+  const { data: campaigns = [], isLoading: campaignsLoading } = useQuery<Campaign[]>({
     queryKey: ["campaigns"],
     queryFn: () => api.get<Campaign[]>("/api/campaigns"),
     enabled: isAdvertiser,
   });
+
+  const dashboardLoading = (isBroadcaster && spacesLoading) || (isAdvertiser && campaignsLoading);
+  const isNewUser =
+    (!isAdvertiser || campaigns.length === 0) && (!isBroadcaster || mySpaces.length === 0);
 
   const { data: advertiserBookings = [] } = useQuery<AdvertiserBooking[]>({
     queryKey: ["bookings-advertiser"],
@@ -577,14 +583,28 @@ const Dashboard = () => {
   ];
   const allChecklistDone = checklistItems.every(i => i.completed);
 
+  const q = searchQuery.trim().toLowerCase();
+  const filteredMySpaces = q ? mySpaces.filter(s => s.name.toLowerCase().includes(q)) : mySpaces;
+  const filteredCampaigns = q ? campaigns.filter(c => c.name.toLowerCase().includes(q)) : campaigns;
+
   const toggle = (
-    <button
-      onClick={() => setViewMode(v => v === 'map' ? 'list' : 'map')}
-      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium hover:bg-accent transition-colors">
-      {viewMode === 'map'
-        ? <><List className="h-4 w-4" /><span>List</span></>
-        : <><Map className="h-4 w-4" /><span>Map</span></>}
-    </button>
+    <div className="flex items-center border border-[#e8e8e8] rounded-lg overflow-hidden shrink-0">
+      {(["list", "map"] as const).map((mode, i) => {
+        const Icon = mode === "list" ? LayoutDashboard : Map;
+        const active = viewMode === mode;
+        return (
+          <button
+            key={mode}
+            onClick={() => setViewMode(mode)}
+            className={`flex items-center gap-2 p-2 text-sm transition-colors ${i === 0 ? "border-r border-[#e8e8e8]" : ""} ${
+              active ? "bg-[#f9f9f9] text-[#4a5565] font-medium" : "bg-white text-[#9c9c9c] hover:text-[#4a5565]"
+            }`}>
+            <Icon className="h-4 w-4" />
+            <span>{mode === "list" ? "List" : "Map"}</span>
+          </button>
+        );
+      })}
+    </div>
   );
 
   return (
@@ -592,6 +612,9 @@ const Dashboard = () => {
       activeNav="home"
       noPadding={viewMode === 'map'}
       rightSlot={toggle}
+      searchValue={searchQuery}
+      onSearchChange={setSearchQuery}
+      searchPlaceholder="Search campaigns, spaces, analytics"
 >
 
       {viewMode === 'map' ? (
@@ -604,10 +627,19 @@ const Dashboard = () => {
           onSelect={handleSelect}
           onBook={setBookingSpace}
         />
+      ) : dashboardLoading ? (
+        <div className="h-full flex items-center justify-center text-[#9c9c9c]">Loading…</div>
+      ) : isNewUser ? (
+        <WelcomeScreen
+          isAdvertiser={isAdvertiser}
+          isBroadcaster={isBroadcaster}
+          onCreateCampaign={() => setCampaignModalOpen(true)}
+          onAddSpace={() => setSpaceModalOpen(true)}
+        />
       ) : (
         <ListView
-          mySpaces={mySpaces}
-          campaigns={campaigns}
+          mySpaces={filteredMySpaces}
+          campaigns={filteredCampaigns}
           advertiserBookings={advertiserBookings}
           broadcasterBookings={broadcasterBookings}
           myOffers={myOffers}

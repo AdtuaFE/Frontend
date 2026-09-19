@@ -13,7 +13,7 @@ import { MapPin, Monitor, Navigation } from "lucide-react";
 import { CreateBookingModal, type SpaceInfo } from "@/components/CreateBookingModal";
 import { LocationAutocomplete } from "@/components/LocationAutocomplete";
 
-type Space = {
+export type Space = {
   id: number;
   broadcaster_id: number;
   name: string;
@@ -31,7 +31,7 @@ type Space = {
   distance_km?: number;
 };
 
-function SpaceCard({
+export function SpaceCard({
   space,
   onBook,
 }: {
@@ -118,6 +118,7 @@ const Browse = () => {
   const [locationQuery, setLocationQuery] = useState("");
   const [searchCoords, setSearchCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [radius, setRadius] = useState(10);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const { data: allSpaces = [], isLoading } = useQuery<Space[]>({
     queryKey: ["spaces-search", searchCoords?.lat, searchCoords?.lng, radius],
@@ -140,7 +141,11 @@ const Browse = () => {
   });
 
   const mySpaceIds = new Set(mySpaces.map(s => s.id));
-  const otherSpaces = allSpaces.filter(s => !mySpaceIds.has(s.id));
+  const q = searchQuery.trim().toLowerCase();
+  const matchesQuery = (s: Space) =>
+    !q || s.name.toLowerCase().includes(q) || (s.city ?? "").toLowerCase().includes(q);
+
+  const otherSpaces = allSpaces.filter(s => !mySpaceIds.has(s.id) && matchesQuery(s));
 
   const clearLocation = () => {
     setSearchCoords(null);
@@ -149,7 +154,8 @@ const Browse = () => {
 
   if (isLoading) {
     return (
-      <AppLayout activeNav="browse">
+      <AppLayout activeNav="browse" searchValue={searchQuery} onSearchChange={setSearchQuery}
+        searchPlaceholder="Search campaigns, spaces, analytics">
         <div className="flex items-center justify-center py-40 text-muted-foreground">
           Loading spaces…
         </div>
@@ -158,7 +164,8 @@ const Browse = () => {
   }
 
   return (
-    <AppLayout activeNav="browse">
+    <AppLayout activeNav="browse" searchValue={searchQuery} onSearchChange={setSearchQuery}
+      searchPlaceholder="Search campaigns, spaces, analytics">
       <div className="max-w-6xl mx-auto space-y-8">
         <div>
           <h1 className="text-3xl font-bold">Browse spaces</h1>
@@ -203,22 +210,9 @@ const Browse = () => {
           </p>
         )}
 
-        {/* Broadcaster's own spaces — no book button, no radius filter */}
-        {isBroadcaster && mySpaces.length > 0 && (
-          <div>
-            <SectionHeading title="My spaces" count={mySpaces.length} />
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {mySpaces.map(s => <SpaceCard key={s.id} space={s} />)}
-            </div>
-          </div>
-        )}
-
         {/* All other spaces */}
         <div>
-          <SectionHeading
-            title={isBroadcaster ? "Other spaces" : "All spaces"}
-            count={otherSpaces.length}
-          />
+          <SectionHeading title="All spaces" count={otherSpaces.length} />
           {otherSpaces.length > 0 ? (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {otherSpaces.map(s => (
@@ -233,7 +227,7 @@ const Browse = () => {
             <div className="flex items-center justify-center py-20 text-muted-foreground">
               {searchCoords
                 ? `No spaces found within ${radius} km. Try increasing the radius.`
-                : isBroadcaster ? "No other spaces listed yet." : "No spaces listed yet."}
+                : q ? "No spaces match your search." : "No spaces listed yet."}
             </div>
           )}
         </div>

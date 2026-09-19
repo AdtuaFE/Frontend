@@ -1,10 +1,14 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "@/lib/api";
 import { fmt } from "@/lib/utils";
+import { useAuth } from "@/context/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
-import { MapPin, CalendarRange, DollarSign, Monitor } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { MapPin, CalendarRange, DollarSign, Monitor, Plus } from "lucide-react";
+import { CreateCampaignModal } from "@/components/CreateCampaignModal";
 
 type Campaign = {
   id: number;
@@ -36,6 +40,10 @@ type BrowseCampaignsProps = {
 
 const BrowseCampaigns = ({ isMarketplace = false }: BrowseCampaignsProps) => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isAdvertiser = user?.roles.includes("advertiser") ?? false;
+  const [campaignModalOpen, setCampaignModalOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const { data: campaigns = [], isLoading } = useQuery<Campaign[]>({
     queryKey: [isMarketplace ? "campaigns-public" : "campaigns"],
@@ -43,9 +51,13 @@ const BrowseCampaigns = ({ isMarketplace = false }: BrowseCampaignsProps) => {
       api.get<Campaign[]>(isMarketplace ? "/api/campaigns/public" : "/api/campaigns"),
   });
 
+  const q = searchQuery.trim().toLowerCase();
+  const filteredCampaigns = q ? campaigns.filter(c => c.name.toLowerCase().includes(q)) : campaigns;
+
   if (isLoading) {
     return (
-      <AppLayout activeNav="campaigns">
+      <AppLayout activeNav="campaigns" searchValue={searchQuery} onSearchChange={setSearchQuery}
+        searchPlaceholder="Search campaigns, spaces, analytics">
         <div className="flex items-center justify-center py-40 text-muted-foreground">
           Loading campaigns…
         </div>
@@ -54,26 +66,36 @@ const BrowseCampaigns = ({ isMarketplace = false }: BrowseCampaignsProps) => {
   }
 
   return (
-    <AppLayout activeNav="campaigns">
+    <AppLayout activeNav="campaigns" searchValue={searchQuery} onSearchChange={setSearchQuery}
+      searchPlaceholder="Search campaigns, spaces, analytics">
       <div className="max-w-6xl mx-auto space-y-8">
-        <div>
-          <h1 className="text-3xl font-bold">Campaigns</h1>
-          <p className="mt-1 text-muted-foreground">
-            {isMarketplace
-              ? "Browse active campaigns looking for ad spaces."
-              : "View and manage all your campaigns."}
-          </p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold">Campaigns</h1>
+            <p className="mt-1 text-muted-foreground">
+              {isMarketplace
+                ? "Browse active campaigns looking for ad spaces."
+                : "View and manage all your campaigns."}
+            </p>
+          </div>
+          {!isMarketplace && isAdvertiser && (
+            <Button className="bg-[#ff8a00] hover:bg-[#e77700] text-white shrink-0" onClick={() => setCampaignModalOpen(true)}>
+              <Plus className="h-4 w-4 mr-1.5" />New campaign
+            </Button>
+          )}
         </div>
 
-        {campaigns.length === 0 ? (
+        {filteredCampaigns.length === 0 ? (
           <div className="flex items-center justify-center py-20 text-muted-foreground">
-            {isMarketplace
+            {q
+              ? "No campaigns match your search."
+              : isMarketplace
               ? "No active public campaigns right now. Check back soon."
               : "No campaigns yet. Create your first campaign to get started."}
           </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {campaigns.map(c => (
+            {filteredCampaigns.map(c => (
               <Card
                 key={c.id}
                 className="cursor-pointer hover:border-[#ff8a00] transition-colors flex flex-col"
@@ -112,6 +134,7 @@ const BrowseCampaigns = ({ isMarketplace = false }: BrowseCampaignsProps) => {
           </div>
         )}
       </div>
+      <CreateCampaignModal open={campaignModalOpen} onOpenChange={setCampaignModalOpen} />
     </AppLayout>
   );
 };

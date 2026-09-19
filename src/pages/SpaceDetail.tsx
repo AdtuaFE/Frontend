@@ -360,7 +360,7 @@ const SpaceDetail = () => {
   const hasUsageData = usage?.slots && usage.slots.some(s => s.total_allocated_playbacks > 0);
 
   return (
-    <AppLayout activeNav="browse">
+    <AppLayout activeNav={isOwner ? "spaces" : "browse"}>
       <div className="max-w-4xl mx-auto space-y-8">
         <button onClick={() => navigate(-1)}
           className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">

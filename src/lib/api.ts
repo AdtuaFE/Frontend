@@ -5,21 +5,14 @@ export function assetUrl(url: string): string {
   return `${BASE}${url}`;
 }
 
-export function getToken(): string | null {
-  return localStorage.getItem('adtua_token');
-}
-
-export function setToken(token: string): void {
-  localStorage.setItem('adtua_token', token);
-}
-
-export function clearToken(): void {
+// The JWT now lives in an httpOnly cookie the browser sends automatically; this only
+// removes tokens left in localStorage by the old bearer-token flow.
+export function clearLegacyToken(): void {
   localStorage.removeItem('adtua_token');
 }
 
 async function parseResponse<T>(res: Response): Promise<T> {
   if (res.status === 401) {
-    clearToken();
     window.location.href = '/signin';
     throw new Error('Unauthorized');
   }
@@ -41,16 +34,23 @@ async function parseResponse<T>(res: Response): Promise<T> {
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const token = getToken();
   const res = await fetch(`${BASE}${path}`, {
     ...init,
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(init.headers ?? {}),
     },
   });
 
+  return parseResponse<T>(res);
+}
+
+// Session check on page load: a 401 just means "not signed in", so it must not
+// trigger the global redirect-to-signin (that would loop on public pages).
+export async function fetchCurrentUser<T>(): Promise<T | null> {
+  const res = await fetch(`${BASE}/api/user/profile`, { credentials: 'include' });
+  if (res.status === 401) return null;
   return parseResponse<T>(res);
 }
 
@@ -64,12 +64,11 @@ export const api = {
     request<T>(path, { method: 'PATCH', body: data !== undefined ? JSON.stringify(data) : undefined }),
   delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
   postMultipart: async <T>(path: string, formData: FormData): Promise<T> => {
-    const token = getToken();
     const res = await fetch(`${BASE}${path}`, {
       method: 'POST',
       body: formData,
       // No Content-Type — browser sets it with multipart boundary
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: 'include',
     });
     return parseResponse<T>(res);
   },

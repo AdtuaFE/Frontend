@@ -11,6 +11,7 @@ import { toast } from "sonner";
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  defaultTab?: "details" | "password";
 };
 
 type DetailsForm = {
@@ -45,7 +46,7 @@ function toDetailsForm(user: User): DetailsForm {
   };
 }
 
-export function ProfileModal({ open, onOpenChange }: Props) {
+export function ProfileModal({ open, onOpenChange, defaultTab = "details" }: Props) {
   const { user, refreshUser } = useAuth();
 
   const [details, setDetails] = useState<DetailsForm>(() =>
@@ -139,7 +140,7 @@ export function ProfileModal({ open, onOpenChange }: Props) {
           </div>
         </div>
 
-        <Tabs defaultValue="details" className="mt-1">
+        <Tabs defaultValue={defaultTab} className="mt-1">
           <TabsList className="grid grid-cols-2 w-full">
             <TabsTrigger value="details">Personal details</TabsTrigger>
             <TabsTrigger value="password">Change password</TabsTrigger>

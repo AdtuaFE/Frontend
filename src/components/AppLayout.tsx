@@ -1,15 +1,16 @@
 import { useState, type ReactNode } from "react";
 import {
-  House, Compass, Megaphone, MonitorCheck, Store, FileCheck, ChartSpline,
+  House, Compass, Megaphone, MonitorCheck, Store, FileCheck,
   Search, Settings, Bell, PanelLeftOpen, PanelLeftClose, ChevronDown, X,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { ProfileModal } from "@/components/ProfileModal";
+import { getPlanState, isPaid } from "@/lib/plans";
 import logo from "@/assets/adtua-logo.svg";
 
-export type NavKey = "home" | "browse" | "spaces" | "campaigns" | "marketplace" | "bookings" | "analytics";
+export type NavKey = "home" | "browse" | "spaces" | "campaigns" | "marketplace" | "bookings" | "settings";
 
 type Props = {
   children: ReactNode;
@@ -34,7 +35,6 @@ const BROADCASTER_ITEMS: NavItem[] = [
 const HOME_ITEM: NavItem = { key: "home", label: "Dashboard", icon: House, to: "/dashboard" };
 const TAIL_ITEMS: NavItem[] = [
   { key: "bookings", label: "Bookings", icon: FileCheck, to: "/bookings" },
-  { key: "analytics", label: "Analytics", icon: ChartSpline },
 ];
 
 function Avatar({ initials, size = 40 }: { initials: string; size?: number }) {
@@ -61,6 +61,13 @@ export function AppLayout({
   const isAdvertiser = user?.roles.includes("advertiser") ?? false;
   const isBroadcaster = user?.roles.includes("broadcaster") ?? false;
   const isDual = isAdvertiser && isBroadcaster;
+  const paidByRole = user
+    ? [isAdvertiser && "advertiser", isBroadcaster && "broadcaster"]
+        .filter((r): r is "advertiser" | "broadcaster" => !!r)
+        .map(r => isPaid(getPlanState(user.id, r).tier))
+    : [];
+  const hasAnyPaid = paidByRole.some(Boolean);
+  const hasUnpaidRole = paidByRole.some(p => !p);
 
   const initials =
     [user?.first_name?.[0], user?.last_name?.[0]].filter(Boolean).join("").toUpperCase() || "U";
@@ -149,7 +156,7 @@ export function AppLayout({
           </div>
 
           <div className="flex flex-col gap-4 w-full shrink-0">
-            {!collapsed && !bannerDismissed && (
+            {!collapsed && !bannerDismissed && hasUnpaidRole && (
               <div className="px-4">
                 <div
                   className="flex flex-col gap-3 p-4 rounded-xl text-white"
@@ -163,7 +170,9 @@ export function AppLayout({
                     </div>
                     <p className="text-xs leading-[18px]">Choose your space, control your timing, double your reach.</p>
                   </div>
-                  <button className="bg-white text-[#ff7f11] text-[13px] font-semibold rounded-lg px-4 py-2 w-full hover:bg-[#fff4ea] transition-colors">
+                  <button
+                    onClick={() => navigate("/settings?tab=plans")}
+                    className="bg-white text-[#ff7f11] text-[13px] font-semibold rounded-lg px-4 py-2 w-full hover:bg-[#fff4ea] transition-colors">
                     Upgrade Now
                   </button>
                 </div>
@@ -177,7 +186,7 @@ export function AppLayout({
                   {!collapsed && (
                     <div className="min-w-0">
                       <p className="text-[13px] font-semibold text-[#4a5565] leading-5 truncate">{fullName}</p>
-                      <p className="text-[10px] text-[#9c9c9c] truncate">Free Plan</p>
+                      <p className="text-[10px] text-[#9c9c9c] truncate">{hasAnyPaid ? "Premium" : "Free Plan"}</p>
                     </div>
                   )}
                 </button>
@@ -203,7 +212,7 @@ export function AppLayout({
             <div className="flex items-center gap-3 shrink-0">
               {rightSlot}
               <div className="flex items-center gap-1">
-                <button className="p-2 rounded-md text-[#4a5565] hover:bg-[#f9f9f9] transition-colors" title="Settings" onClick={() => setProfileOpen(true)}>
+                <button className="p-2 rounded-md text-[#4a5565] hover:bg-[#f9f9f9] transition-colors" title="Settings" onClick={() => navigate("/settings")}>
                   <Settings className="h-[18px] w-[18px]" />
                 </button>
                 <button className="p-2 rounded-md text-[#4a5565] hover:bg-[#f9f9f9] transition-colors" title="Notifications">

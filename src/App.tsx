@@ -20,6 +20,9 @@ import BrowseCampaigns from "./pages/BrowseCampaigns";
 import Bookings from "./pages/Bookings";
 import NotFound from "./pages/NotFound";
 import PlayerPage from "./pages/PlayerPage";
+import Settings from "./pages/Settings";
+import PlanUpgrade from "./pages/PlanUpgrade";
+import PlanConfirmation from "./pages/PlanConfirmation";
 
 const queryClient = new QueryClient();
 
@@ -55,6 +58,9 @@ const App = () => (
               }
             />
             <Route path="/bookings" element={<ProtectedRoute><Bookings /></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+            <Route path="/settings/upgrade/:role" element={<ProtectedRoute><PlanUpgrade /></ProtectedRoute>} />
+            <Route path="/settings/upgrade/:role/confirmation" element={<ProtectedRoute><PlanConfirmation /></ProtectedRoute>} />
             <Route path="/player" element={<PlayerPage />} />
             <Route path="/player/:deviceId" element={<PlayerPage />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

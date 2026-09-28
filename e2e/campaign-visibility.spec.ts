@@ -61,17 +61,15 @@ test.describe("Campaign visibility", () => {
     // The BE may not honour status:"active" in the POST — fetch the created campaign
     // and PATCH it to active so it appears in the public marketplace.
     const API = process.env.E2E_API_URL ?? "http://localhost:3000";
-    const token = await page.evaluate(() => localStorage.getItem("adtua_token"));
-    const listRes = await page.request.get(`${API}/api/campaigns`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    // page.request sends the auth cookie from loginAs automatically.
+    const listRes = await page.request.get(`${API}/api/campaigns`);
     const listBody = await listRes.json();
     const campaigns: Array<{ id: number; name: string }> =
       listBody?.data ?? listBody?.campaigns ?? (Array.isArray(listBody) ? listBody : []);
     const created = campaigns.find((c) => c.name === campaignName);
     if (created) {
       await page.request.patch(`${API}/api/campaigns/${created.id}/status`, {
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" },
         data: JSON.stringify({ status: "active" }),
       });
     }

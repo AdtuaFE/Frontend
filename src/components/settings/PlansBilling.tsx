@@ -267,6 +267,11 @@ function PaidView({ role, plan, onCancelled }: { role: Role; plan: PlanState & {
               </tr>
             </thead>
             <tbody>
+              {getInvoices(plan).length === 0 && (
+                <tr>
+                  <td colSpan={3} className="text-[13.5px] text-[#9c9c9c] px-6 py-4">No invoices yet</td>
+                </tr>
+              )}
               {getInvoices(plan).map(inv => (
                 <tr key={inv.date} className="border-b border-[#e8e8e8] last:border-0">
                   <td className="text-[13.5px] text-[#4a5565] px-6 py-3">{formatDate(inv.date)}</td>

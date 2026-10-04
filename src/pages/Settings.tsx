@@ -21,6 +21,7 @@ export default function Settings() {
   const tab: Tab = TABS.includes(param as Tab) ? (param as Tab) : "general";
   const isAdvertiser = user.roles.includes("advertiser");
   const isBroadcaster = user.roles.includes("broadcaster");
+  const isDual = isAdvertiser && isBroadcaster;
 
   return (
     <AppLayout activeNav="settings">
@@ -54,9 +55,19 @@ export default function Settings() {
           </TabsContent>
 
           <TabsContent value="plans" className="mt-8 space-y-16">
-            {isAdvertiser && <PlansBilling role="advertiser" />}
-            {isAdvertiser && isBroadcaster && <div className="border-t border-[#e8e8e8]" />}
-            {isBroadcaster && <PlansBilling role="broadcaster" />}
+            {isAdvertiser && (
+              <section className="space-y-8">
+                {isDual && <h2 className="text-xl font-semibold text-[#4a5565]">Advertiser plan</h2>}
+                <PlansBilling role="advertiser" />
+              </section>
+            )}
+            {isDual && <div className="border-t border-[#e8e8e8]" />}
+            {isBroadcaster && (
+              <section className="space-y-8">
+                {isDual && <h2 className="text-xl font-semibold text-[#4a5565]">Broadcaster plan</h2>}
+                <PlansBilling role="broadcaster" />
+              </section>
+            )}
           </TabsContent>
         </Tabs>
       </div>

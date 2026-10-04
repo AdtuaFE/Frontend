@@ -86,6 +86,7 @@ export function getPlanState(userId: number, role: Role): PlanState {
     return FREE_STATE;
   }
   if (state.tier === "free" || !state.renewsAt || !state.billing) return state;
+  if (state.amountPaid == null) state = { ...state, amountPaid: chargeFor(state.tier, state.billing) };
 
   const now = new Date();
   if (state.cancelsAt && new Date(state.cancelsAt) <= now) return FREE_STATE;

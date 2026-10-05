@@ -68,8 +68,9 @@ test.describe("Campaign visibility", () => {
       listBody?.data ?? listBody?.campaigns ?? (Array.isArray(listBody) ? listBody : []);
     const created = campaigns.find((c) => c.name === campaignName);
     if (created) {
+      const csrf = (await page.context().cookies()).find((c) => c.name === "csrf")?.value ?? "";
       await page.request.patch(`${API}/api/campaigns/${created.id}/status`, {
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf },
         data: JSON.stringify({ status: "active" }),
       });
     }

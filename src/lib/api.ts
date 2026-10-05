@@ -11,6 +11,14 @@ export function clearLegacyToken(): void {
   localStorage.removeItem('adtua_token');
 }
 
+// Double-submit CSRF: the backend sets a JS-readable `csrf` cookie at signin and
+// requires its value echoed in X-CSRF-Token on state-changing requests.
+function csrfHeader(method: string): Record<string, string> {
+  if (method === 'GET' || method === 'HEAD') return {};
+  const match = document.cookie.match(/(?:^|;\s*)csrf=([^;]+)/);
+  return match ? { 'X-CSRF-Token': decodeURIComponent(match[1]) } : {};
+}
+
 async function parseResponse<T>(res: Response): Promise<T> {
   if (res.status === 401) {
     window.location.href = '/signin';
@@ -39,6 +47,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
+      ...csrfHeader(init.method ?? 'GET'),
       ...(init.headers ?? {}),
     },
   });
@@ -68,6 +77,7 @@ export const api = {
       method: 'POST',
       body: formData,
       // No Content-Type — browser sets it with multipart boundary
+      headers: csrfHeader('POST'),
       credentials: 'include',
     });
     return parseResponse<T>(res);

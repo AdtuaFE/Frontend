@@ -20,45 +20,34 @@ export const DUAL_ROLE = {
 };
 
 /**
- * Authenticates by hitting the API directly and injecting the JWT into
- * localStorage. Much faster than filling the sign-in form for every role switch.
+ * Authenticates by hitting the API directly. page.request shares the browser
+ * context's cookie jar, so the httpOnly auth cookie from signin is sent by the
+ * page too. Much faster than filling the sign-in form for every role switch.
  */
 export async function loginAs(
   page: Page,
   email: string,
   password: string
 ): Promise<void> {
-  // Hit the signin endpoint directly — no need to drive the UI form.
+  // Drop the previous role's cookie before switching users.
+  await page.context().clearCookies();
+
   const res = await page.request.post(`${API}/api/signin`, {
     data: { email, password },
     headers: { "Content-Type": "application/json" },
   });
 
-  const body = await res.json();
-  // The API wraps in { success, token, user } or { success, data: { token, user } }
-  const token: string =
-    body?.data?.token ?? body?.token ?? (() => { throw new Error(`Signin failed for ${email}: ${JSON.stringify(body)}`); })();
-
-  // If we're already on the app origin we can set localStorage directly.
-  // Otherwise navigate there first to establish the correct storage scope.
-  // Navigate to the app origin if we're not already there (includes about:blank).
-  const currentUrl = page.url();
-  if (!currentUrl.startsWith(APP)) {
-    await page.goto(APP);
+  if (!res.ok()) {
+    throw new Error(`Signin failed for ${email}: ${res.status()} ${await res.text()}`);
   }
-
-  await page.evaluate((t) => {
-    localStorage.removeItem("adtua_token"); // clear any stale session
-    localStorage.setItem("adtua_token", t);
-  }, token);
 
   await page.goto(`${APP}/dashboard`);
   await page.waitForLoadState("networkidle");
-  // Confirm auth succeeded — sign-in page means the profile call rejected the token.
+  // Confirm auth succeeded — sign-in page means the profile call rejected the cookie.
   await page.waitForURL(/\/dashboard/, { timeout: 10_000 });
 }
 
 export async function logout(page: Page): Promise<void> {
-  await page.evaluate(() => localStorage.removeItem("adtua_token"));
+  await page.context().clearCookies();
   await page.goto(`${APP}/signin`);
 }

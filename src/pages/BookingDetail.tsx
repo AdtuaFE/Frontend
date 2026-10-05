@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, XCircle, CheckCircle, Plus, Upload, Film,
   Archive, RefreshCw, Trash2, MessageSquare, Star,
@@ -38,6 +38,7 @@ type Booking = {
 
 type Campaign = { id: number; name: string; advertiser_id: number };
 type Space = { id: number; name: string; city: string | null; region: string | null; country: string | null };
+type Screen = { id: number; space_id: number; label: string; is_active: boolean };
 type Slot = { id: number; label: string; start_time: string; end_time: string };
 
 type Asset = {
@@ -210,12 +211,22 @@ const BookingDetail = () => {
     enabled: !!booking,
   });
 
-  // booking_slots only carries slot_id — look up the label/time range from the space's slots.
-  const { data: slots = [] } = useQuery<Slot[]>({
-    queryKey: ["space-slots", booking?.space_id],
-    queryFn: () => api.get<Slot[]>(`/api/spaces/${booking!.space_id}/slots`),
+  // booking_slots only carries slot_id — look up the label/time range from the space's
+  // slots, which now live under screens: list screens, then fan out to their slots.
+  const { data: screens = [] } = useQuery<Screen[]>({
+    queryKey: ["space-screens", booking?.space_id],
+    queryFn: () => api.get<Screen[]>(`/api/spaces/${booking!.space_id}/screens`),
     enabled: !!booking,
   });
+
+  const slotQueries = useQueries({
+    queries: screens.map(screen => ({
+      queryKey: ["screen-slots", booking?.space_id, screen.id],
+      queryFn: () => api.get<Slot[]>(`/api/spaces/${booking!.space_id}/screens/${screen.id}/slots`),
+      enabled: !!booking,
+    })),
+  });
+  const slots: Slot[] = slotQueries.flatMap(q => q.data ?? []);
 
   const { data: assets = [] } = useQuery<Asset[]>({
     queryKey: ["booking-assets", Number(id)],

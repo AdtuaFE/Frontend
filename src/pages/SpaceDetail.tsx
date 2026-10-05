@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
 import {
   ArrowLeft, Edit2, Trash2, Upload, Star, Plus, ImageIcon, Cpu, Pencil, X, ExternalLink,
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
@@ -57,14 +58,24 @@ type SpaceImage = {
   created_at: string;
 };
 
+type Screen = {
+  id: number;
+  space_id: number;
+  label: string;
+  is_active: boolean;
+  created_at: string;
+};
+
 type Slot = {
   id: number;
+  screen_id: number;
+  day_of_week: number; // 1 = Monday .. 7 = Sunday
   label: string;
   start_time: string;
   end_time: string;
   est_impressions_per_playback: number;
   daily_capacity_playbacks: number;
-  price_multiplier: number;
+  total_price: number; // broadcaster's price for the slot's whole day
 };
 
 type UsageBooking = {
@@ -76,8 +87,9 @@ type UsageBooking = {
 };
 
 type UsageSlot = {
-  slot_id: number;
-  slot_name: string;
+  id: number;
+  label: string;
+  day_of_week: number;
   daily_capacity_playbacks: number;
   total_allocated_playbacks: number;
   total_used_playbacks: number;
@@ -86,6 +98,7 @@ type UsageSlot = {
 };
 
 type SpaceUsage = {
+  screen_id: number;
   date?: string;
   slots: UsageSlot[];
 };
@@ -112,6 +125,9 @@ type AdvertiserBooking = {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const fmtTime = (t: string) => t.slice(0, 5); // "HH:MM:SS" → "HH:MM"
+
+const DAY_NAMES = ["", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+const dayName = (d: number) => DAY_NAMES[d] ?? `Day ${d}`;
 
 function Field({ label, value }: { label: string; value?: string | number | null }) {
   if (value == null || value === "") return null;
@@ -146,12 +162,13 @@ const SpaceDetail = () => {
   const [slotEditForm, setSlotEditForm] = useState({
     est_impressions_per_playback: "",
     daily_capacity_playbacks: "",
-    price_multiplier: "",
+    total_price: "",
   });
   const [slotSaving, setSlotSaving] = useState(false);
 
   // Device state
   const [pairCode, setPairCode] = useState("");
+  const [pairScreenId, setPairScreenId] = useState("");
   const [pairing, setPairing] = useState(false);
   const [pendingDeactivateId, setPendingDeactivateId] = useState<string | null>(null);
   const [deactivating, setDeactivating] = useState(false);
@@ -170,21 +187,34 @@ const SpaceDetail = () => {
     enabled: !!id && !!space,
   });
 
-  const { data: slots = [] } = useQuery<Slot[]>({
-    queryKey: ["space-slots", Number(id)],
-    queryFn: () => api.get<Slot[]>(`/api/spaces/${id}/slots`),
-    enabled: !!id && !!space,
-  });
-
   const isOwner = !!user && !!space && user.id === space.broadcaster_id;
   const isAdvertiser = user?.roles.includes("advertiser") ?? false;
 
-  const { data: usage } = useQuery<SpaceUsage>({
-    queryKey: ["space-usage", Number(id)],
-    queryFn: () => api.get<SpaceUsage>(`/api/spaces/${id}/usage`),
-    enabled: !!id && !!space && isOwner,
-    refetchInterval: 60_000,
+  // Slots now live under screens: list screens, then fan out to each screen's slots.
+  const { data: screens = [] } = useQuery<Screen[]>({
+    queryKey: ["space-screens", Number(id)],
+    queryFn: () => api.get<Screen[]>(`/api/spaces/${id}/screens`),
+    enabled: !!id && !!space,
   });
+
+  const slotQueries = useQueries({
+    queries: screens.map(screen => ({
+      queryKey: ["screen-slots", Number(id), screen.id],
+      queryFn: () => api.get<Slot[]>(`/api/spaces/${id}/screens/${screen.id}/slots`),
+      enabled: !!id && !!space,
+    })),
+  });
+  const slots: Slot[] = slotQueries.flatMap(q => q.data ?? []);
+
+  const usageQueries = useQueries({
+    queries: screens.map(screen => ({
+      queryKey: ["screen-usage", Number(id), screen.id],
+      queryFn: () => api.get<SpaceUsage>(`/api/spaces/${id}/screens/${screen.id}/usage`),
+      enabled: !!id && !!space && isOwner,
+      refetchInterval: 60_000,
+    })),
+  });
+  const usageSlots: UsageSlot[] = usageQueries.flatMap(q => q.data?.slots ?? []);
 
   const { data: devices = [] } = useQuery<Device[]>({
     queryKey: ["space-devices", Number(id)],
@@ -271,20 +301,20 @@ const SpaceDetail = () => {
     setSlotEditForm({
       est_impressions_per_playback: String(slot.est_impressions_per_playback),
       daily_capacity_playbacks: String(slot.daily_capacity_playbacks),
-      price_multiplier: String(slot.price_multiplier),
+      total_price: String(slot.total_price),
     });
   };
 
-  const handleSlotSave = async () => {
+  const handleSlotSave = async (screenId: number) => {
     if (!space || !editingSlotId) return;
     setSlotSaving(true);
     try {
-      await api.patch(`/api/spaces/${space.id}/slots/${editingSlotId}`, {
+      await api.patch(`/api/spaces/${space.id}/screens/${screenId}/slots/${editingSlotId}`, {
         est_impressions_per_playback: Number(slotEditForm.est_impressions_per_playback),
         daily_capacity_playbacks: Number(slotEditForm.daily_capacity_playbacks),
-        price_multiplier: Number(slotEditForm.price_multiplier),
+        total_price: Number(slotEditForm.total_price),
       });
-      await queryClient.invalidateQueries({ queryKey: ["space-slots", space.id] });
+      await queryClient.invalidateQueries({ queryKey: ["screen-slots", space.id, screenId] });
       setEditingSlotId(null);
       toast.success("Slot updated");
     } catch (err) {
@@ -295,12 +325,14 @@ const SpaceDetail = () => {
   };
 
   const handlePairDevice = async () => {
-    if (!space || pairCode.length !== 6) return;
+    const screenId = pairScreenId || (screens.length === 1 ? String(screens[0].id) : "");
+    if (!space || pairCode.length !== 6 || !screenId) return;
     setPairing(true);
     try {
-      await api.post("/api/player/pair", { pairing_code: Number(pairCode), space_id: space.id });
+      await api.post("/api/player/pair", { pairing_code: Number(pairCode), screen_id: Number(screenId) });
       await queryClient.invalidateQueries({ queryKey: ["space-devices", space.id] });
       setPairCode("");
+      setPairScreenId("");
       toast.success("Device paired successfully");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Pairing failed — check the code and try again");
@@ -357,7 +389,7 @@ const SpaceDetail = () => {
     ? `${space.width_px} × ${space.height_px} px${space.size_label ? ` (${space.size_label})` : ""}`
     : space.size_label ?? null;
 
-  const hasUsageData = usage?.slots && usage.slots.some(s => s.total_allocated_playbacks > 0);
+  const hasUsageData = usageSlots.some(s => s.total_allocated_playbacks > 0);
 
   return (
     <AppLayout activeNav="browse">
@@ -591,83 +623,101 @@ const SpaceDetail = () => {
         {slots.length > 0 && (
           <div className="space-y-4">
             <h2 className="text-lg font-semibold">Time slots</h2>
-            <div className="space-y-3">
-              {slots.map(slot => {
-                const isEditing = editingSlotId === slot.id;
-                return (
-                  <div key={slot.id} className="rounded-xl border bg-card p-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm font-semibold">{slot.label}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {fmtTime(slot.start_time)}–{fmtTime(slot.end_time)} UTC
-                          </span>
-                        </div>
+            {screens.map(screen => {
+              const screenSlots = slots.filter(s => s.screen_id === screen.id);
+              if (screenSlots.length === 0) return null;
+              const days = [1, 2, 3, 4, 5, 6, 7].filter(d => screenSlots.some(s => s.day_of_week === d));
+              return (
+                <div key={screen.id} className="space-y-3">
+                  {screens.length > 1 && (
+                    <h3 className="text-sm font-semibold text-muted-foreground">{screen.label}</h3>
+                  )}
+                  {days.map(day => (
+                    <div key={day} className="space-y-2">
+                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{dayName(day)}</p>
+                      {screenSlots
+                        .filter(s => s.day_of_week === day)
+                        .sort((a, b) => a.start_time.localeCompare(b.start_time))
+                        .map(slot => {
+                          const isEditing = editingSlotId === slot.id;
+                          return (
+                            <div key={slot.id} className="rounded-xl border bg-card p-4">
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="text-sm font-semibold">{slot.label}</span>
+                                    <span className="text-xs text-muted-foreground">
+                                      {fmtTime(slot.start_time)}–{fmtTime(slot.end_time)} UTC
+                                    </span>
+                                  </div>
 
-                        {isEditing ? (
-                          <div className="mt-3 grid grid-cols-3 gap-3">
-                            <div className="space-y-1">
-                              <Label className="text-xs">Imp / play</Label>
-                              <Input type="number" min="1"
-                                value={slotEditForm.est_impressions_per_playback}
-                                onChange={e => setSlotEditForm(f => ({ ...f, est_impressions_per_playback: e.target.value }))}
-                                className="h-8 text-sm rounded-md border-[#d7dce3] shadow-none focus-visible:ring-[#ff8a00]"
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-xs">Daily cap</Label>
-                              <Input type="number" min="1"
-                                value={slotEditForm.daily_capacity_playbacks}
-                                onChange={e => setSlotEditForm(f => ({ ...f, daily_capacity_playbacks: e.target.value }))}
-                                className="h-8 text-sm rounded-md border-[#d7dce3] shadow-none focus-visible:ring-[#ff8a00]"
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-xs">Rate mult.</Label>
-                              <Input type="number" min="0.1" step="0.1"
-                                value={slotEditForm.price_multiplier}
-                                onChange={e => setSlotEditForm(f => ({ ...f, price_multiplier: e.target.value }))}
-                                className="h-8 text-sm rounded-md border-[#d7dce3] shadow-none focus-visible:ring-[#ff8a00]"
-                              />
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="mt-1 flex flex-wrap gap-x-4 text-xs text-muted-foreground">
-                            <span>{slot.est_impressions_per_playback.toLocaleString()} imp/play</span>
-                            <span>{slot.daily_capacity_playbacks.toLocaleString()} plays/day cap</span>
-                            <span>{slot.price_multiplier}× rate</span>
-                          </div>
-                        )}
-                      </div>
+                                  {isEditing ? (
+                                    <div className="mt-3 grid grid-cols-3 gap-3">
+                                      <div className="space-y-1">
+                                        <Label className="text-xs">Imp / play</Label>
+                                        <Input type="number" min="1"
+                                          value={slotEditForm.est_impressions_per_playback}
+                                          onChange={e => setSlotEditForm(f => ({ ...f, est_impressions_per_playback: e.target.value }))}
+                                          className="h-8 text-sm rounded-md border-[#d7dce3] shadow-none focus-visible:ring-[#ff8a00]"
+                                        />
+                                      </div>
+                                      <div className="space-y-1">
+                                        <Label className="text-xs">Daily cap</Label>
+                                        <Input type="number" min="1"
+                                          value={slotEditForm.daily_capacity_playbacks}
+                                          onChange={e => setSlotEditForm(f => ({ ...f, daily_capacity_playbacks: e.target.value }))}
+                                          className="h-8 text-sm rounded-md border-[#d7dce3] shadow-none focus-visible:ring-[#ff8a00]"
+                                        />
+                                      </div>
+                                      <div className="space-y-1">
+                                        <Label className="text-xs">Price / day ($)</Label>
+                                        <Input type="number" min="0" step="0.01"
+                                          value={slotEditForm.total_price}
+                                          onChange={e => setSlotEditForm(f => ({ ...f, total_price: e.target.value }))}
+                                          className="h-8 text-sm rounded-md border-[#d7dce3] shadow-none focus-visible:ring-[#ff8a00]"
+                                        />
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="mt-1 flex flex-wrap gap-x-4 text-xs text-muted-foreground">
+                                      <span>{slot.est_impressions_per_playback.toLocaleString()} imp/play</span>
+                                      <span>{slot.daily_capacity_playbacks.toLocaleString()} plays/day cap</span>
+                                      <span>${slot.total_price.toLocaleString()}/day</span>
+                                    </div>
+                                  )}
+                                </div>
 
-                      {isOwner && (
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          {isEditing ? (
-                            <>
-                              <Button size="sm" variant="outline" disabled={slotSaving}
-                                onClick={() => setEditingSlotId(null)}>
-                                <X className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button size="sm" disabled={slotSaving}
-                                onClick={handleSlotSave}
-                                className="bg-[#ff8a00] text-white hover:bg-[#e77700]">
-                                {slotSaving ? "Saving…" : "Save"}
-                              </Button>
-                            </>
-                          ) : (
-                            <Button size="sm" variant="outline" onClick={() => handleSlotEdit(slot)}
-                              className="gap-1.5">
-                              <Pencil className="h-3.5 w-3.5" /> Edit
-                            </Button>
-                          )}
-                        </div>
-                      )}
+                                {isOwner && (
+                                  <div className="flex items-center gap-1.5 shrink-0">
+                                    {isEditing ? (
+                                      <>
+                                        <Button size="sm" variant="outline" disabled={slotSaving}
+                                          onClick={() => setEditingSlotId(null)}>
+                                          <X className="h-3.5 w-3.5" />
+                                        </Button>
+                                        <Button size="sm" disabled={slotSaving}
+                                          onClick={() => handleSlotSave(slot.screen_id)}
+                                          className="bg-[#ff8a00] text-white hover:bg-[#e77700]">
+                                          {slotSaving ? "Saving…" : "Save"}
+                                        </Button>
+                                      </>
+                                    ) : (
+                                      <Button size="sm" variant="outline" onClick={() => handleSlotEdit(slot)}
+                                        className="gap-1.5">
+                                        <Pencil className="h-3.5 w-3.5" /> Edit
+                                      </Button>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  ))}
+                </div>
+              );
+            })}
           </div>
         )}
 
@@ -676,11 +726,11 @@ const SpaceDetail = () => {
           <div className="space-y-4">
             <h2 className="text-lg font-semibold">Today's usage</h2>
             <div className="rounded-xl border bg-card p-6 space-y-6">
-              {usage!.slots.map(slot => (
-                <div key={slot.slot_id}>
+              {usageSlots.map(slot => (
+                <div key={slot.id}>
                   <div className="flex items-center justify-between text-sm mb-2">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium">{fmt(slot.slot_name)}</span>
+                      <span className="font-medium">{fmt(slot.label)}</span>
                       <span className="text-xs text-muted-foreground">
                         {slot.total_allocated_playbacks.toLocaleString()} / {slot.daily_capacity_playbacks.toLocaleString()} plays allocated
                       </span>
@@ -729,21 +779,37 @@ const SpaceDetail = () => {
               <p className="text-xs text-muted-foreground mb-4">
                 Boot your Raspberry Pi or screen device. Enter the 6-digit code shown on its screen.
               </p>
-              <div className="flex flex-wrap items-center gap-4">
-                <InputOTP maxLength={6} value={pairCode} onChange={setPairCode}>
-                  <InputOTPGroup>
-                    {[0, 1, 2, 3, 4, 5].map(i => (
-                      <InputOTPSlot key={i} index={i} className="h-11 w-11 text-base" />
-                    ))}
-                  </InputOTPGroup>
-                </InputOTP>
-                <Button
-                  onClick={handlePairDevice}
-                  disabled={pairing || pairCode.length !== 6}
-                  className="bg-[#ff8a00] text-white hover:bg-[#e77700]">
-                  {pairing ? "Pairing…" : "Pair device"}
-                </Button>
-              </div>
+              {screens.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Add a screen to this space before pairing a device.</p>
+              ) : (
+                <div className="flex flex-wrap items-center gap-4">
+                  {screens.length > 1 && (
+                    <Select value={pairScreenId} onValueChange={setPairScreenId}>
+                      <SelectTrigger className="h-10 w-48 rounded-lg text-sm border-[#d7dce3]">
+                        <SelectValue placeholder="Select screen" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {screens.map(screen => (
+                          <SelectItem key={screen.id} value={String(screen.id)}>{screen.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                  <InputOTP maxLength={6} value={pairCode} onChange={setPairCode}>
+                    <InputOTPGroup>
+                      {[0, 1, 2, 3, 4, 5].map(i => (
+                        <InputOTPSlot key={i} index={i} className="h-11 w-11 text-base" />
+                      ))}
+                    </InputOTPGroup>
+                  </InputOTP>
+                  <Button
+                    onClick={handlePairDevice}
+                    disabled={pairing || pairCode.length !== 6 || (screens.length > 1 && !pairScreenId)}
+                    className="bg-[#ff8a00] text-white hover:bg-[#e77700]">
+                    {pairing ? "Pairing…" : "Pair device"}
+                  </Button>
+                </div>
+              )}
             </div>
 
             {/* Device list */}

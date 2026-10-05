@@ -350,7 +350,7 @@ Success `201`:
 }
 ```
 
-Errors: `400` — slot capacity exceeded on one or more days in range, campaign not owned by caller, space/screen inactive. Deleting a campaign/space/slot that has existing bookings now returns a clean `400` (not a `500`).
+Errors: `400` — slot capacity exceeded on one or more days in range, campaign not owned by caller, space/screen inactive. Deleting a campaign/space/slot that has existing bookings now returns a clean `409` (not a `500`).
 
 Status transitions:
 | From | To | Who |
@@ -358,11 +358,15 @@ Status transitions:
 | `pending` | `accepted` | broadcaster |
 | `pending` | `rejected` | broadcaster |
 | `pending` | `cancelled` | advertiser |
-| `accepted` | `active` | broadcaster |
-| `accepted` | `cancelled` | advertiser |
-| `active` | `completed` | broadcaster |
+| `accepted` | `cancelled` | advertiser or broadcaster |
+| `active` | `cancelled` | advertiser or broadcaster |
 
-Any other transition → `400`. `pending` requests also auto-expire after a 48h grace period (system-driven, not an FE action).
+Any other transition → `400`. Either party can unilaterally cancel once a booking's accepted or
+active — already-played content is never refunded, cancelling just stops further cost. Note:
+`accepted → active` and `active → completed` are **not** available through this endpoint at all —
+both are exclusively system/cron-driven (date-based, no human actor), not something either party
+triggers manually. `pending` requests also auto-expire after a 48h grace period (system-driven,
+not an FE action).
 
 ---
 
@@ -399,14 +403,18 @@ Transaction object: `{ "id", "wallet_id", "type", "amount", "booking_id", "creat
 ## Broadcaster
 
 ```
-GET   /api/broadcaster/:id              public — profile
-PATCH /api/broadcaster/profile          broadcaster — update own profile
-GET   /api/broadcaster/bookings         broadcaster — caller's bookings
+GET   /api/broadcaster/bookings          broadcaster — caller's bookings
 GET   /api/broadcaster/bookings/incoming broadcaster — pending requests awaiting action
-GET   /api/broadcaster/spaces           broadcaster — caller's spaces
-GET   /api/broadcaster/offers           broadcaster — offers the caller has sent
-GET   /api/broadcaster/ledger           broadcaster — accrual ledger (earnings, new)
+GET   /api/broadcaster/spaces            broadcaster — caller's spaces
+GET   /api/broadcaster/offers            broadcaster — offers the caller has sent
+GET   /api/broadcaster/ledger            broadcaster — accrual ledger (earnings)
 ```
+
+> Corrected 2026-10-05 — the previous version of this doc also listed `GET /api/broadcaster/:id`
+> (public profile) and `PATCH /api/broadcaster/profile`, carried over from the old pre-screens
+> contract doc without re-checking. Neither exists; `broadcasterRoutes.ts` has exactly the 5
+> routes above. A broadcaster's own profile is read/updated through `GET`/`PATCH
+> /api/user/profile` (see **Current user** above), same endpoint as everyone else.
 
 > `bookings/incoming`, `spaces`, `offers`, and `ledger` are all new since the previous version of this doc.
 

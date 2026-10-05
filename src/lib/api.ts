@@ -25,6 +25,12 @@ async function parseResponse<T>(res: Response): Promise<T> {
   }
   const body = await res.json() as Record<string, unknown>;
   if (!body['success']) {
+    // A 400 may carry an `errors` array (every problem found); `error`/`message` is the
+    // first problem. At least one is always present — prefer the full list when we have it.
+    const errors = body['errors'];
+    if (Array.isArray(errors) && errors.length > 0) {
+      throw new Error(errors.join('\n'));
+    }
     const msg = (body['error'] ?? body['message']) as string | undefined;
     throw new Error(msg ?? 'Request failed');
   }

@@ -104,11 +104,14 @@ export function AppLayout({ children, activeNav, noPadding, rightSlot }: Props) 
                       </button>
                     )}
                     {isBroadcaster && (
-                      <button
-                        onClick={() => navigate("/campaigns/marketplace")}
-                        className="w-full px-4 py-2 text-sm text-left hover:bg-accent hover:text-accent-foreground transition-colors">
-                        Browse marketplace
-                      </button>
+                      <>
+                        {isAdvertiser && <div className="border-t mx-3 my-1" />}
+                        <button
+                          onClick={() => navigate("/campaigns/marketplace")}
+                          className="w-full px-4 py-2 text-sm text-left hover:bg-accent transition-colors">
+                          Browse marketplace
+                        </button>
+                      </>
                     )}
                     {isAdvertiser && (
                       <>

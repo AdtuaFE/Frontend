@@ -9,15 +9,27 @@ import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 
+type Screen = {
+  id: number;
+  space_id: number;
+  label: string;
+  is_active: boolean;
+};
+
 type Slot = {
   id: number;
+  screen_id: number;
+  day_of_week: number; // 1 = Monday .. 7 = Sunday
   label: string;
   start_time: string;
   end_time: string;
   est_impressions_per_playback: number;
   daily_capacity_playbacks: number;
-  price_multiplier: number;
+  total_price: number;
 };
+
+const DAY_NAMES = ["", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+const dayName = (d: number) => DAY_NAMES[d] ?? `Day ${d}`;
 
 type MySpace = {
   id: number;
@@ -69,7 +81,11 @@ export function SubmitOfferModal({ open, onOpenChange, campaignId, campaignBudge
     if (slotsMap[spaceId] !== undefined || loadingSlots[spaceId]) return;
     setLoadingSlots(prev => ({ ...prev, [spaceId]: true }));
     try {
-      const slots = await api.get<Slot[]>(`/api/spaces/${spaceId}/slots`);
+      const screens = await api.get<Screen[]>(`/api/spaces/${spaceId}/screens`);
+      const slotArrays = await Promise.all(
+        screens.map(s => api.get<Slot[]>(`/api/spaces/${spaceId}/screens/${s.id}/slots`))
+      );
+      const slots = slotArrays.flat();
       setSlotsMap(prev => ({ ...prev, [spaceId]: slots }));
       // Auto-check single slot
       if (slots.length === 1) {
@@ -234,46 +250,56 @@ export function SubmitOfferModal({ open, onOpenChange, campaignId, campaignBudge
                             ) : spaceSlots.length === 0 ? (
                               <p className="text-xs text-muted-foreground py-1">No slots found</p>
                             ) : (
-                              <div className="space-y-1.5">
-                                {spaceSlots.map(slot => {
-                                  const slotChecked = sel.slots.some(sl => sl.slotId === String(slot.id));
-                                  const slotPb = sel.slots.find(sl => sl.slotId === String(slot.id))?.playbacks ?? "";
-                                  return (
-                                    <div key={slot.id}
-                                      className={`rounded-lg border px-2.5 py-2 transition-colors ${slotChecked ? "border-[#ff8a00] bg-white" : "border-border"}`}>
-                                      <div className="flex items-start gap-2">
-                                        <Checkbox
-                                          id={`slot-${s.id}-${slot.id}`}
-                                          checked={slotChecked}
-                                          onCheckedChange={() => toggleSlot(s.id, String(slot.id))}
-                                          className="mt-0.5 shrink-0 data-[state=checked]:bg-[#ff8a00] data-[state=checked]:border-[#ff8a00]"
-                                        />
-                                        <div className="flex-1 min-w-0">
-                                          <label htmlFor={`slot-${s.id}-${slot.id}`} className="text-xs font-medium cursor-pointer">
-                                            {slot.label}
-                                            <span className="ml-1.5 font-normal text-muted-foreground">
-                                              {fmtTime(slot.start_time)}–{fmtTime(slot.end_time)}
-                                            </span>
-                                          </label>
-                                          {slotChecked && (
-                                            <div className="mt-1.5 flex items-center gap-2">
-                                              <span className="text-xs text-muted-foreground shrink-0">Daily plays</span>
-                                              <Input
-                                                type="number" min="1"
-                                                max={slot.daily_capacity_playbacks}
-                                                value={slotPb}
-                                                onChange={e => updateSlotPlaybacks(s.id, String(slot.id), e.target.value)}
-                                                placeholder="e.g. 48"
-                                                className="h-7 w-24 text-xs rounded-md border-[#d7dce3] shadow-none focus-visible:ring-[#ff8a00]"
-                                              />
-                                              <span className="text-xs text-muted-foreground">max {slot.daily_capacity_playbacks}</span>
+                              <div className="space-y-2">
+                                {[1, 2, 3, 4, 5, 6, 7]
+                                  .filter(d => spaceSlots.some(sl => sl.day_of_week === d))
+                                  .map(day => (
+                                    <div key={day} className="space-y-1.5">
+                                      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{dayName(day)}</p>
+                                      {spaceSlots
+                                        .filter(sl => sl.day_of_week === day)
+                                        .sort((a, b) => a.start_time.localeCompare(b.start_time))
+                                        .map(slot => {
+                                          const slotChecked = sel.slots.some(sl => sl.slotId === String(slot.id));
+                                          const slotPb = sel.slots.find(sl => sl.slotId === String(slot.id))?.playbacks ?? "";
+                                          return (
+                                            <div key={slot.id}
+                                              className={`rounded-lg border px-2.5 py-2 transition-colors ${slotChecked ? "border-[#ff8a00] bg-white" : "border-border"}`}>
+                                              <div className="flex items-start gap-2">
+                                                <Checkbox
+                                                  id={`slot-${s.id}-${slot.id}`}
+                                                  checked={slotChecked}
+                                                  onCheckedChange={() => toggleSlot(s.id, String(slot.id))}
+                                                  className="mt-0.5 shrink-0 data-[state=checked]:bg-[#ff8a00] data-[state=checked]:border-[#ff8a00]"
+                                                />
+                                                <div className="flex-1 min-w-0">
+                                                  <label htmlFor={`slot-${s.id}-${slot.id}`} className="text-xs font-medium cursor-pointer">
+                                                    {slot.label}
+                                                    <span className="ml-1.5 font-normal text-muted-foreground">
+                                                      {fmtTime(slot.start_time)}–{fmtTime(slot.end_time)}
+                                                    </span>
+                                                  </label>
+                                                  {slotChecked && (
+                                                    <div className="mt-1.5 flex items-center gap-2">
+                                                      <span className="text-xs text-muted-foreground shrink-0">Daily plays</span>
+                                                      <Input
+                                                        type="number" min="1"
+                                                        max={slot.daily_capacity_playbacks}
+                                                        value={slotPb}
+                                                        onChange={e => updateSlotPlaybacks(s.id, String(slot.id), e.target.value)}
+                                                        placeholder="e.g. 48"
+                                                        className="h-7 w-24 text-xs rounded-md border-[#d7dce3] shadow-none focus-visible:ring-[#ff8a00]"
+                                                      />
+                                                      <span className="text-xs text-muted-foreground">max {slot.daily_capacity_playbacks}</span>
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              </div>
                                             </div>
-                                          )}
-                                        </div>
-                                      </div>
+                                          );
+                                        })}
                                     </div>
-                                  );
-                                })}
+                                  ))}
                               </div>
                             )}
                           </div>

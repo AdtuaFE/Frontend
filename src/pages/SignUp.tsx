@@ -85,7 +85,7 @@ const SignUp = () => {
     setSubmitError("");
     try {
       const roles = role === "both" ? ["advertiser", "broadcaster"] : [role];
-      const res = await api.post<{ user: User; token: string }>("/api/signup", {
+      const res = await api.post<{ user: User }>("/api/signup", {
         email,
         password,
         first_name: firstName,
@@ -93,7 +93,7 @@ const SignUp = () => {
         roles,
         otp_token: otpToken,
       });
-      login(res.token, res.user);
+      login(res.user);
       navigate("/dashboard");
     } catch (err) {
       const msg = err instanceof Error && err.message !== "Request failed"

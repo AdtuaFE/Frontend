@@ -3,7 +3,7 @@
 This document is the authoritative reference for connecting a frontend to the backend.
 It reflects what is **actually built and running** — not aspirational. Missing endpoints are
 explicitly flagged. Verified directly against the current route files and controllers as of
-2026-10-04, branch `feat/screens-and-slots` (about to merge into `staging`).
+2026-10-06, branch `staging`.
 
 ---
 
@@ -37,13 +37,27 @@ All request bodies and response payloads use **snake_case** (`first_name`, `star
 ### ID type
 All entity IDs are **integers** (PostgreSQL bigserial), not UUIDs. Store them as numbers.
 
-### Auth token
-Bearer token returned in the response body on sign-in and sign-up. No cookies.
-Attach to every protected request:
+### Auth & CSRF
+**Changed since the previous version of this doc.** Sign-in and sign-up no longer return a token
+in the response body — they set two cookies instead: an httpOnly `token` cookie (the session
+itself, `Secure`, `SameSite=Lax`) and a JS-readable `csrf` cookie. Requests must send credentials
+(`fetch(..., { credentials: 'include' })`, or axios `withCredentials: true`) for the cookies to
+go out.
+
+Every state-changing request (anything but `GET`/`HEAD`, and not `/api/signin`/`/api/signup`)
+must echo the `csrf` cookie's current value back in a header:
 ```
-Authorization: Bearer <token>
+X-CSRF-Token: <value of the csrf cookie>
 ```
-Store in memory or `localStorage`. On any `401` response, clear the token and redirect to `/signin`.
+Missing or mismatched → `403`. CORS is restricted to an explicit origin allowlist — requests from
+an unrecognized origin get `403` too, before CSRF is even checked.
+
+`Authorization: Bearer <token>` is still accepted as a fallback (OTP, password reset, waitlist,
+device/player endpoints — anything that doesn't go through a normal signed-in FE session), but a
+normal FE session should rely on the cookie, not store a token in `localStorage` anymore.
+
+On any `401`, redirect to `/signin` — there's no client-side token to clear, sign-out clears both
+cookies server-side.
 
 ---
 
@@ -102,13 +116,12 @@ Notes:
 - `roles` array — valid values: `"advertiser"`, `"broadcaster"`. Can be both. Defaults to `["advertiser"]` if omitted.
 - `phone` and `last_name` are optional.
 
-Success `201`:
+Success `201` (also sets the session cookies, same as sign-in):
 ```json
 {
   "success": true,
   "data": {
-    "user": { "id": 42, "email": "user@example.com", "first_name": "Honey", "last_name": "Patel", "phone": null, "roles": ["advertiser"], "status": "active", "created_at": "..." },
-    "token": "<jwt>"
+    "user": { "id": 42, "email": "user@example.com", "first_name": "Honey", "last_name": "Patel", "phone": null, "roles": ["advertiser"], "status": "active", "created_at": "..." }
   }
 }
 ```
@@ -120,8 +133,8 @@ Errors: `400` OTP missing/invalid/expired or email already taken, `500`.
 ## Auth — Sign in / Sign out / Password reset
 
 ```
-POST /api/signin          body: { "email", "password" }              -> { user, token }
-POST /api/signout         auth required                              -> stateless, client discards token
+POST /api/signin          body: { "email", "password" }              -> { user }, sets session cookies
+POST /api/signout         auth required                              -> clears both session cookies
 POST /api/password-reset/request   body: { "email" }                 -> always 200 (no user enumeration)
 POST /api/password-reset/reset     body: { "token", "new_password" } -> 400 if token invalid/expired
 ```
@@ -260,7 +273,18 @@ Usage response (`GET .../usage`):
     "screen_id": 5,
     "spot_duration_seconds": 15,
     "date": "2026-10-04",
-    "slots": [ { "slot_id": 1, "daily_capacity_playbacks": 960, "allocated": 300, "remaining": 660 } ]
+    "slots": [
+      {
+        "id": 1, "label": "Morning rush", "day_of_week": 1,
+        "start_time": "08:00:00", "end_time": "10:00:00",
+        "daily_capacity_playbacks": 960,
+        "total_allocated_playbacks": 300, "total_used_playbacks": 120,
+        "pct_capacity_sold": 31.3,
+        "bookings": [
+          { "booking_id": 7, "daily_playbacks_allocated": 300, "used_today": 120, "remaining_today": 180, "pct_used": 40.0 }
+        ]
+      }
+    ]
   }
 }
 ```
@@ -321,7 +345,7 @@ Create body — **each space must also specify which slot(s) it's proposing agai
 ```
 `slots` must be a non-empty array; each entry needs a valid `slot_id` and `daily_playbacks_allocated` (integer, ≥ 1).
 
-Update body: `{ "status": "accepted" }` — valid: `pending`, `accepted`, `rejected`, `cancelled`.
+Update body: `{ "status": "accepted" }` — valid target values: `accepted`, `rejected` (advertiser, campaign owner only), `cancelled` (broadcaster who made the offer, only while still `pending`). `pending` is the offer's initial state only, never a value you PATCH to — any other value is `400 "Invalid status"`.
 
 A broadcaster can also list their own sent offers directly — see **Broadcaster** section below (`GET /api/broadcaster/offers`).
 
@@ -336,9 +360,13 @@ GET   /api/bookings/:id        auth
 PATCH /api/bookings/:id/status auth, role-gated per transition
 ```
 
-Create body:
+Create body — `slots` is required (`400` if missing or empty):
 ```json
-{ "campaign_id": 1, "space_id": 1, "start_date": "2026-07-01", "end_date": "2026-07-31" }
+{
+  "campaign_id": 1, "space_id": 1,
+  "start_date": "2026-07-01", "end_date": "2026-07-31",
+  "slots": [ { "slot_id": 4, "daily_playbacks_allocated": 10 } ]
+}
 ```
 Price is computed server-side from the targeted slot(s)' `total_price` — no price field needed from FE.
 
@@ -437,13 +465,24 @@ POST /api/messages/threads/:id/attachments    auth — multipart/form-data, file
 ## Reviews
 
 ```
-GET  /api/reviews    public — query params: ?target_type=broadcaster&reviewee_id=7 (both optional, filters)
+GET  /api/reviews    public — query params: ?target_type=broadcaster&reviewee_id=7 (both optional — omit either/both to broaden the result; omitting both returns every review)
 POST /api/reviews    auth
 ```
 
-> **Corrected from the previous version of this doc**, which listed `GET /api/reviews/:userId` as a path param. It's actually `GET /api/reviews` with `reviewee_id` as an optional query param.
+Trailing slash doesn't matter on either route (`/api/reviews` and `/api/reviews/` both work — Express's default non-strict routing).
 
-Post body: `{ "reviewee_id": 7, "target_type": "broadcaster", "rating": 4, "comment": "..." }`. `target_type`: `space`, `broadcaster`, `advertiser`.
+**`booking_id` is not a supported filter — there's no `booking_id` column on `reviews` at all.** A
+review is tied to `reviewer_id`/`reviewee_id`/`target_type` only, with no link to a specific
+booking or transaction. If FE code calls `GET /api/reviews?booking_id=...`, that param is silently
+ignored — it never filtered by booking. This isn't just a doc gap, it's a real design question
+(see note below) — needs a decision before FE can treat reviews as booking-scoped.
+
+Post body: `{ "reviewee_id": 7, "target_type": "broadcaster", "rating": 4, "comment": "..." }`. `reviewee_id`, `target_type`, and `rating` are required (`400` if missing). `target_type`: `space`, `broadcaster`, `advertiser`. `rating`: integer 1–5.
+
+> **Design not finalized** — there's currently no check that the reviewer and reviewee ever
+> actually interacted (e.g. a completed booking), no self-review prevention, and no edit/delete.
+> Don't build FE assumptions around any of those being disallowed — they're open questions, not
+> confirmed behavior.
 
 ---
 
@@ -487,7 +526,7 @@ Returns `201` on new signup, `200` if already on the list.
 | HTTP | Meaning |
 |---|---|
 | `400` | Validation error or bad request — check `error` (or `errors`, see Global Conventions) |
-| `401` | Not authenticated — clear token and redirect to `/signin` |
+| `401` | Not authenticated — redirect to `/signin` (no client-side token to clear) |
 | `403` | Authenticated but wrong role for this endpoint |
 | `404` | Resource not found |
 | `409` | Conflict (e.g. duplicate booking on same dates) |

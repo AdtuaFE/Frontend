@@ -331,8 +331,8 @@ const SignUp = () => {
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
             Already have an account?{" "}
-            <button onClick={() => navigate("/signin")}
-              className="text-primary hover:underline font-medium">
+            <button onClick={() => navigate("/signin")} disabled={isLoading}
+              className="text-primary hover:underline font-medium disabled:opacity-50 disabled:pointer-events-none">
               Sign in
             </button>
           </p>

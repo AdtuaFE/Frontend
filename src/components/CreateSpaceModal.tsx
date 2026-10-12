@@ -63,7 +63,7 @@ const DISPLAY_TYPES = [
   { value: "other",       label: "Other" },
 ];
 
-const inputCn = "h-10 rounded-lg border-[#d7dce3] bg-white text-sm shadow-none focus-visible:ring-[#ff8a00]";
+const inputCn = "h-10 rounded-lg border-[#d7dce3] bg-white text-sm shadow-none focus-visible:ring-[#3a47c2]";
 const inputErrCn = "h-10 rounded-lg border-red-400 bg-white text-sm shadow-none focus-visible:ring-red-400";
 
 const FieldError = ({ msg }: { msg?: string }) =>
@@ -190,13 +190,13 @@ export function CreateSpaceModal({ open, onOpenChange }: Props) {
               <Textarea id="s-spaceDescription" name="spaceDescription" value={formData.spaceDescription}
                 onChange={handleChange}
                 placeholder="Describe where the ad space lives, who sees it, and why it performs well."
-                className="min-h-[80px] rounded-lg border-[#d7dce3] px-3 py-2 text-sm focus-visible:ring-[#ff8a00]" />
+                className="min-h-[80px] rounded-lg border-[#d7dce3] px-3 py-2 text-sm focus-visible:ring-[#3a47c2]" />
             </div>
 
             <div className="space-y-1.5">
               <Label>Space type <span className="text-red-500">*</span></Label>
               <Select value={formData.spaceType} onValueChange={v => handleSelect("spaceType", v)}>
-                <SelectTrigger className={`h-10 rounded-lg text-sm ${fieldErrors.spaceType ? "border-red-400 focus:ring-red-400" : "border-[#d7dce3] focus:ring-[#ff8a00]"}`}>
+                <SelectTrigger className={`h-10 rounded-lg text-sm ${fieldErrors.spaceType ? "border-red-400 focus:ring-red-400" : "border-[#d7dce3] focus:ring-[#3a47c2]"}`}>
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -209,7 +209,7 @@ export function CreateSpaceModal({ open, onOpenChange }: Props) {
             <div className="space-y-1.5">
               <Label>Display type <span className="text-red-500">*</span></Label>
               <Select value={formData.displayType} onValueChange={v => handleSelect("displayType", v)}>
-                <SelectTrigger className={`h-10 rounded-lg text-sm ${fieldErrors.displayType ? "border-red-400 focus:ring-red-400" : "border-[#d7dce3] focus:ring-[#ff8a00]"}`}>
+                <SelectTrigger className={`h-10 rounded-lg text-sm ${fieldErrors.displayType ? "border-red-400 focus:ring-red-400" : "border-[#d7dce3] focus:ring-[#3a47c2]"}`}>
                   <SelectValue placeholder="Select display type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -322,7 +322,7 @@ export function CreateSpaceModal({ open, onOpenChange }: Props) {
 
           <div className="flex justify-end gap-3 pt-2">
             <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>Cancel</Button>
-            <Button type="submit" disabled={isSubmitting} className="bg-[#ff8a00] text-white hover:bg-[#e77700]">
+            <Button type="submit" disabled={isSubmitting} className="bg-[#3a47c2] text-white hover:bg-[#2f3a9e]">
               {isSubmitting ? "Creating…" : "Add space"}
             </Button>
           </div>

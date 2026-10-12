@@ -68,8 +68,8 @@ export function CancelPremiumModal({ open, onOpenChange, role, tier, amount, per
               const Icon = item.icon;
               return (
                 <div key={item.title} className="flex items-start gap-4">
-                  <div className="shrink-0 size-10 rounded-[10px] bg-[rgba(255,127,17,0.1)] flex items-center justify-center">
-                    <Icon className="h-5 w-5 text-[#ff7f11]" />
+                  <div className="shrink-0 size-10 rounded-[10px] bg-[rgba(58,71,194,0.1)] flex items-center justify-center">
+                    <Icon className="h-5 w-5 text-[#3a47c2]" />
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-[#4a5565]">{item.title}</p>

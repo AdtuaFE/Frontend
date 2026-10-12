@@ -1,15 +1,16 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { api } from "@/lib/api";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
-import { CreateSpaceModal } from "@/components/CreateSpaceModal";
 import { SpaceCard, type Space } from "@/pages/Browse";
 
 const MySpaces = () => {
-  const [spaceModalOpen, setSpaceModalOpen] = useState(false);
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+  const addSpace = () => navigate("/spaces/new");
 
   const { data: mySpaces = [], isLoading } = useQuery<Space[]>({
     queryKey: ["spaces-mine"],
@@ -30,7 +31,7 @@ const MySpaces = () => {
             <h1 className="text-3xl font-bold">My spaces</h1>
             <p className="mt-1 text-muted-foreground">Manage the screens you've listed for advertisers.</p>
           </div>
-          <Button className="bg-[#ff8a00] hover:bg-[#e77700] text-white shrink-0" onClick={() => setSpaceModalOpen(true)}>
+          <Button className="bg-[#3a47c2] hover:bg-[#2f3a9e] text-white shrink-0" onClick={addSpace}>
             <Plus className="h-4 w-4 mr-1.5" />Add space
           </Button>
         </div>
@@ -40,8 +41,8 @@ const MySpaces = () => {
         ) : spaces.length > 0 ? (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {spaces.map(s => <SpaceCard key={s.id} space={s} />)}
-            <button onClick={() => setSpaceModalOpen(true)}
-              className="flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[#d7dce3] p-6 text-sm text-muted-foreground transition hover:border-[#ff8a00] hover:text-[#ff8a00]">
+            <button onClick={addSpace}
+              className="flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[#d7dce3] p-6 text-sm text-muted-foreground transition hover:border-[#3a47c2] hover:text-[#3a47c2]">
               <Plus className="h-5 w-5" />New space
             </button>
           </div>
@@ -49,15 +50,13 @@ const MySpaces = () => {
           <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-4">
             <p>{q ? "No spaces match your search." : "You haven't added any spaces yet."}</p>
             {!q && (
-              <Button onClick={() => setSpaceModalOpen(true)} className="bg-[#ff8a00] hover:bg-[#e77700] text-white">
+              <Button onClick={addSpace} className="bg-[#3a47c2] hover:bg-[#2f3a9e] text-white">
                 Add your first space
               </Button>
             )}
           </div>
         )}
       </div>
-
-      <CreateSpaceModal open={spaceModalOpen} onOpenChange={setSpaceModalOpen} />
     </AppLayout>
   );
 };

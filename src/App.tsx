@@ -13,6 +13,7 @@ import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import Browse from "./pages/Browse";
 import MySpaces from "./pages/MySpaces";
+import AddSpace from "./pages/AddSpace";
 import CampaignDetail from "./pages/CampaignDetail";
 import BookingDetail from "./pages/BookingDetail";
 import SpaceDetail from "./pages/SpaceDetail";
@@ -44,6 +45,7 @@ const App = () => (
             <Route path="/spaces" element={<ProtectedRoute requiredRole="broadcaster"><MySpaces /></ProtectedRoute>} />
             <Route path="/campaigns/:id" element={<ProtectedRoute><CampaignDetail /></ProtectedRoute>} />
             <Route path="/bookings/:id" element={<ProtectedRoute><BookingDetail /></ProtectedRoute>} />
+            <Route path="/spaces/new" element={<ProtectedRoute requiredRole="broadcaster"><AddSpace /></ProtectedRoute>} />
             <Route path="/spaces/:id" element={<ProtectedRoute><SpaceDetail /></ProtectedRoute>} />
             <Route
               path="/campaigns"

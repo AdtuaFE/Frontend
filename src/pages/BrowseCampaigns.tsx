@@ -79,7 +79,7 @@ const BrowseCampaigns = ({ isMarketplace = false }: BrowseCampaignsProps) => {
             </p>
           </div>
           {!isMarketplace && isAdvertiser && (
-            <Button className="bg-[#ff8a00] hover:bg-[#e77700] text-white shrink-0" onClick={() => setCampaignModalOpen(true)}>
+            <Button className="bg-[#3a47c2] hover:bg-[#2f3a9e] text-white shrink-0" onClick={() => setCampaignModalOpen(true)}>
               <Plus className="h-4 w-4 mr-1.5" />New campaign
             </Button>
           )}
@@ -98,7 +98,7 @@ const BrowseCampaigns = ({ isMarketplace = false }: BrowseCampaignsProps) => {
             {filteredCampaigns.map(c => (
               <Card
                 key={c.id}
-                className="cursor-pointer hover:border-[#ff8a00] transition-colors flex flex-col"
+                className="cursor-pointer hover:border-[#3a47c2] transition-colors flex flex-col"
                 onClick={() => navigate(`/campaigns/${c.id}`)}>
                 <CardContent className="pt-6 flex flex-col flex-1">
                   <div className="flex items-start justify-between gap-2">

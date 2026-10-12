@@ -100,7 +100,7 @@ export function BusinessProfileModal({ open, onOpenChange, onComplete }: Props) 
                       className={`rounded-full border px-4 py-1.5 text-sm font-medium transition-all ${
                         businessTypes.includes(type)
                           ? "border-[#FFE5CC] bg-[#FFE5CC] text-foreground"
-                          : "border-border bg-background text-foreground hover:border-[#ff8a00]"
+                          : "border-border bg-background text-foreground hover:border-[#3a47c2]"
                       }`}>
                       {type}
                     </button>
@@ -108,7 +108,7 @@ export function BusinessProfileModal({ open, onOpenChange, onComplete }: Props) 
                 </div>
                 <Input value={customBusiness} onChange={e => setCustomBusiness(e.target.value)}
                   placeholder="Or enter your own…"
-                  className="h-10 rounded-lg border-[#d7dce3] text-sm focus-visible:ring-[#ff8a00]" />
+                  className="h-10 rounded-lg border-[#d7dce3] text-sm focus-visible:ring-[#3a47c2]" />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="bp-companyName" className="text-sm font-medium">
@@ -117,7 +117,7 @@ export function BusinessProfileModal({ open, onOpenChange, onComplete }: Props) 
                 </Label>
                 <Input id="bp-companyName" value={companyName} onChange={e => setCompanyName(e.target.value)}
                   placeholder={isBroadcaster ? "Adtua Media Group" : "Adtua Coffee Co."}
-                  className="h-10 rounded-lg border-[#d7dce3] text-sm focus-visible:ring-[#ff8a00]" />
+                  className="h-10 rounded-lg border-[#d7dce3] text-sm focus-visible:ring-[#3a47c2]" />
               </div>
             </>
           )}
@@ -125,7 +125,7 @@ export function BusinessProfileModal({ open, onOpenChange, onComplete }: Props) 
           <div className="flex justify-end gap-3 pt-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
             <Button onClick={handleSave} disabled={!canSave || isSubmitting}
-              className="bg-[#ff8a00] text-white hover:bg-[#e77700]">
+              className="bg-[#3a47c2] text-white hover:bg-[#2f3a9e]">
               {isSubmitting ? "Saving…" : "Save"}
             </Button>
           </div>

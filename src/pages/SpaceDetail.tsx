@@ -399,7 +399,7 @@ const SpaceDetail = () => {
             {isAdvertiser && !isOwner && (
               <Button
                 size="sm"
-                className="bg-[#ff8a00] text-white hover:bg-[#e77700]"
+                className="bg-[#3a47c2] text-white hover:bg-[#2f3a9e]"
                 onClick={() => setBookingSpace({
                   id: space.id, name: space.name, cpm: space.cpm,
                   est_daily_impressions: space.est_daily_impressions,
@@ -537,7 +537,7 @@ const SpaceDetail = () => {
           {images.length === 0 ? (
             isOwner ? (
               <button disabled={uploading} onClick={() => fileInputRef.current?.click()}
-                className="w-full rounded-xl border-2 border-dashed border-[#d7dce3] py-16 flex flex-col items-center gap-3 text-muted-foreground hover:border-[#ff8a00] hover:text-[#ff8a00] transition-colors disabled:pointer-events-none">
+                className="w-full rounded-xl border-2 border-dashed border-[#d7dce3] py-16 flex flex-col items-center gap-3 text-muted-foreground hover:border-[#3a47c2] hover:text-[#3a47c2] transition-colors disabled:pointer-events-none">
                 <Plus className="h-8 w-8" />
                 <div className="text-center">
                   <p className="font-medium">Upload the first photo</p>
@@ -555,7 +555,7 @@ const SpaceDetail = () => {
                     <img src={img.url} alt="" className="w-full h-full object-cover" />
                   </div>
                   {img.is_primary && (
-                    <div className="absolute top-2 left-2 flex items-center gap-1 rounded-full bg-[#ff8a00] px-2 py-0.5 text-xs font-medium text-white">
+                    <div className="absolute top-2 left-2 flex items-center gap-1 rounded-full bg-[#3a47c2] px-2 py-0.5 text-xs font-medium text-white">
                       <Star className="h-3 w-3 fill-white" /> Primary
                     </div>
                   )}
@@ -578,7 +578,7 @@ const SpaceDetail = () => {
               ))}
               {isOwner && images.length < 10 && (
                 <button disabled={uploading} onClick={() => fileInputRef.current?.click()}
-                  className="rounded-xl border-2 border-dashed border-[#d7dce3] aspect-video flex flex-col items-center justify-center gap-2 text-sm text-muted-foreground hover:border-[#ff8a00] hover:text-[#ff8a00] transition-colors disabled:pointer-events-none">
+                  className="rounded-xl border-2 border-dashed border-[#d7dce3] aspect-video flex flex-col items-center justify-center gap-2 text-sm text-muted-foreground hover:border-[#3a47c2] hover:text-[#3a47c2] transition-colors disabled:pointer-events-none">
                   <Plus className="h-6 w-6" />
                   Add photo
                 </button>
@@ -612,7 +612,7 @@ const SpaceDetail = () => {
                               <Input type="number" min="1"
                                 value={slotEditForm.est_impressions_per_playback}
                                 onChange={e => setSlotEditForm(f => ({ ...f, est_impressions_per_playback: e.target.value }))}
-                                className="h-8 text-sm rounded-md border-[#d7dce3] shadow-none focus-visible:ring-[#ff8a00]"
+                                className="h-8 text-sm rounded-md border-[#d7dce3] shadow-none focus-visible:ring-[#3a47c2]"
                               />
                             </div>
                             <div className="space-y-1">
@@ -620,7 +620,7 @@ const SpaceDetail = () => {
                               <Input type="number" min="1"
                                 value={slotEditForm.daily_capacity_playbacks}
                                 onChange={e => setSlotEditForm(f => ({ ...f, daily_capacity_playbacks: e.target.value }))}
-                                className="h-8 text-sm rounded-md border-[#d7dce3] shadow-none focus-visible:ring-[#ff8a00]"
+                                className="h-8 text-sm rounded-md border-[#d7dce3] shadow-none focus-visible:ring-[#3a47c2]"
                               />
                             </div>
                             <div className="space-y-1">
@@ -628,7 +628,7 @@ const SpaceDetail = () => {
                               <Input type="number" min="0.1" step="0.1"
                                 value={slotEditForm.price_multiplier}
                                 onChange={e => setSlotEditForm(f => ({ ...f, price_multiplier: e.target.value }))}
-                                className="h-8 text-sm rounded-md border-[#d7dce3] shadow-none focus-visible:ring-[#ff8a00]"
+                                className="h-8 text-sm rounded-md border-[#d7dce3] shadow-none focus-visible:ring-[#3a47c2]"
                               />
                             </div>
                           </div>
@@ -651,7 +651,7 @@ const SpaceDetail = () => {
                               </Button>
                               <Button size="sm" disabled={slotSaving}
                                 onClick={handleSlotSave}
-                                className="bg-[#ff8a00] text-white hover:bg-[#e77700]">
+                                className="bg-[#3a47c2] text-white hover:bg-[#2f3a9e]">
                                 {slotSaving ? "Saving…" : "Save"}
                               </Button>
                             </>
@@ -691,7 +691,7 @@ const SpaceDetail = () => {
                   </div>
                   <div className="h-3 rounded-full bg-muted overflow-hidden">
                     <div
-                      className="h-full bg-[#ff8a00] rounded-full transition-all duration-500"
+                      className="h-full bg-[#3a47c2] rounded-full transition-all duration-500"
                       style={{ width: `${Math.min(100, slot.pct_capacity_sold)}%` }}
                     />
                   </div>
@@ -740,7 +740,7 @@ const SpaceDetail = () => {
                 <Button
                   onClick={handlePairDevice}
                   disabled={pairing || pairCode.length !== 6}
-                  className="bg-[#ff8a00] text-white hover:bg-[#e77700]">
+                  className="bg-[#3a47c2] text-white hover:bg-[#2f3a9e]">
                   {pairing ? "Pairing…" : "Pair device"}
                 </Button>
               </div>

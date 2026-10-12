@@ -165,13 +165,13 @@ function SpaceDetailPanel({ space, isOwn, isAdvertiser, onClose, onBook }: {
       </div>
       <div className="shrink-0 p-4 border-t flex flex-col gap-2">
         {isOwn && (
-          <Button className="w-full bg-[#ff8a00] hover:bg-[#e77700] text-white"
+          <Button className="w-full bg-[#3a47c2] hover:bg-[#2f3a9e] text-white"
             onClick={() => navigate(`/spaces/${space.id}`)}>
             Manage space
           </Button>
         )}
         {!isOwn && isAdvertiser && (
-          <Button className="w-full bg-[#ff8a00] hover:bg-[#e77700] text-white"
+          <Button className="w-full bg-[#3a47c2] hover:bg-[#2f3a9e] text-white"
             onClick={() => onBook({ id: space.id, name: space.name, cpm: space.cpm, est_daily_impressions: space.est_daily_impressions })}>
             Book this space
           </Button>
@@ -231,7 +231,7 @@ function MapView({ allSpaces, mySpaces, isAdvertiser, isBroadcaster, selectedId,
           <div className="absolute bottom-8 left-3 z-[1000] bg-background/90 backdrop-blur-sm border rounded-lg px-3 py-2 text-xs space-y-1.5 shadow-sm pointer-events-none">
             {isBroadcaster && (
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-[#ff8a00] border border-white shadow-sm" />
+                <span className="w-3 h-3 rounded-full bg-[#3a47c2] border border-white shadow-sm" />
                 <span className="text-muted-foreground">Your spaces</span>
               </div>
             )}
@@ -303,7 +303,7 @@ function ListView({
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {checklistItems.map((item, i) => (
               <Card key={i}
-                className={`transition-colors ${item.onClick ? "cursor-pointer hover:border-[#ff8a00]" : ""}`}
+                className={`transition-colors ${item.onClick ? "cursor-pointer hover:border-[#3a47c2]" : ""}`}
                 onClick={item.onClick}>
                 <CardContent className="pt-5 flex items-start gap-3">
                   {item.completed
@@ -326,7 +326,7 @@ function ListView({
             title="My spaces"
             count={mySpaces.length}
             action={
-              <Button size="sm" className="bg-[#ff8a00] hover:bg-[#e77700] text-white h-8 text-xs" onClick={onAddSpace}>
+              <Button size="sm" className="bg-[#3a47c2] hover:bg-[#2f3a9e] text-white h-8 text-xs" onClick={onAddSpace}>
                 <Plus className="h-3.5 w-3.5 mr-1" />Add space
               </Button>
             }
@@ -334,7 +334,7 @@ function ListView({
           {mySpaces.length > 0 ? (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {mySpaces.map(s => (
-                <Card key={s.id} className="cursor-pointer hover:border-[#ff8a00] transition-colors"
+                <Card key={s.id} className="cursor-pointer hover:border-[#3a47c2] transition-colors"
                   onClick={() => navigate(`/spaces/${s.id}`)}>
                   <CardContent className="pt-5">
                     <div className="flex items-start justify-between gap-2">
@@ -357,14 +357,14 @@ function ListView({
                 </Card>
               ))}
               <button onClick={onAddSpace}
-                className="flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[#d7dce3] p-6 text-sm text-muted-foreground transition hover:border-[#ff8a00] hover:text-[#ff8a00]">
+                className="flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[#d7dce3] p-6 text-sm text-muted-foreground transition hover:border-[#3a47c2] hover:text-[#3a47c2]">
                 <Plus className="h-5 w-5" />New space
               </button>
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-4">
               <p>No spaces yet.</p>
-              <Button onClick={onAddSpace} className="bg-[#FF8A00] hover:bg-[#e77700] text-white">
+              <Button onClick={onAddSpace} className="bg-[#3a47c2] hover:bg-[#2f3a9e] text-white">
                 Add a space
               </Button>
             </div>
@@ -378,7 +378,7 @@ function ListView({
           <ListSection title="Incoming bookings" count={broadcasterBookings.length} />
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {broadcasterBookings.map(b => (
-              <Card key={b.id} className="cursor-pointer hover:border-[#ff8a00] transition-colors"
+              <Card key={b.id} className="cursor-pointer hover:border-[#3a47c2] transition-colors"
                 onClick={() => navigate(`/bookings/${b.id}`)}>
                 <CardContent className="pt-5">
                   <div className="flex items-start justify-between gap-2">
@@ -407,7 +407,7 @@ function ListView({
             {myOffers.map(o => {
               const total = o.spaces?.reduce((s, sp) => s + sp.proposed_price, 0) ?? 0;
               return (
-                <Card key={o.id} className="cursor-pointer hover:border-[#ff8a00] transition-colors"
+                <Card key={o.id} className="cursor-pointer hover:border-[#3a47c2] transition-colors"
                   onClick={() => navigate(`/campaigns/${o.campaign_id}`)}>
                   <CardContent className="pt-5">
                     <div className="flex items-start justify-between gap-2">
@@ -440,7 +440,7 @@ function ListView({
             title="Campaigns"
             count={campaigns.length}
             action={
-              <Button size="sm" className="bg-[#ff8a00] hover:bg-[#e77700] text-white h-8 text-xs" onClick={onAddCampaign}>
+              <Button size="sm" className="bg-[#3a47c2] hover:bg-[#2f3a9e] text-white h-8 text-xs" onClick={onAddCampaign}>
                 <Plus className="h-3.5 w-3.5 mr-1" />New campaign
               </Button>
             }
@@ -448,7 +448,7 @@ function ListView({
           {campaigns.length > 0 ? (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {campaigns.map(c => (
-                <Card key={c.id} className="cursor-pointer hover:border-[#ff8a00] transition-colors"
+                <Card key={c.id} className="cursor-pointer hover:border-[#3a47c2] transition-colors"
                   onClick={() => navigate(`/campaigns/${c.id}`)}>
                   <CardContent className="pt-5">
                     <div className="flex items-start justify-between gap-2">
@@ -466,14 +466,14 @@ function ListView({
                 </Card>
               ))}
               <button onClick={onAddCampaign}
-                className="flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[#d7dce3] p-6 text-sm text-muted-foreground transition hover:border-[#ff8a00] hover:text-[#ff8a00]">
+                className="flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[#d7dce3] p-6 text-sm text-muted-foreground transition hover:border-[#3a47c2] hover:text-[#3a47c2]">
                 <Plus className="h-5 w-5" />New campaign
               </button>
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-4">
               <p>No campaigns yet.</p>
-              <Button onClick={onAddCampaign} className="bg-[#FF8A00] hover:bg-[#e77700] text-white">
+              <Button onClick={onAddCampaign} className="bg-[#3a47c2] hover:bg-[#2f3a9e] text-white">
                 Create a campaign
               </Button>
             </div>
@@ -489,7 +489,7 @@ function ListView({
             {advertiserBookings.map(b => {
               const campaign = campaigns.find(c => c.id === b.campaign_id);
               return (
-                <Card key={b.id} className="cursor-pointer hover:border-[#ff8a00] transition-colors"
+                <Card key={b.id} className="cursor-pointer hover:border-[#3a47c2] transition-colors"
                   onClick={() => navigate(`/bookings/${b.id}`)}>
                   <CardContent className="pt-5">
                     <div className="flex items-start justify-between gap-2">

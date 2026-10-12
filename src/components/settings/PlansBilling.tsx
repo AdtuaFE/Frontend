@@ -23,13 +23,13 @@ const PLACEHOLDER_USAGE = {
   earnings: 198,
 };
 
-const BRAND_GRADIENT = "linear-gradient(158deg, #ff7f11 8.5%, #f0740a 45.8%, #ff7f11 91.5%)";
+const BRAND_GRADIENT = "linear-gradient(158deg, #3a47c2 8.5%, #333fae 45.8%, #3a47c2 91.5%)";
 
 function FeatureRow({ text, onDark }: { text: string; onDark?: boolean }) {
   return (
     <div className="flex items-center gap-4">
       <div className={`size-5 rounded-[10px] flex items-center justify-center shrink-0 ${onDark ? "bg-white" : "bg-[#f1f1f1]"}`}>
-        <Check className={`h-3 w-3 ${onDark ? "text-[#ff7f11]" : "text-[#9c9c9c]"}`} />
+        <Check className={`h-3 w-3 ${onDark ? "text-[#3a47c2]" : "text-[#9c9c9c]"}`} />
       </div>
       <p className={`text-xs ${onDark ? "font-bold text-white" : "text-[#4a5565]"}`}>{text}</p>
     </div>
@@ -57,7 +57,7 @@ function PlanCard({ label, price, unit, features, cta, onCta, highlighted, disab
         onClick={onCta}
         disabled={disabled}
         variant={highlighted ? "default" : "outline"}
-        className={`w-full ${highlighted ? "bg-white text-[#ff7f11] hover:bg-[#fff4ea]" : ""}`}>
+        className={`w-full ${highlighted ? "bg-white text-[#3a47c2] hover:bg-[#f2f5ff]" : ""}`}>
         {cta}
       </Button>
     </div>
@@ -76,7 +76,7 @@ function PricingNote({ role }: { role: Role }) {
           {role === "advertiser" && (
             <>
               <p className="text-sm text-[#767676]">Space cost is calculated as</p>
-              <code className="inline-block bg-[rgba(255,127,17,0.1)] text-[#4a5565] text-[12.5px] px-2 py-1 rounded">
+              <code className="inline-block bg-[rgba(58,71,194,0.1)] text-[#4a5565] text-[12.5px] px-2 py-1 rounded">
                 (CPM ÷ 1000) × estimated daily impressions × campaign days
               </code>
               <p className="text-sm text-[#767676] leading-relaxed">
@@ -103,7 +103,7 @@ function UsageBar({ label, used, limit }: { label: string; used: number; limit: 
         <p className="text-sm font-medium text-[#767676]">{label}</p>
         <p className="text-[13.5px] text-[#9c9c9c]">{used} / {limit}</p>
       </div>
-      <Progress value={Math.min(100, (used / limit) * 100)} className="h-2 bg-[rgba(255,127,17,0.1)] [&>div]:bg-[#ff7f11]" />
+      <Progress value={Math.min(100, (used / limit) * 100)} className="h-2 bg-[rgba(58,71,194,0.1)] [&>div]:bg-[#3a47c2]" />
     </div>
   );
 }
@@ -119,7 +119,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 
 function Tag({ children, solid }: { children: ReactNode; solid?: boolean }) {
   return (
-    <span className={`text-xs px-3 py-1 rounded ${solid ? "bg-[#ff7f11] text-white font-semibold" : "bg-[rgba(255,127,17,0.1)] text-[#767676] font-medium"}`}>
+    <span className={`text-xs px-3 py-1 rounded ${solid ? "bg-[#3a47c2] text-white font-semibold" : "bg-[rgba(58,71,194,0.1)] text-[#767676] font-medium"}`}>
       {children}
     </span>
   );
@@ -147,7 +147,7 @@ function FreeView({ role }: { role: Role }) {
                 <Lock className="h-4 w-4 text-[#4a5565]" />
                 <p className="text-xs font-medium text-[#4a5565]">Broadcaster offer requests</p>
               </div>
-              <span className="bg-[rgba(255,127,17,0.1)] text-[#ff7f11] text-xs font-semibold px-2 py-1.5 rounded">Premium only</span>
+              <span className="bg-[rgba(58,71,194,0.1)] text-[#3a47c2] text-xs font-semibold px-2 py-1.5 rounded">Premium only</span>
             </div>
           )}
         </div>

@@ -10,7 +10,7 @@ import { useAuth } from "@/context/AuthContext";
 import { PAID_PLANS, chargeFor, formatDate, nextRenewal, subscribe, type Billing, type PaidTier, type Role } from "@/lib/plans";
 import { toast } from "sonner";
 
-const inputCn = "h-10 rounded-lg border-[#d7dce3] bg-white text-sm shadow-none focus-visible:ring-[#ff8a00]";
+const inputCn = "h-10 rounded-lg border-[#d7dce3] bg-white text-sm shadow-none focus-visible:ring-[#3a47c2]";
 
 export default function PlanUpgrade() {
   const { role: roleParam } = useParams<{ role: string }>();
@@ -58,22 +58,22 @@ export default function PlanUpgrade() {
             <div className="space-y-3">
               <p className="text-base font-semibold text-[#4a5565]">Choose your plan</p>
               <RadioGroup value={effectiveBilling} onValueChange={v => setBilling(v as Billing)} className="gap-2">
-                <label className={`flex items-start gap-2 p-4 rounded-lg border cursor-pointer ${effectiveBilling === "monthly" ? "bg-[rgba(255,127,17,0.05)] border-[#ff7f11]" : "border-[#e8e8e8]"}`}>
+                <label className={`flex items-start gap-2 p-4 rounded-lg border cursor-pointer ${effectiveBilling === "monthly" ? "bg-[rgba(58,71,194,0.05)] border-[#3a47c2]" : "border-[#e8e8e8]"}`}>
                   <RadioGroupItem value="monthly" className="mt-0.5" />
                   <span>
-                    <span className={`block text-sm font-semibold ${effectiveBilling === "monthly" ? "text-[#ff7f11]" : "text-[#4a5565]"}`}>Pay monthly</span>
+                    <span className={`block text-sm font-semibold ${effectiveBilling === "monthly" ? "text-[#3a47c2]" : "text-[#4a5565]"}`}>Pay monthly</span>
                     <span className="block text-sm text-[#4a5565]">${plan.priceMonthly}/month</span>
                   </span>
                 </label>
                 {hasAnnual && (
-                  <label className={`flex items-start gap-2 p-4 rounded-lg border cursor-pointer ${effectiveBilling === "annual" ? "bg-[rgba(255,127,17,0.05)] border-[#ff7f11]" : "border-[#e8e8e8]"}`}>
+                  <label className={`flex items-start gap-2 p-4 rounded-lg border cursor-pointer ${effectiveBilling === "annual" ? "bg-[rgba(58,71,194,0.05)] border-[#3a47c2]" : "border-[#e8e8e8]"}`}>
                     <RadioGroupItem value="annual" className="mt-0.5" />
                     <span className="flex-1 flex items-center justify-between gap-2">
                       <span>
-                        <span className={`block text-sm font-semibold ${effectiveBilling === "annual" ? "text-[#ff7f11]" : "text-[#4a5565]"}`}>Pay annually</span>
+                        <span className={`block text-sm font-semibold ${effectiveBilling === "annual" ? "text-[#3a47c2]" : "text-[#4a5565]"}`}>Pay annually</span>
                         <span className="block text-sm text-[#4a5565]">${plan.priceAnnual! * 12}/year at ${plan.priceAnnual}/month</span>
                       </span>
-                      <span className="bg-[rgba(255,127,17,0.1)] text-[#ff7f11] text-xs font-semibold px-2 py-1.5 rounded shrink-0">Save 10%</span>
+                      <span className="bg-[rgba(58,71,194,0.1)] text-[#3a47c2] text-xs font-semibold px-2 py-1.5 rounded shrink-0">Save 10%</span>
                     </span>
                   </label>
                 )}
@@ -102,7 +102,7 @@ export default function PlanUpgrade() {
               <div className="space-y-1">
                 {plan.features.map(f => (
                   <div key={f} className="flex items-center gap-[9px] py-2">
-                    <div className="size-5 rounded-[10px] bg-[#ff7f11] flex items-center justify-center shrink-0">
+                    <div className="size-5 rounded-[10px] bg-[#3a47c2] flex items-center justify-center shrink-0">
                       <Check className="h-3 w-3 text-white" />
                     </div>
                     <p className="text-xs text-[#4a5565]">{f}</p>
@@ -116,7 +116,7 @@ export default function PlanUpgrade() {
           <div className="border border-[#e8e8e8] rounded-2xl p-6 shadow-sm space-y-4">
             <p className="text-base font-semibold text-[#4a5565]">Pay with</p>
             <div className="flex gap-4">
-              <div className="flex-1 px-4 py-2 rounded-md border border-[#ff7f11] bg-[rgba(255,127,17,0.05)] text-[#ff7f11] text-xs font-medium">Card</div>
+              <div className="flex-1 px-4 py-2 rounded-md border border-[#3a47c2] bg-[rgba(58,71,194,0.05)] text-[#3a47c2] text-xs font-medium">Card</div>
               <div className="flex-1 px-4 py-2 rounded-md border-[1.5px] border-[#e8e8e8] text-[#767676] text-xs font-medium opacity-60">Bank</div>
             </div>
             <div className="grid grid-cols-2 gap-8">
@@ -148,7 +148,7 @@ export default function PlanUpgrade() {
               <Input id="pay-zip" placeholder="47401" className={inputCn} />
             </div>
 
-            <Button type="submit" disabled={submitting} className="w-full bg-[#ff7f11] hover:bg-[#e77700] text-white py-5">
+            <Button type="submit" disabled={submitting} className="w-full bg-[#3a47c2] hover:bg-[#2f3a9e] text-white py-5">
               {submitting ? "Processing…" : `Upgrade to ${plan.label}`}
             </Button>
             <p className="text-[10px] text-[#8a93a1] leading-[17px]">

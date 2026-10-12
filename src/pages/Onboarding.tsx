@@ -146,7 +146,7 @@ const Onboarding = () => {
                 <div className="flex justify-center">
                   <Button onClick={handleNext} disabled={!accountType}
                     className="h-12 rounded-lg px-12 text-base font-medium"
-                    style={{ backgroundColor: "#FF8A00" }}>
+                    style={{ backgroundColor: "#3a47c2" }}>
                     Next
                   </Button>
                 </div>
@@ -186,7 +186,7 @@ const Onboarding = () => {
                     Do it later
                   </button>
                   <Button onClick={handleNext} className="h-12 rounded-lg px-12 text-base font-medium"
-                    style={{ backgroundColor: "#FF8A00" }}>
+                    style={{ backgroundColor: "#3a47c2" }}>
                     Continue
                   </Button>
                 </div>
@@ -227,7 +227,7 @@ const Onboarding = () => {
                   </button>
                   <Button onClick={handleNext} disabled={!adBudget || !adCreativesReady}
                     className="h-12 rounded-lg px-12 text-base font-medium"
-                    style={{ backgroundColor: "#FF8A00" }}>
+                    style={{ backgroundColor: "#3a47c2" }}>
                     Continue
                   </Button>
                 </div>

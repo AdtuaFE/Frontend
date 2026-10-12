@@ -35,6 +35,10 @@ const FREE_STATE: PlanState = {
 export const ADVERTISER_FREE_IMPRESSIONS = 50;
 export const ADVERTISER_PREMIUM_IMPRESSIONS = 100;
 
+/** Share of booking revenue a broadcaster keeps, by plan. Paid tiers advertise a 55% split. */
+export const BROADCASTER_FREE_SHARE = 0.4;
+export const BROADCASTER_PAID_SHARE = 0.55;
+
 export const PAID_PLANS: Record<PaidTier, PaidPlan & { displays?: number }> = {
   premium: {
     label: "Premium",

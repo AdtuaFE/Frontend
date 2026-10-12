@@ -30,8 +30,8 @@ export default function PlanConfirmation() {
   return (
     <AppLayout activeNav="settings">
       <div className="max-w-lg mx-auto py-16 flex flex-col items-center gap-4 text-center">
-        <div className="size-14 rounded-xl bg-[rgba(255,127,17,0.1)] flex items-center justify-center">
-          <PartyPopper className="h-6 w-6 text-[#ff7f11]" />
+        <div className="size-14 rounded-xl bg-[rgba(58,71,194,0.1)] flex items-center justify-center">
+          <PartyPopper className="h-6 w-6 text-[#3a47c2]" />
         </div>
         <p className="text-xl font-semibold text-[#4a5565]">You're on Premium!</p>
         <p className="text-sm text-[#767676] leading-relaxed">
@@ -40,10 +40,10 @@ export default function PlanConfirmation() {
         </p>
         <div className="flex gap-3 flex-wrap justify-center pt-2">
           {pills.map(p => (
-            <span key={p} className="bg-[rgba(255,127,17,0.1)] text-[#ff7f11] text-xs font-semibold px-3 py-1.5 rounded-full">{p}</span>
+            <span key={p} className="bg-[rgba(58,71,194,0.1)] text-[#3a47c2] text-xs font-semibold px-3 py-1.5 rounded-full">{p}</span>
           ))}
         </div>
-        <Button onClick={() => navigate("/settings?tab=plans")} className="w-full max-w-sm mt-6 bg-[#ff7f11] hover:bg-[#e77700] text-white py-3">
+        <Button onClick={() => navigate("/settings?tab=plans")} className="w-full max-w-sm mt-6 bg-[#3a47c2] hover:bg-[#2f3a9e] text-white py-3">
           Go to Plans and Billing
         </Button>
       </div>

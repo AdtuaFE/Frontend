@@ -40,7 +40,7 @@ const TAIL_ITEMS: NavItem[] = [
 function Avatar({ initials, size = 40 }: { initials: string; size?: number }) {
   return (
     <div
-      className="bg-[rgba(255,127,17,0.1)] rounded-full shrink-0 flex items-center justify-center text-[#ff7f11] font-medium"
+      className="bg-[rgba(58,71,194,0.1)] rounded-full shrink-0 flex items-center justify-center text-[#3a47c2] font-medium"
       style={{ width: size, height: size, fontSize: size * 0.4 }}>
       {initials}
     </div>
@@ -95,7 +95,7 @@ export function AppLayout({
           collapsed ? "justify-center px-0" : indent ? "pl-9 pr-3" : "px-3"
         } ${
           active
-            ? "bg-[rgba(255,127,17,0.1)] text-[#ff7f11] font-semibold"
+            ? "bg-[rgba(58,71,194,0.1)] text-[#3a47c2] font-semibold"
             : "text-[#767676] hover:bg-[#f9f9f9] hover:text-[#4a5565] disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-default"
         }`}>
         <Icon className="h-[18px] w-[18px] shrink-0" />
@@ -160,7 +160,7 @@ export function AppLayout({
               <div className="px-4">
                 <div
                   className="flex flex-col gap-3 p-4 rounded-xl text-white"
-                  style={{ backgroundImage: "linear-gradient(162.6deg, #ff7f11 8.5%, #f0740a 45.8%, #ff7f11 91.5%)" }}>
+                  style={{ backgroundImage: "linear-gradient(162.6deg, #3a47c2 8.5%, #333fae 45.8%, #3a47c2 91.5%)" }}>
                   <div className="flex flex-col gap-2">
                     <div className="flex items-center gap-2">
                       <p className="flex-1 text-[13px] font-semibold leading-5">Upgrade to Premium</p>
@@ -172,7 +172,7 @@ export function AppLayout({
                   </div>
                   <button
                     onClick={() => navigate("/settings?tab=plans")}
-                    className="bg-white text-[#ff7f11] text-[13px] font-semibold rounded-lg px-4 py-2 w-full hover:bg-[#fff4ea] transition-colors">
+                    className="bg-white text-[#3a47c2] text-[13px] font-semibold rounded-lg px-4 py-2 w-full hover:bg-[#f2f5ff] transition-colors">
                     Upgrade Now
                   </button>
                 </div>
@@ -220,7 +220,7 @@ export function AppLayout({
                 </button>
               </div>
               <div className="relative group">
-                <button className="block rounded-full hover:ring-2 hover:ring-[#ff7f11] transition-all" title="Your profile">
+                <button className="block rounded-full hover:ring-2 hover:ring-[#3a47c2] transition-all" title="Your profile">
                   <Avatar initials={initials} size={34} />
                 </button>
                 {/* pt-1 bridges the gap between avatar and menu so hover doesn't break */}

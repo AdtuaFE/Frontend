@@ -8,9 +8,9 @@ type Step = { icon: typeof Megaphone; title: string; description: string };
 
 function Badge({ icon: Icon, text }: { icon: typeof Megaphone; text: string }) {
   return (
-    <div className="bg-[rgba(255,127,17,0.1)] flex items-center gap-2 px-4 py-2 rounded-full">
-      <Icon className="h-5 w-5 text-[#ff7f11]" />
-      <p className="text-xs font-medium text-[#ff7f11]">{text}</p>
+    <div className="bg-[rgba(58,71,194,0.1)] flex items-center gap-2 px-4 py-2 rounded-full">
+      <Icon className="h-5 w-5 text-[#3a47c2]" />
+      <p className="text-xs font-medium text-[#3a47c2]">{text}</p>
     </div>
   );
 }
@@ -19,8 +19,8 @@ function StepCard({ step, index }: { step: Step; index: number }) {
   const Icon = step.icon;
   return (
     <div className="bg-white border-[0.8px] border-[#e8e8e8] flex flex-col gap-4 items-start p-5 rounded-2xl w-[215px]">
-      <div className="bg-[rgba(255,127,17,0.1)] flex items-center justify-center rounded-[10px] size-[38px]">
-        <Icon className="h-5 w-5 text-[#ff7f11]" />
+      <div className="bg-[rgba(58,71,194,0.1)] flex items-center justify-center rounded-[10px] size-[38px]">
+        <Icon className="h-5 w-5 text-[#3a47c2]" />
       </div>
       <div className="flex flex-col gap-1">
         <p className="text-xs font-medium text-[#9c9c9c]">Step {index + 1}</p>
@@ -57,7 +57,7 @@ function SingleRoleWelcome({
       </div>
       <div className="flex flex-col gap-3 items-center">
         <Button
-          className="bg-[#ff7f11] hover:bg-[#e77700] text-white px-6 py-5 rounded-xl text-[15px] font-semibold"
+          className="bg-[#3a47c2] hover:bg-[#2f3a9e] text-white px-6 py-5 rounded-xl text-[15px] font-semibold"
           onClick={onCta}>
           {ctaLabel}
         </Button>
@@ -81,8 +81,8 @@ function DualRoleChoiceCard({
   return (
     <div className="bg-white border border-[#e8e8e8] flex flex-col gap-7 items-start p-6 rounded-2xl w-[370px]">
       <div className="flex flex-col gap-3 items-start w-full">
-        <div className="bg-[rgba(255,127,17,0.1)] flex items-center justify-center rounded-[10px] size-[38px]">
-          <Icon className="h-5 w-5 text-[#ff7f11]" />
+        <div className="bg-[rgba(58,71,194,0.1)] flex items-center justify-center rounded-[10px] size-[38px]">
+          <Icon className="h-5 w-5 text-[#3a47c2]" />
         </div>
         <div className="flex flex-col gap-1 w-full">
           <h3 className="text-base font-semibold text-[#4a5565]">{title}</h3>
@@ -95,14 +95,14 @@ function DualRoleChoiceCard({
             const StepIcon = s.icon;
             return (
               <div key={s.label} className="flex gap-4 items-center w-full">
-                <StepIcon className="h-5 w-5 text-[#ff7f11] shrink-0" />
+                <StepIcon className="h-5 w-5 text-[#3a47c2] shrink-0" />
                 <p className="text-xs text-[#4a5565]">{s.label}</p>
               </div>
             );
           })}
         </div>
         <Button
-          className="bg-[#ff7f11] hover:bg-[#e77700] text-white w-full py-5 rounded-xl text-[15px] font-semibold"
+          className="bg-[#3a47c2] hover:bg-[#2f3a9e] text-white w-full py-5 rounded-xl text-[15px] font-semibold"
           onClick={onCta}>
           {ctaLabel}
         </Button>
@@ -175,7 +175,7 @@ export function WelcomeScreen({ isAdvertiser, isBroadcaster, onCreateCampaign, o
         ]}
         ctaLabel="Add your first space"
         onCta={onAddSpace}
-        caption={<>Free plan includes one display. Premium adds more for $50 each, or $450 for ten. <span className="font-semibold text-[#ff7f11]">See plans</span></>}
+        caption={<>Free plan includes one display. Premium adds more for $50 each, or $450 for ten. <span className="font-semibold text-[#3a47c2]">See plans</span></>}
       />
     );
   } else {
@@ -192,7 +192,7 @@ export function WelcomeScreen({ isAdvertiser, isBroadcaster, onCreateCampaign, o
         ]}
         ctaLabel="Create your first campaign"
         onCta={onCreateCampaign}
-        caption={<>Free plan includes one space each month. <span className="font-semibold text-[#ff7f11]">See plans</span></>}
+        caption={<>Free plan includes one space each month. <span className="font-semibold text-[#3a47c2]">See plans</span></>}
       />
     );
   }

@@ -34,7 +34,7 @@ type Props = {
   space: SpaceInfo | null;
 };
 
-const inputCn = "h-10 rounded-lg border-[#d7dce3] bg-white text-sm shadow-none focus-visible:ring-[#ff8a00]";
+const inputCn = "h-10 rounded-lg border-[#d7dce3] bg-white text-sm shadow-none focus-visible:ring-[#3a47c2]";
 const inputErrCn = "h-10 rounded-lg border-red-400 bg-white text-sm shadow-none focus-visible:ring-red-400";
 const FieldError = ({ msg }: { msg?: string }) =>
   msg ? <p className="mt-1 text-xs text-red-500">{msg}</p> : null;
@@ -206,13 +206,13 @@ export function CreateBookingModal({ open, onOpenChange, space }: Props) {
                   const pb = selectedSlots[slot.id] ?? "";
                   return (
                     <div key={slot.id}
-                      className={`rounded-xl border p-3 transition-colors ${isChecked ? "border-[#ff8a00] bg-[#fff8f0]" : "border-border"}`}>
+                      className={`rounded-xl border p-3 transition-colors ${isChecked ? "border-[#3a47c2] bg-[#fff8f0]" : "border-border"}`}>
                       <div className="flex items-start gap-3">
                         <Checkbox
                           id={`slot-${slot.id}`}
                           checked={isChecked}
                           onCheckedChange={() => toggleSlot(slot.id)}
-                          className="mt-0.5 shrink-0 data-[state=checked]:bg-[#ff8a00] data-[state=checked]:border-[#ff8a00]"
+                          className="mt-0.5 shrink-0 data-[state=checked]:bg-[#3a47c2] data-[state=checked]:border-[#3a47c2]"
                         />
                         <div className="flex-1 min-w-0">
                           <label htmlFor={`slot-${slot.id}`} className="text-sm font-medium cursor-pointer">
@@ -238,7 +238,7 @@ export function CreateBookingModal({ open, onOpenChange, space }: Props) {
                                 value={pb}
                                 onChange={e => updateSlotPlaybacks(slot.id, e.target.value)}
                                 placeholder="e.g. 48"
-                                className="h-8 w-28 text-sm rounded-md border-[#d7dce3] shadow-none focus-visible:ring-[#ff8a00]"
+                                className="h-8 w-28 text-sm rounded-md border-[#d7dce3] shadow-none focus-visible:ring-[#3a47c2]"
                               />
                               <span className="text-xs text-muted-foreground">max {slot.daily_capacity_playbacks}</span>
                             </div>
@@ -285,7 +285,7 @@ export function CreateBookingModal({ open, onOpenChange, space }: Props) {
           <div className="flex justify-end gap-3 pt-1">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
             <Button type="submit" disabled={isSubmitting || !space}
-              className="bg-[#ff8a00] text-white hover:bg-[#e77700]">
+              className="bg-[#3a47c2] text-white hover:bg-[#2f3a9e]">
               {isSubmitting ? "Sending…" : "Send booking request"}
             </Button>
           </div>

@@ -13,7 +13,15 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        sans: ["Instrument Sans", "ui-sans-serif", "system-ui", "sans-serif"],
+      },
       colors: {
+        brand: {
+          DEFAULT: "#3a47c2",
+          hover: "#2f3a9e",
+          subtle: "#f2f5ff",
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

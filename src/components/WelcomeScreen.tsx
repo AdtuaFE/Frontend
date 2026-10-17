@@ -2,6 +2,7 @@ import {
   Megaphone, MonitorCheck, FileCheck, CircleCheck,
   Settings2, Monitor, MapPinned, BadgeDollarSign,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
 type Step = { icon: typeof Megaphone; title: string; description: string };
@@ -117,6 +118,12 @@ export function WelcomeScreen({ isAdvertiser, isBroadcaster, onCreateCampaign, o
   onCreateCampaign: () => void;
   onAddSpace: () => void;
 }) {
+  const navigate = useNavigate();
+  const seePlans = (
+    <button type="button" onClick={() => navigate("/settings?tab=plans")} className="font-semibold text-[#3a47c2] hover:underline">
+      See plans
+    </button>
+  );
   let content: React.ReactNode;
 
   if (isAdvertiser && isBroadcaster) {
@@ -175,7 +182,7 @@ export function WelcomeScreen({ isAdvertiser, isBroadcaster, onCreateCampaign, o
         ]}
         ctaLabel="Add your first space"
         onCta={onAddSpace}
-        caption={<>Free plan includes one display. Premium adds more for $50 each, or $450 for ten. <span className="font-semibold text-[#3a47c2]">See plans</span></>}
+        caption={<>Free plan includes one display. Premium adds more for $50 each, or $450 for ten. {seePlans}</>}
       />
     );
   } else {
@@ -192,7 +199,7 @@ export function WelcomeScreen({ isAdvertiser, isBroadcaster, onCreateCampaign, o
         ]}
         ctaLabel="Create your first campaign"
         onCta={onCreateCampaign}
-        caption={<>Free plan includes one space each month. <span className="font-semibold text-[#3a47c2]">See plans</span></>}
+        caption={<>Free plan includes one space each month. {seePlans}</>}
       />
     );
   }

@@ -158,22 +158,21 @@ export function AppLayout({
           <div className="flex flex-col gap-4 w-full shrink-0">
             {!collapsed && !bannerDismissed && hasUnpaidRole && (
               <div className="px-4">
-                <div
-                  className="flex flex-col gap-3 p-4 rounded-xl text-white"
-                  style={{ backgroundImage: "linear-gradient(162.6deg, #3a47c2 8.5%, #333fae 45.8%, #3a47c2 91.5%)" }}>
+                <div className="flex flex-col gap-4 px-4 py-5 rounded-xl bg-[#f2f5ff]">
                   <div className="flex flex-col gap-2">
                     <div className="flex items-center gap-2">
-                      <p className="flex-1 text-[13px] font-semibold leading-5">Upgrade to Premium</p>
-                      <button onClick={() => setBannerDismissed(true)} className="shrink-0 hover:opacity-75" title="Dismiss">
-                        <X className="h-4 w-4" />
+                      <p className="flex-1 text-sm font-semibold leading-5 text-[#4a4d56]">Upgrade to Premium</p>
+                      <button onClick={() => setBannerDismissed(true)} className="shrink-0 text-[#656972] hover:opacity-75" title="Dismiss">
+                        <X className="h-[18px] w-[18px]" />
                       </button>
                     </div>
-                    <p className="text-xs leading-[18px]">Choose your space, control your timing, double your reach.</p>
+                    {/* Figma's new copy ("Premium broadcasters keep a higher share…") shows to advertisers too; kept the old line until that's confirmed. */}
+                    <p className="text-sm leading-5 text-[#656972]">Choose your space, control your timing, double your reach.</p>
                   </div>
                   <button
                     onClick={() => navigate("/settings?tab=plans")}
-                    className="bg-white text-[#3a47c2] text-[13px] font-semibold rounded-lg px-4 py-2 w-full hover:bg-[#f2f5ff] transition-colors">
-                    Upgrade Now
+                    className="h-10 w-full rounded-lg bg-[#3a47c2] text-sm font-medium text-white hover:bg-[#2f3a9e] transition-colors">
+                    Upgrade now
                   </button>
                 </div>
               </div>

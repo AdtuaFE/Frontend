@@ -176,7 +176,7 @@ export function WelcomeScreen({ isAdvertiser, isBroadcaster, onCreateCampaign, o
         headline="Turn your screen into a paycheck"
         subtext="Set your rate once. Get paid automatically every time an advertiser books your space."
         steps={[
-          { icon: Megaphone, title: "Add your space", description: "Location, size, display type and a few photos." },
+          { icon: MonitorCheck, title: "Add your space", description: "Location, size, display type and a few photos." },
           { icon: BadgeDollarSign, title: "Set your rate", description: "CPM and daily impressions decide what you earn." },
           { icon: FileCheck, title: "Get booked and paid", description: "Accept requests, or list on the open marketplace." },
         ]}

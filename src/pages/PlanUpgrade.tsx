@@ -85,7 +85,7 @@ export default function PlanUpgrade() {
             <div className="border border-[#e8e8e8] rounded-2xl p-6 shadow-sm space-y-6">
               <div>
                 <p className="text-base font-semibold text-[#4a5565]">Order summary</p>
-                <p className="text-xs text-[#767676]">{plan.label} plan · billed {effectiveBilling}</p>
+                <p className="text-xs text-[#767676]">{plan.label} plan · billed {effectiveBilling === "annual" ? "annually" : "monthly"}</p>
               </div>
               <div className="text-xs">
                 <div className="flex justify-between py-4 border-b border-[#e8e8e8]">

@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/context/AuthContext";
 import { PAID_PLANS, chargeFor, formatDate, nextRenewal, subscribe, type Billing, type PaidTier, type Role } from "@/lib/plans";
 import { toast } from "sonner";
@@ -17,7 +19,7 @@ export default function PlanUpgrade() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [billing, setBilling] = useState<Billing>("monthly");
+  const [billing, setBilling] = useState<Billing>(searchParams.get("billing") === "annual" ? "annual" : "monthly");
   const [submitting, setSubmitting] = useState(false);
 
   if (!user) return null;
@@ -144,8 +146,26 @@ export default function PlanUpgrade() {
               </div>
             </div>
             <div className="space-y-1.5">
+              <Label htmlFor="pay-country">Country</Label>
+              {/* US-only platform per the API contract, so there's one option. */}
+              <Select defaultValue="US">
+                <SelectTrigger id="pay-country" className={inputCn}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="US">United States</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
               <Label htmlFor="pay-zip">ZIP</Label>
               <Input id="pay-zip" placeholder="47401" className={inputCn} />
+            </div>
+            <div className="flex items-start gap-2 py-2">
+              <Checkbox id="pay-save-card" className="mt-0.5 data-[state=checked]:bg-[#3a47c2] data-[state=checked]:border-[#3a47c2]" />
+              <Label htmlFor="pay-save-card" className="text-sm font-normal text-[#767676] leading-5 cursor-pointer">
+                Also save this card for campaign bookings
+              </Label>
             </div>
 
             <Button type="submit" disabled={submitting} className="w-full bg-[#3a47c2] hover:bg-[#2f3a9e] text-white py-5">

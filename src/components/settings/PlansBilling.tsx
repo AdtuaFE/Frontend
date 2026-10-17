@@ -10,7 +10,7 @@ import { useAuth } from "@/context/AuthContext";
 import {
   ADVERTISER_FREE_IMPRESSIONS, ADVERTISER_PREMIUM_IMPRESSIONS, PAID_PLANS,
   cancelSubscription, formatDate, getInvoices, getPlanState, isPaid,
-  type PaidTier, type PlanState, type Role,
+  type Billing, type PaidTier, type PlanState, type Role,
 } from "@/lib/plans";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
@@ -62,19 +62,43 @@ function FeatureRow({ text, onDark }: { text: string; onDark?: boolean }) {
   );
 }
 
-function PlanCard({ label, price, unit, features, cta, onCta, highlighted, disabled }: {
-  label: string; price: number; unit: string; features: string[];
-  cta: string; onCta?: () => void; highlighted?: boolean; disabled?: boolean;
+function BillingToggle({ value, onChange, onDark }: { value: Billing; onChange: (b: Billing) => void; onDark?: boolean }) {
+  const option = (b: Billing, text: string) => {
+    const selected = value === b;
+    const cls = onDark
+      ? selected ? "bg-white text-[#3a47c2] font-semibold" : "text-white font-medium"
+      : selected ? "bg-[#f1f1f1] text-[#4a5565] font-semibold" : "text-[#767676] font-medium";
+    return (
+      <button type="button" onClick={() => onChange(b)} aria-pressed={selected} className={`px-1.5 py-1 rounded text-xs ${cls}`}>
+        {text}
+      </button>
+    );
+  };
+  return (
+    <div className={`flex items-center gap-1 p-1 rounded-lg shrink-0 ${onDark ? "bg-white/25" : "bg-[#f9f9f9]"}`}>
+      {option("monthly", "Monthly")}
+      {option("annual", "Yearly")}
+    </div>
+  );
+}
+
+function PlanCard({ label, price, unit, note, features, cta, onCta, highlighted, disabled, headerRight }: {
+  label: string; price: number; unit: string; note?: string; features: string[];
+  cta: string; onCta?: () => void; highlighted?: boolean; disabled?: boolean; headerRight?: ReactNode;
 }) {
   return (
     <div
       className={`rounded-2xl p-6 flex flex-col gap-12 ${highlighted ? "text-white" : "border border-[#e8e8e8]"}`}
       style={highlighted ? { backgroundImage: BRAND_GRADIENT } : undefined}>
-      <div>
-        <p className={`text-xs font-semibold ${highlighted ? "" : "text-[#767676]"}`}>{label}</p>
-        <p className={`text-2xl font-bold ${highlighted ? "" : "text-[#4a5565]"}`}>
-          ${price}<span className={`text-xs font-medium ${highlighted ? "" : "text-[#9c9c9c]"}`}> / {unit}</span>
-        </p>
+      <div className="flex items-start gap-2">
+        <div className="flex-1">
+          <p className={`text-xs font-semibold ${highlighted ? "" : "text-[#767676]"}`}>{label}</p>
+          <p className={`text-2xl font-bold ${highlighted ? "" : "text-[#4a5565]"}`}>
+            ${price}<span className={`text-xs font-medium ${highlighted ? "" : "text-[#9c9c9c]"}`}> / {unit}</span>
+          </p>
+          {note && <p className={`text-xs ${highlighted ? "" : "text-[#9c9c9c]"}`}>{note}</p>}
+        </div>
+        {headerRight}
       </div>
       <div className="space-y-4 flex-1">
         {features.map(f => <FeatureRow key={f} text={f} onDark={highlighted} />)}
@@ -92,7 +116,7 @@ function PlanCard({ label, price, unit, features, cta, onCta, highlighted, disab
 
 function PricingNote({ role }: { role: Role }) {
   return (
-    <Collapsible className="w-full group">
+    <Collapsible defaultOpen className="w-full group">
       <CollapsibleTrigger className="w-full flex items-center gap-2 text-left">
         <p className="flex-1 text-base font-semibold text-[#4a5565]">How pricing is calculated</p>
         <ChevronDown className="h-6 w-6 text-[#4a5565] transition-transform group-data-[state=open]:rotate-180" />
@@ -153,8 +177,24 @@ function Tag({ children, solid }: { children: ReactNode; solid?: boolean }) {
 
 function FreeView({ role }: { role: Role }) {
   const navigate = useNavigate();
-  const upgrade = (tier: PaidTier) =>
-    navigate(`/settings/upgrade/${role}${role === "broadcaster" ? `?tier=${tier}` : ""}`);
+  const [billing, setBilling] = useState<Billing>("monthly");
+  const upgrade = (tier: PaidTier) => {
+    const params = new URLSearchParams();
+    if (role === "broadcaster") params.set("tier", tier);
+    if (billing === "annual" && PAID_PLANS[tier].priceAnnual != null) params.set("billing", "annual");
+    const qs = params.toString();
+    navigate(`/settings/upgrade/${role}${qs ? `?${qs}` : ""}`);
+  };
+  // Yearly shows the per-month price billed annually; a plan with no annual price stays monthly.
+  const priceOf = (tier: PaidTier) => {
+    const plan = PAID_PLANS[tier];
+    return billing === "annual" && plan.priceAnnual != null ? plan.priceAnnual : plan.priceMonthly;
+  };
+  const noteOf = (tier: PaidTier) => {
+    const plan = PAID_PLANS[tier];
+    if (billing !== "annual") return undefined;
+    return plan.priceAnnual != null ? `Billed $${plan.priceAnnual * 12} yearly` : "Monthly billing only";
+  };
 
   return (
     <div className="space-y-16">
@@ -180,13 +220,17 @@ function FreeView({ role }: { role: Role }) {
       </div>
 
       <div className="space-y-5">
-        <div>
-          <p className="text-base font-semibold text-[#4a5565]">What Premium changes</p>
-          <p className="text-[13px] text-[#9c9c9c]">
-            {role === "advertiser"
-              ? "More reach, more control, for less than one billboard day."
-              : "List more, earn more, keep more of every booking."}
-          </p>
+        {/* Figma puts the advertiser's toggle inside the Premium card and the broadcaster's beside this heading. */}
+        <div className="flex items-center gap-2">
+          <div className="flex-1">
+            <p className="text-base font-semibold text-[#4a5565]">What Premium changes</p>
+            <p className="text-[13px] text-[#9c9c9c]">
+              {role === "advertiser"
+                ? "More reach, more control, for less than one billboard day."
+                : "List more, earn more, keep more of every booking."}
+            </p>
+          </div>
+          {role === "broadcaster" && <BillingToggle value={billing} onChange={setBilling} />}
         </div>
         {role === "advertiser" ? (
           <div className="grid grid-cols-2 gap-8">
@@ -195,18 +239,19 @@ function FreeView({ role }: { role: Role }) {
               features={["50 impressions / month", "Ads play in whatever slot is open", "One assigned space only"]}
             />
             <PlanCard
-              label={PAID_PLANS.premium.label} price={PAID_PLANS.premium.priceMonthly} unit="month"
+              label={PAID_PLANS.premium.label} price={priceOf("premium")} unit="month" note={noteOf("premium")}
               features={PAID_PLANS.premium.features} cta="Upgrade Now" onCta={() => upgrade("premium")} highlighted
+              headerRight={<BillingToggle value={billing} onChange={setBilling} onDark />}
             />
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-6">
             <PlanCard
-              label={PAID_PLANS.solo.label} price={PAID_PLANS.solo.priceMonthly} unit="display"
+              label={PAID_PLANS.solo.label} price={priceOf("solo")} unit="display" note={noteOf("solo")}
               features={PAID_PLANS.solo.features} cta="Upgrade Now" onCta={() => upgrade("solo")}
             />
             <PlanCard
-              label={PAID_PLANS.bundle.label} price={PAID_PLANS.bundle.priceMonthly} unit="month"
+              label={PAID_PLANS.bundle.label} price={priceOf("bundle")} unit="month" note={noteOf("bundle")}
               features={PAID_PLANS.bundle.features} cta="Upgrade Now" onCta={() => upgrade("bundle")} highlighted
             />
           </div>

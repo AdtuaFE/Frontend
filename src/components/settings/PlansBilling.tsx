@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { Check, ChevronDown, Lock, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -11,17 +12,42 @@ import {
   cancelSubscription, formatDate, getInvoices, getPlanState, isPaid,
   type PaidTier, type PlanState, type Role,
 } from "@/lib/plans";
+import { api } from "@/lib/api";
 import { toast } from "sonner";
 
-// Usage numbers are placeholders — the backend has no usage-tracking endpoints yet.
+// No endpoint serves these yet: impressions (analytics isn't exposed), displays, advertiser
+// requests, and earnings (GET /api/broadcaster/ledger exists but its response isn't documented).
 const PLACEHOLDER_USAGE = {
   impressionsUsed: 38,
   displaysUsed: 1,
-  activeBookings: 3,
   requestsSent: 5,
-  requestsReceived: 5,
   earnings: 198,
 };
+
+type BookingSummary = { id: number; broadcaster_id: number; status: string };
+
+const LIVE_STATUSES = ["accepted", "active"];
+
+// Same split as Bookings.tsx: /api/bookings returns one list for dual-role users.
+function useActiveBookings(role: Role, userId: number) {
+  const { data, isLoading, isError } = useQuery<BookingSummary[]>({
+    queryKey: ["bookings"],
+    queryFn: () => api.get<BookingSummary[]>("/api/bookings"),
+  });
+  const mine = (data ?? []).filter(b =>
+    LIVE_STATUSES.includes(b.status) && (role === "broadcaster" ? b.broadcaster_id === userId : b.broadcaster_id !== userId),
+  );
+  return isLoading ? "…" : isError ? "—" : String(mine.length);
+}
+
+function useIncomingRequests(enabled: boolean) {
+  const { data, isLoading, isError } = useQuery<unknown[]>({
+    queryKey: ["broadcaster-bookings"],
+    queryFn: () => api.get<unknown[]>("/api/broadcaster/bookings/incoming"),
+    enabled,
+  });
+  return isLoading ? "…" : isError ? "—" : String((data ?? []).length);
+}
 
 const BRAND_GRADIENT = "linear-gradient(158deg, #3a47c2 8.5%, #333fae 45.8%, #3a47c2 91.5%)";
 
@@ -197,6 +223,8 @@ function PaidView({ role, plan, onCancelled }: { role: Role; plan: PlanState & {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const details = PAID_PLANS[plan.tier];
+  const activeBookings = useActiveBookings(role, user!.id);
+  const incomingRequests = useIncomingRequests(role === "broadcaster");
   const endDate = plan.cancelsAt ?? plan.renewsAt;
 
   const handleCancel = async () => {
@@ -230,10 +258,10 @@ function PaidView({ role, plan, onCancelled }: { role: Role; plan: PlanState & {
             : <UsageBar label="Displays" used={PLACEHOLDER_USAGE.displaysUsed} limit={details.displays ?? 1} />}
           <div className="flex gap-10">
             {role === "advertiser" && plan.renewsAt && <Stat label="Impressions reset date" value={formatDate(plan.renewsAt)} />}
-            <Stat label="Active bookings" value={String(PLACEHOLDER_USAGE.activeBookings)} />
+            <Stat label="Active bookings" value={activeBookings} />
             {role === "advertiser"
               ? <Stat label="Broadcaster requests sent" value={String(PLACEHOLDER_USAGE.requestsSent)} />
-              : <Stat label="Offer requests received" value={String(PLACEHOLDER_USAGE.requestsReceived)} />}
+              : <Stat label="Offer requests received" value={incomingRequests} />}
             {role === "broadcaster" && <Stat label="Earnings this month" value={`$${PLACEHOLDER_USAGE.earnings}`} />}
           </div>
         </div>

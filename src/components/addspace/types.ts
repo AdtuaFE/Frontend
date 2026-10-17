@@ -1,10 +1,9 @@
 /**
  * Draft model for the Add Space flow.
  *
- * The design (Figma "Add Space Flow") describes a richer space than POST /api/spaces
- * currently accepts: many screens per space, per-screen time slots priced per day, and
- * blocked dates. Until the API catches up, the whole draft lives client-side and is
- * mapped down to the supported payload on publish — see `toCreateSpacePayload`.
+ * On publish the space is created from `toCreateSpacePayload`, then its screens and their
+ * per-day slots from `toScreenRequests`. Blocked dates and per-screen display specs have no
+ * endpoint yet, so they stay in the draft only.
  */
 
 export const SPACE_TYPES = [
@@ -266,6 +265,40 @@ export function toCreateSpacePayload(draft: SpaceDraft, venueType?: string) {
     region: draft.region || undefined,
     postal_code: draft.postalCode || undefined,
   };
+}
+
+export type SlotRequest = {
+  day_of_week: number;
+  label: string;
+  start_time: string;
+  end_time: string;
+  est_impressions_per_playback: number;
+  daily_capacity_playbacks: number;
+  total_price: number;
+};
+
+export type ScreenRequest = { label: string; slots: SlotRequest[] };
+
+/**
+ * Screens and slots for POST /api/spaces/:id/screens and .../screens/:screenId/slots.
+ * The API stores one slot per day of week (1 = Monday … 7 = Sunday), so a draft slot that
+ * runs on several days becomes one slot per day.
+ */
+export function toScreenRequests(draft: SpaceDraft): ScreenRequest[] {
+  return draft.screens.map((screen, i) => ({
+    label: screen.name.trim() || `Screen ${i + 1}`,
+    slots: effectiveSlots(screen, draft.screens).flatMap(slot =>
+      slot.days.map(day => ({
+        day_of_week: DAYS.findIndex(d => d.key === day) + 1,
+        label: slot.name,
+        start_time: `${slot.startTime}:00`,
+        end_time: `${slot.endTime}:00`,
+        est_impressions_per_playback: DEFAULT_IMPRESSIONS_PER_PLAY,
+        daily_capacity_playbacks: slotPlays(slot),
+        total_price: Number(slot.pricePerDay),
+      })),
+    ),
+  }));
 }
 
 /* ---------- draft persistence ---------- */

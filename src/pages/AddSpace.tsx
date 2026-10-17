@@ -15,7 +15,7 @@ import { StepScreens } from "@/components/addspace/StepScreens";
 import { StepSchedule } from "@/components/addspace/StepSchedule";
 import { StepReview } from "@/components/addspace/StepReview";
 import {
-  STEPS, clearDraft, emptyDraft, loadDraft, newId, saveDraft, toCreateSpacePayload,
+  STEPS, clearDraft, emptyDraft, loadDraft, newId, saveDraft, toCreateSpacePayload, toScreenRequests,
   type PhotoDraft, type ScreenDraft, type SpaceDraft, type StepKey,
 } from "@/components/addspace/types";
 
@@ -179,6 +179,32 @@ const AddSpace = () => {
         "/api/spaces",
         toCreateSpacePayload(draft, wizard.venueType || undefined),
       );
+
+      // Screens and slots need the space id too. A space with no screens is valid (the
+      // broadcaster can add them on the space page), so failures are reported, not fatal.
+      let slotsFailed = 0;
+      let screensFailed = 0;
+      for (const screen of toScreenRequests(draft)) {
+        try {
+          const createdScreen = await api.post<{ id: number }>(
+            `/api/spaces/${created.id}/screens`,
+            { label: screen.label },
+          );
+          const results = await Promise.allSettled(
+            screen.slots.map(slot => api.post(`/api/spaces/${created.id}/screens/${createdScreen.id}/slots`, slot)),
+          );
+          slotsFailed += results.filter(r => r.status === "rejected").length;
+        } catch {
+          screensFailed += 1;
+        }
+      }
+      if (screensFailed || slotsFailed) {
+        const parts = [
+          screensFailed && `${screensFailed} screen(s)`,
+          slotsFailed && `${slotsFailed} time slot(s)`,
+        ].filter(Boolean).join(" and ");
+        toast.error(`Space published, but ${parts} failed to save. Add them from the space page.`);
+      }
 
       // Images need the space id, so they go up after creation. A failed upload
       // shouldn't discard a space that already exists — report and carry on.

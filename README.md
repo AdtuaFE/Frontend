@@ -1,58 +1,37 @@
-# Welcome to your Lovable project
+# Adtua — Frontend
 
 ## Project info
 
-**URL**: https://lovable.dev/projects/fe1573c2-7de0-4a95-ba84-3a4920028258
+React + TypeScript + Vite app for Adtua, built with shadcn-ui and Tailwind CSS.
 
-## How can I edit this code?
+## Getting started
 
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/fe1573c2-7de0-4a95-ba84-3a4920028258) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+Requires Node.js & npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+# Clone the repository
+git clone https://github.com/AdtuaFE/Frontend.git
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# Navigate to the project directory
+cd Frontend
 
-# Step 3: Install the necessary dependencies.
+# Install dependencies
 npm i
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Start the dev server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+Copy `.env.example` to `.env.local` and set `VITE_API_BASE_URL` to point at a running backend.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Testing
 
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+```sh
+npm test            # unit tests (Vitest)
+npm run test:e2e    # end-to-end tests (Playwright) — see e2e/.env.example for required credentials
+```
 
 ## What technologies are used for this project?
-
-This project is built with:
 
 - Vite
 - TypeScript
@@ -60,14 +39,10 @@ This project is built with:
 - shadcn-ui
 - Tailwind CSS
 
-## How can I deploy this project?
+## Deployment
 
-Simply open [Lovable](https://lovable.dev/projects/fe1573c2-7de0-4a95-ba84-3a4920028258) and click on Share -> Publish.
+Hosted on [Vercel](https://vercel.com), project `adtua-fe`.
 
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+- **Production branch: `release`** (not `main`) — pushing to `release` triggers a Production deploy.
+- **Production domain:** `www.adtua.com` (the apex `adtua.com` redirects to it). The default `adtua-fe.vercel.app` is also live.
+- **Workflow:** feature branches merge into `main` via PR; `main` is periodically merged into `release` to ship to Production. Branch any staging/testing work off `release` to match what's actually live, not off `main`.

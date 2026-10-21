@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { api, setToken as saveToken, clearToken, getToken } from '@/lib/api';
+import { api, clearLegacyToken, fetchCurrentUser } from '@/lib/api';
 
 export type User = {
   id: number;
@@ -21,7 +21,7 @@ export type User = {
 type AuthContextType = {
   user: User | null;
   isLoading: boolean;
-  login: (token: string, user: User) => void;
+  login: (user: User) => void;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 };
@@ -33,25 +33,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const token = getToken();
-    if (!token) {
-      setIsLoading(false);
-      return;
-    }
-    api.get<User>('/api/user/profile')
+    clearLegacyToken();
+    fetchCurrentUser<User>()
       .then(setUser)
-      .catch(() => clearToken())
+      .catch(() => setUser(null))
       .finally(() => setIsLoading(false));
   }, []);
 
-  function login(token: string, userData: User) {
-    saveToken(token);
+  function login(userData: User) {
     setUser(userData);
   }
 
   async function logout() {
-    try { await api.post('/api/signout'); } catch { /* stateless — discard error */ }
-    clearToken();
+    try { await api.post('/api/signout'); } catch { /* cookie may already be gone — discard */ }
     setUser(null);
   }
 

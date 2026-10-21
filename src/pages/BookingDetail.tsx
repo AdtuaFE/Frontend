@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, XCircle, CheckCircle, Plus, Upload, Film,
   Archive, RefreshCw, Trash2, MessageSquare, Star,
@@ -38,6 +38,7 @@ type Booking = {
 
 type Campaign = { id: number; name: string; advertiser_id: number };
 type Space = { id: number; name: string; city: string | null; region: string | null; country: string | null };
+type Screen = { id: number; space_id: number; label: string; is_active: boolean };
 type Slot = { id: number; label: string; start_time: string; end_time: string };
 
 type Asset = {
@@ -92,7 +93,7 @@ function StarRating({ value, onChange }: { value: number; onChange: (v: number) 
           className="focus:outline-none">
           <Star
             className={`h-6 w-6 transition-colors ${
-              n <= (hover || value) ? "fill-[#ff8a00] text-[#ff8a00]" : "text-muted-foreground"
+              n <= (hover || value) ? "fill-[#3a47c2] text-[#3a47c2]" : "text-muted-foreground"
             }`}
           />
         </button>
@@ -210,12 +211,22 @@ const BookingDetail = () => {
     enabled: !!booking,
   });
 
-  // booking_slots only carries slot_id — look up the label/time range from the space's slots.
-  const { data: slots = [] } = useQuery<Slot[]>({
-    queryKey: ["space-slots", booking?.space_id],
-    queryFn: () => api.get<Slot[]>(`/api/spaces/${booking!.space_id}/slots`),
+  // booking_slots only carries slot_id — look up the label/time range from the space's
+  // slots, which now live under screens: list screens, then fan out to their slots.
+  const { data: screens = [] } = useQuery<Screen[]>({
+    queryKey: ["space-screens", booking?.space_id],
+    queryFn: () => api.get<Screen[]>(`/api/spaces/${booking!.space_id}/screens`),
     enabled: !!booking,
   });
+
+  const slotQueries = useQueries({
+    queries: screens.map(screen => ({
+      queryKey: ["screen-slots", booking?.space_id, screen.id],
+      queryFn: () => api.get<Slot[]>(`/api/spaces/${booking!.space_id}/screens/${screen.id}/slots`),
+      enabled: !!booking,
+    })),
+  });
+  const slots: Slot[] = slotQueries.flatMap(q => q.data ?? []);
 
   const { data: assets = [] } = useQuery<Asset[]>({
     queryKey: ["booking-assets", Number(id)],
@@ -479,7 +490,7 @@ const BookingDetail = () => {
               </Button>
               <Button
                 disabled={bookingActioning}
-                className="bg-[#ff8a00] text-white hover:bg-[#e77700] gap-1.5"
+                className="bg-[#3a47c2] text-white hover:bg-[#2f3a9e] gap-1.5"
                 onClick={() => setPendingStatusAction("accepted")}>
                 <CheckCircle className="h-4 w-4" /> Accept
               </Button>
@@ -530,7 +541,7 @@ const BookingDetail = () => {
               <button
                 disabled={uploading}
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full rounded-xl border-2 border-dashed border-[#d7dce3] py-16 flex flex-col items-center gap-3 text-muted-foreground hover:border-[#ff8a00] hover:text-[#ff8a00] transition-colors disabled:pointer-events-none">
+                className="w-full rounded-xl border-2 border-dashed border-[#d7dce3] py-16 flex flex-col items-center gap-3 text-muted-foreground hover:border-[#3a47c2] hover:text-[#3a47c2] transition-colors disabled:pointer-events-none">
                 <Plus className="h-8 w-8" />
                 <div className="text-center">
                   <p className="font-medium">Upload your first creative</p>
@@ -555,7 +566,7 @@ const BookingDetail = () => {
                 <button
                   disabled={uploading}
                   onClick={() => fileInputRef.current?.click()}
-                  className="rounded-xl border-2 border-dashed border-[#d7dce3] aspect-video flex flex-col items-center justify-center gap-2 text-sm text-muted-foreground hover:border-[#ff8a00] hover:text-[#ff8a00] transition-colors disabled:pointer-events-none">
+                  className="rounded-xl border-2 border-dashed border-[#d7dce3] aspect-video flex flex-col items-center justify-center gap-2 text-sm text-muted-foreground hover:border-[#3a47c2] hover:text-[#3a47c2] transition-colors disabled:pointer-events-none">
                   <Plus className="h-6 w-6" />
                   Add another
                 </button>
@@ -574,7 +585,7 @@ const BookingDetail = () => {
                 <div className="flex items-center gap-1 mb-2">
                   {[1, 2, 3, 4, 5].map(n => (
                     <Star key={n}
-                      className={`h-5 w-5 ${n <= (myReview?.rating ?? reviewRating) ? "fill-[#ff8a00] text-[#ff8a00]" : "text-muted-foreground"}`}
+                      className={`h-5 w-5 ${n <= (myReview?.rating ?? reviewRating) ? "fill-[#3a47c2] text-[#3a47c2]" : "text-muted-foreground"}`}
                     />
                   ))}
                 </div>
@@ -600,7 +611,7 @@ const BookingDetail = () => {
                 <Button
                   disabled={reviewRating === 0 || reviewSubmitting}
                   onClick={handleReviewSubmit}
-                  className="bg-[#ff8a00] text-white hover:bg-[#e77700]">
+                  className="bg-[#3a47c2] text-white hover:bg-[#2f3a9e]">
                   {reviewSubmitting ? "Submitting…" : "Submit review"}
                 </Button>
               </div>
@@ -646,7 +657,7 @@ const BookingDetail = () => {
             <AlertDialogAction
               onClick={handleStatusAction}
               className={pendingStatusAction === "accepted"
-                ? "bg-[#ff8a00] text-white hover:bg-[#e77700]"
+                ? "bg-[#3a47c2] text-white hover:bg-[#2f3a9e]"
                 : "bg-red-600 text-white hover:bg-red-700"}>
               {pendingStatusAction === "accepted" ? "Accept booking" : "Reject booking"}
             </AlertDialogAction>

@@ -61,7 +61,7 @@ const BUDGET_PERIODS = [
   { value: "total",   label: "One-time total" },
 ];
 
-const inputCn = "h-10 rounded-lg border-[#d7dce3] bg-white text-sm shadow-none focus-visible:ring-[#ff8a00]";
+const inputCn = "h-10 rounded-lg border-[#d7dce3] bg-white text-sm shadow-none focus-visible:ring-[#3a47c2]";
 const inputErrCn = "h-10 rounded-lg border-red-400 bg-white text-sm shadow-none focus-visible:ring-red-400";
 
 const FieldError = ({ msg }: { msg?: string }) =>
@@ -154,7 +154,7 @@ export function EditCampaignModal({ open, onOpenChange, campaign }: Props) {
           <div className="space-y-1.5">
             <Label htmlFor="e-objective">Objective</Label>
             <Textarea id="e-objective" name="objective" value={form.objective} onChange={handleChange}
-              className="min-h-[80px] rounded-lg border-[#d7dce3] px-3 py-2 text-sm focus-visible:ring-[#ff8a00]" />
+              className="min-h-[80px] rounded-lg border-[#d7dce3] px-3 py-2 text-sm focus-visible:ring-[#3a47c2]" />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -168,7 +168,7 @@ export function EditCampaignModal({ open, onOpenChange, campaign }: Props) {
             <div className="space-y-1.5">
               <Label>Budget period</Label>
               <Select value={form.budgetPeriod} onValueChange={v => handleSelect("budgetPeriod", v)}>
-                <SelectTrigger className="h-10 rounded-lg border-[#d7dce3] text-sm focus:ring-[#ff8a00]">
+                <SelectTrigger className="h-10 rounded-lg border-[#d7dce3] text-sm focus:ring-[#3a47c2]">
                   <SelectValue placeholder="Select period" />
                 </SelectTrigger>
                 <SelectContent>
@@ -204,7 +204,7 @@ export function EditCampaignModal({ open, onOpenChange, campaign }: Props) {
             <div className="space-y-1.5">
               <Label>Ad type</Label>
               <Select value={form.adType} onValueChange={v => handleSelect("adType", v)}>
-                <SelectTrigger className="h-10 rounded-lg border-[#d7dce3] text-sm focus:ring-[#ff8a00]">
+                <SelectTrigger className="h-10 rounded-lg border-[#d7dce3] text-sm focus:ring-[#3a47c2]">
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -217,7 +217,7 @@ export function EditCampaignModal({ open, onOpenChange, campaign }: Props) {
           <div className="space-y-1.5">
             <Label>Visibility</Label>
             <Select value={form.visibility} onValueChange={v => handleSelect("visibility", v)}>
-              <SelectTrigger className="h-10 rounded-lg border-[#d7dce3] text-sm focus:ring-[#ff8a00]">
+              <SelectTrigger className="h-10 rounded-lg border-[#d7dce3] text-sm focus:ring-[#3a47c2]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -228,7 +228,7 @@ export function EditCampaignModal({ open, onOpenChange, campaign }: Props) {
 
           <div className="flex justify-end gap-3 pt-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button type="submit" disabled={isSubmitting} className="bg-[#ff8a00] text-white hover:bg-[#e77700]">
+            <Button type="submit" disabled={isSubmitting} className="bg-[#3a47c2] text-white hover:bg-[#2f3a9e]">
               {isSubmitting ? "Saving…" : "Save changes"}
             </Button>
           </div>

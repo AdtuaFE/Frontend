@@ -80,7 +80,7 @@ const Bookings = () => {
             {advertiserBookings.length > 0 ? (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {advertiserBookings.map(b => (
-                  <Card key={b.id} className="cursor-pointer hover:border-[#ff8a00] transition-colors"
+                  <Card key={b.id} className="cursor-pointer hover:border-[#3a47c2] transition-colors"
                     onClick={() => navigate(`/bookings/${b.id}`)}>
                     <CardContent className="pt-5">
                       <div className="flex items-start justify-between gap-2">
@@ -122,7 +122,7 @@ const Bookings = () => {
             {broadcasterBookings.length > 0 ? (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {broadcasterBookings.map(b => (
-                  <Card key={b.id} className="cursor-pointer hover:border-[#ff8a00] transition-colors"
+                  <Card key={b.id} className="cursor-pointer hover:border-[#3a47c2] transition-colors"
                     onClick={() => navigate(`/bookings/${b.id}`)}>
                     <CardContent className="pt-5">
                       <div className="flex items-start justify-between gap-2">

@@ -238,7 +238,7 @@ function RegisterLanding() {
         <button
           onClick={handleRegister}
           disabled={busy}
-          className="px-7 py-3 bg-[#ff8a00] hover:bg-[#e67700] text-white rounded-xl font-medium transition-colors disabled:opacity-50">
+          className="px-7 py-3 bg-[#3a47c2] hover:bg-[#e67700] text-white rounded-xl font-medium transition-colors disabled:opacity-50">
           {busy ? 'Registering…' : 'Register new device'}
         </button>
         {error && <p className="text-red-400 text-sm">{error}</p>}
@@ -261,7 +261,7 @@ function OffAirScreen() {
   return (
     <Screen>
       <div className="flex flex-col items-center gap-5 select-none">
-        <span className="text-[#ff8a00]/60 text-3xl font-bold tracking-[0.2em] uppercase">adtua</span>
+        <span className="text-[#3a47c2]/60 text-3xl font-bold tracking-[0.2em] uppercase">adtua</span>
         <div className="flex items-center gap-3">
           <span className="block h-px w-8 bg-white/10" />
           <p className="text-white/20 text-xs font-semibold uppercase tracking-[0.35em]">Off Air</p>

@@ -216,7 +216,7 @@ export function SubmitOfferModal({ open, onOpenChange, campaignId, campaignBudge
                   return (
                     <div key={s.id}
                       className={`rounded-lg border p-3 transition-colors ${
-                        isSelected ? "border-[#ff8a00] bg-[#fff8f0]" : "border-border"
+                        isSelected ? "border-[#3a47c2] bg-[#fff8f0]" : "border-border"
                       }`}>
                       {/* Space header */}
                       <div className="flex items-center gap-3">
@@ -224,7 +224,7 @@ export function SubmitOfferModal({ open, onOpenChange, campaignId, campaignBudge
                           id={`os-${s.id}`}
                           checked={isSelected}
                           onCheckedChange={() => handleToggle(s.id, s.cpm)}
-                          className="data-[state=checked]:bg-[#ff8a00] data-[state=checked]:border-[#ff8a00] shrink-0"
+                          className="data-[state=checked]:bg-[#3a47c2] data-[state=checked]:border-[#3a47c2] shrink-0"
                         />
                         <div className="flex-1 min-w-0">
                           <label htmlFor={`os-${s.id}`}
@@ -264,13 +264,13 @@ export function SubmitOfferModal({ open, onOpenChange, campaignId, campaignBudge
                                           const slotPb = sel.slots.find(sl => sl.slotId === String(slot.id))?.playbacks ?? "";
                                           return (
                                             <div key={slot.id}
-                                              className={`rounded-lg border px-2.5 py-2 transition-colors ${slotChecked ? "border-[#ff8a00] bg-white" : "border-border"}`}>
+                                              className={`rounded-lg border px-2.5 py-2 transition-colors ${slotChecked ? "border-[#3a47c2] bg-white" : "border-border"}`}>
                                               <div className="flex items-start gap-2">
                                                 <Checkbox
                                                   id={`slot-${s.id}-${slot.id}`}
                                                   checked={slotChecked}
                                                   onCheckedChange={() => toggleSlot(s.id, String(slot.id))}
-                                                  className="mt-0.5 shrink-0 data-[state=checked]:bg-[#ff8a00] data-[state=checked]:border-[#ff8a00]"
+                                                  className="mt-0.5 shrink-0 data-[state=checked]:bg-[#3a47c2] data-[state=checked]:border-[#3a47c2]"
                                                 />
                                                 <div className="flex-1 min-w-0">
                                                   <label htmlFor={`slot-${s.id}-${slot.id}`} className="text-xs font-medium cursor-pointer">
@@ -288,7 +288,7 @@ export function SubmitOfferModal({ open, onOpenChange, campaignId, campaignBudge
                                                         value={slotPb}
                                                         onChange={e => updateSlotPlaybacks(s.id, String(slot.id), e.target.value)}
                                                         placeholder="e.g. 48"
-                                                        className="h-7 w-24 text-xs rounded-md border-[#d7dce3] shadow-none focus-visible:ring-[#ff8a00]"
+                                                        className="h-7 w-24 text-xs rounded-md border-[#d7dce3] shadow-none focus-visible:ring-[#3a47c2]"
                                                       />
                                                       <span className="text-xs text-muted-foreground">max {slot.daily_capacity_playbacks}</span>
                                                     </div>
@@ -312,7 +312,7 @@ export function SubmitOfferModal({ open, onOpenChange, campaignId, campaignBudge
                               value={sel.price}
                               onChange={e => updatePrice(s.id, e.target.value)}
                               placeholder="Price"
-                              className="h-8 w-32 text-sm rounded-md border-[#d7dce3] shadow-none focus-visible:ring-[#ff8a00]"
+                              className="h-8 w-32 text-sm rounded-md border-[#d7dce3] shadow-none focus-visible:ring-[#3a47c2]"
                             />
                           </div>
                         </div>
@@ -343,7 +343,7 @@ export function SubmitOfferModal({ open, onOpenChange, campaignId, campaignBudge
               value={message}
               onChange={e => setMessage(e.target.value)}
               placeholder="Tell the advertiser why your space is a great fit…"
-              className="min-h-[80px] rounded-lg border-[#d7dce3] px-3 py-2 text-sm focus-visible:ring-[#ff8a00]"
+              className="min-h-[80px] rounded-lg border-[#d7dce3] px-3 py-2 text-sm focus-visible:ring-[#3a47c2]"
             />
           </div>
 
@@ -352,7 +352,7 @@ export function SubmitOfferModal({ open, onOpenChange, campaignId, campaignBudge
             <Button
               type="submit"
               disabled={isSubmitting || selectedCount === 0}
-              className="bg-[#ff8a00] text-white hover:bg-[#e77700]">
+              className="bg-[#3a47c2] text-white hover:bg-[#2f3a9e]">
               {isSubmitting ? "Submitting…" : "Submit offer"}
             </Button>
           </div>

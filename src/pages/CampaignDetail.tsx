@@ -250,7 +250,7 @@ const CampaignDetail = () => {
             {showBroadcasterView && (
               <Button
                 size="sm"
-                className="bg-[#ff8a00] text-white hover:bg-[#e77700] gap-1.5"
+                className="bg-[#3a47c2] text-white hover:bg-[#2f3a9e] gap-1.5"
                 onClick={() => setOfferModalOpen(true)}>
                 <Send className="h-4 w-4" /> Submit offer
               </Button>
@@ -312,7 +312,7 @@ const CampaignDetail = () => {
                   size="sm"
                   disabled={statusLoading}
                   onClick={() => handleStatusChange(s.value)}
-                  className={s.variant === "default" ? "bg-[#ff8a00] text-white hover:bg-[#e77700]" : ""}>
+                  className={s.variant === "default" ? "bg-[#3a47c2] text-white hover:bg-[#2f3a9e]" : ""}>
                   {s.label}
                 </Button>
               ))}
@@ -351,7 +351,7 @@ const CampaignDetail = () => {
                           <XCircle className="h-3.5 w-3.5" /> Reject
                         </Button>
                         <Button size="sm" disabled={offerActioning === offer.id}
-                          className="bg-[#ff8a00] text-white hover:bg-[#e77700] gap-1.5"
+                          className="bg-[#3a47c2] text-white hover:bg-[#2f3a9e] gap-1.5"
                           onClick={() => setPendingAction({ id: offer.id, type: "accept" })}>
                           <CheckCircle className="h-3.5 w-3.5" /> Accept
                         </Button>
@@ -446,7 +446,7 @@ const CampaignDetail = () => {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleOfferAction}
               className={pendingAction?.type === "accept"
-                ? "bg-[#ff8a00] text-white hover:bg-[#e77700]"
+                ? "bg-[#3a47c2] text-white hover:bg-[#2f3a9e]"
                 : "bg-red-600 text-white hover:bg-red-700"}>
               {pendingAction?.type === "accept" ? "Accept & create bookings" : "Reject offer"}
             </AlertDialogAction>

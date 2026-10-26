@@ -9,7 +9,6 @@ import { fmt } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import { loadWizardData } from "@/pages/Onboarding";
 import { AppLayout } from "@/components/AppLayout";
-import { CreateCampaignModal } from "@/components/CreateCampaignModal";
 import { CreateSpaceModal } from "@/components/CreateSpaceModal";
 import { BusinessProfileModal } from "@/components/BusinessProfileModal";
 import { CreateBookingModal, type SpaceInfo } from "@/components/CreateBookingModal";
@@ -522,7 +521,8 @@ function ListView({
 
 const Dashboard = () => {
   const [viewMode, setViewMode] = useState<'map' | 'list'>('list');
-  const [campaignModalOpen, setCampaignModalOpen] = useState(false);
+  const navigate = useNavigate();
+  const newCampaign = () => navigate("/campaigns/new");
   const [spaceModalOpen, setSpaceModalOpen] = useState(false);
   const [bizModalOpen, setBizModalOpen] = useState(false);
   const [bizComplete, setBizComplete] = useState(() => loadWizardData().accountType !== null);
@@ -578,7 +578,7 @@ const Dashboard = () => {
   const checklistItems = [
     { title: "Complete sign up", completed: true },
     { title: "Tell us about your business", completed: bizComplete, onClick: bizComplete ? undefined : () => setBizModalOpen(true) },
-    ...(isAdvertiser ? [{ title: "Create a campaign", completed: campaigns.length > 0, onClick: campaigns.length > 0 ? undefined : () => setCampaignModalOpen(true) }] : []),
+    ...(isAdvertiser ? [{ title: "Create a campaign", completed: campaigns.length > 0, onClick: campaigns.length > 0 ? undefined : newCampaign }] : []),
     ...(isBroadcaster ? [{ title: "Add a broadcast space", completed: mySpaces.length > 0, onClick: mySpaces.length > 0 ? undefined : () => setSpaceModalOpen(true) }] : []),
   ];
   const allChecklistDone = checklistItems.every(i => i.completed);
@@ -633,7 +633,7 @@ const Dashboard = () => {
         <WelcomeScreen
           isAdvertiser={isAdvertiser}
           isBroadcaster={isBroadcaster}
-          onCreateCampaign={() => setCampaignModalOpen(true)}
+          onCreateCampaign={newCampaign}
           onAddSpace={() => setSpaceModalOpen(true)}
         />
       ) : (
@@ -648,11 +648,10 @@ const Dashboard = () => {
           checklistItems={checklistItems}
           allChecklistDone={allChecklistDone}
           onAddSpace={() => setSpaceModalOpen(true)}
-          onAddCampaign={() => setCampaignModalOpen(true)}
+          onAddCampaign={newCampaign}
         />
       )}
 
-      <CreateCampaignModal open={campaignModalOpen} onOpenChange={setCampaignModalOpen} />
       <CreateSpaceModal open={spaceModalOpen} onOpenChange={setSpaceModalOpen} />
       <BusinessProfileModal open={bizModalOpen} onOpenChange={setBizModalOpen} onComplete={() => setBizComplete(true)} />
       <CreateBookingModal open={!!bookingSpace} onOpenChange={open => { if (!open) setBookingSpace(null); }} space={bookingSpace} />

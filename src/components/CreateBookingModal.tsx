@@ -45,12 +45,14 @@ export type SpaceInfo = {
   est_daily_impressions: number | null;
 };
 
-type Campaign = { id: number; name: string; status: string };
+type Campaign = { id: number; name: string; status: string; start_date?: string; end_date?: string };
 
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   space: SpaceInfo | null;
+  /** Preselects this campaign and fills in its dates when the modal opens. */
+  defaultCampaignId?: number;
 };
 
 const inputCn = "h-10 rounded-lg border-[#d7dce3] bg-white text-sm shadow-none focus-visible:ring-[#3a47c2]";
@@ -60,7 +62,7 @@ const FieldError = ({ msg }: { msg?: string }) =>
 
 const fmtTime = (t: string) => t.slice(0, 5);
 
-export function CreateBookingModal({ open, onOpenChange, space }: Props) {
+export function CreateBookingModal({ open, onOpenChange, space, defaultCampaignId }: Props) {
   const queryClient = useQueryClient();
   const [campaignId, setCampaignId] = useState("");
   const [selectedSlots, setSelectedSlots] = useState<Record<number, string>>({});
@@ -99,6 +101,17 @@ export function CreateBookingModal({ open, onOpenChange, space }: Props) {
       setStartDate(""); setEndDate(""); setErrors({});
     }
   }, [open]);
+
+  useEffect(() => {
+    if (!open || !defaultCampaignId || campaignId) return;
+    const c = campaigns.find(x => x.id === defaultCampaignId && x.status !== "archived");
+    if (!c) return;
+    setCampaignId(String(c.id));
+    if (c.start_date && c.end_date) {
+      const start = c.start_date > minStartDate() ? c.start_date : minStartDate();
+      if (c.end_date >= start) { setStartDate(start); setEndDate(c.end_date); }
+    }
+  }, [open, defaultCampaignId, campaigns, campaignId]);
 
   // Auto-check when there's only one slot
   useEffect(() => {

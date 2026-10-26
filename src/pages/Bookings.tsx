@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/context/AuthContext";
+import { userRoles } from "@/lib/roles";
 import { api } from "@/lib/api";
 
 type Booking = {
@@ -29,9 +30,7 @@ const STATUS_COLORS: Record<string, string> = {
 const Bookings = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const isAdvertiser = user?.roles.includes("advertiser") ?? false;
-  const isBroadcaster = user?.roles.includes("broadcaster") ?? false;
-  const isDualRole = isAdvertiser && isBroadcaster;
+  const { isAdvertiser, isBroadcaster, isDual } = userRoles(user);
 
   // /api/bookings returns every booking the user is party to — either placed as an
   // advertiser or landing on a space they broadcast. For dual-role users that's a single
@@ -71,7 +70,7 @@ const Bookings = () => {
         {/* Advertiser: their outgoing bookings */}
         {isAdvertiser && (
           <section>
-            {isDualRole && (
+            {isDual && (
               <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 My bookings
                 <span className="text-xs font-medium rounded-full px-2.5 py-0.5 bg-blue-100 text-blue-700">advertiser</span>
@@ -113,7 +112,7 @@ const Bookings = () => {
         {/* Broadcaster: incoming bookings on their spaces */}
         {isBroadcaster && (
           <section>
-            {isDualRole && (
+            {isDual && (
               <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 Incoming bookings
                 <span className="text-xs font-medium rounded-full px-2.5 py-0.5 bg-purple-100 text-purple-700">broadcaster</span>

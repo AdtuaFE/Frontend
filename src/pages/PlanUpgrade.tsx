@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Check } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
@@ -9,7 +9,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/context/AuthContext";
-import { PAID_PLANS, chargeFor, formatDate, nextRenewal, subscribe, type Billing, type PaidTier, type Role } from "@/lib/plans";
+import { formatDate } from "@/lib/dates";
+import { PAID_PLANS, cardBrand, chargeFor, nextRenewal, subscribe, type Billing, type PaidTier, type Role } from "@/lib/plans";
 import { toast } from "sonner";
 
 const inputCn = "h-10 rounded-lg border-[#d7dce3] bg-white text-sm shadow-none focus-visible:ring-[#3a47c2]";
@@ -21,6 +22,8 @@ export default function PlanUpgrade() {
   const { user } = useAuth();
   const [billing, setBilling] = useState<Billing>(searchParams.get("billing") === "annual" ? "annual" : "monthly");
   const [submitting, setSubmitting] = useState(false);
+  const cardRef = useRef<HTMLInputElement>(null);
+  const expRef = useRef<HTMLInputElement>(null);
 
   if (!user) return null;
   if (roleParam !== "advertiser" && roleParam !== "broadcaster") return <Navigate to="/settings?tab=plans" replace />;
@@ -38,7 +41,11 @@ export default function PlanUpgrade() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      await subscribe(user.id, role, tier, effectiveBilling);
+      const digits = cardRef.current?.value.replace(/\D/g, "") ?? "";
+      const card = digits.length >= 4
+        ? { brand: cardBrand(digits), last4: digits.slice(-4), exp: (expRef.current?.value ?? "").replace(/\s/g, "") }
+        : null;
+      await subscribe(user.id, role, tier, effectiveBilling, card);
       navigate(`/settings/upgrade/${role}/confirmation`);
     } catch {
       toast.error("Couldn't complete the upgrade — try again");
@@ -133,12 +140,12 @@ export default function PlanUpgrade() {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="pay-card">Card number</Label>
-              <Input id="pay-card" placeholder="4242 4242 4242 4242" autoComplete="off" className={inputCn} />
+              <Input id="pay-card" ref={cardRef} placeholder="4242 4242 4242 4242" autoComplete="off" className={inputCn} />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label htmlFor="pay-exp">Expiry</Label>
-                <Input id="pay-exp" placeholder="08 / 29" autoComplete="off" className={inputCn} />
+                <Input id="pay-exp" ref={expRef} placeholder="08 / 29" autoComplete="off" className={inputCn} />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="pay-cvc">CVC</Label>

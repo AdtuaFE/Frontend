@@ -3,7 +3,7 @@ import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api";
 import { fmt } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -111,6 +111,9 @@ function SectionHeading({ title, count }: { title: string; count: number }) {
 
 const Browse = () => {
   const { user } = useAuth();
+  // "Find screens" on a campaign lands here with ?campaign=<id> so booking starts from that campaign.
+  const [searchParams] = useSearchParams();
+  const campaignParam = Number(searchParams.get("campaign")) || undefined;
   const isBroadcaster = user?.roles.includes("broadcaster") ?? false;
   const isAdvertiser = user?.roles.includes("advertiser") ?? false;
 
@@ -212,7 +215,7 @@ const Browse = () => {
 
         {/* All other spaces */}
         <div>
-          <SectionHeading title="All spaces" count={otherSpaces.length} />
+          <SectionHeading title={isBroadcaster ? "Other spaces" : "All spaces"} count={otherSpaces.length} />
           {otherSpaces.length > 0 ? (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {otherSpaces.map(s => (
@@ -237,6 +240,7 @@ const Browse = () => {
         open={!!bookingSpace}
         onOpenChange={open => { if (!open) setBookingSpace(null); }}
         space={bookingSpace}
+        defaultCampaignId={campaignParam}
       />
     </AppLayout>
   );

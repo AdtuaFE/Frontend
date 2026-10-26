@@ -3,7 +3,8 @@ import { PartyPopper } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
-import { PAID_PLANS, formatDate, getPlanState, isPaid, type Role } from "@/lib/plans";
+import { formatDate } from "@/lib/dates";
+import { PAID_PLANS, getPlanState, isPaid, type Role } from "@/lib/plans";
 
 export default function PlanConfirmation() {
   const { role: roleParam } = useParams<{ role: string }>();

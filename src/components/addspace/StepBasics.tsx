@@ -1,8 +1,9 @@
 import { useRef, type ChangeEvent } from "react";
 import { Upload, Star, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Field, StepNav, fieldCn, fieldErrCn } from "./primitives";
+import { Field, StepNav, TextArea, TextInput, fieldCn, fieldErrCn } from "./primitives";
 import { SPACE_TYPES, newId, type PhotoDraft, type SpaceDraft } from "./types";
 
 const MAX_PHOTOS = 10;
@@ -68,8 +69,8 @@ export function StepBasics({
   return (
     <div className="flex w-full flex-col gap-8">
       <Field label="Space name" required error={errors.name}>
-        <input
-          className={errors.name ? fieldErrCn : fieldCn}
+        <TextInput
+          invalid={!!errors.name}
           placeholder="Downtown kiosk screen"
           value={draft.name}
           onChange={e => onChange({ name: e.target.value })}
@@ -80,8 +81,9 @@ export function StepBasics({
         label="Description"
         error={errors.description}
         hint={`Max 100 words${wordCount ? ` · ${wordCount} used` : ""}`}>
-        <textarea
-          className={`${errors.description ? fieldErrCn : fieldCn} h-[100px] resize-none`}
+        <TextArea
+          invalid={!!errors.description}
+          className="h-[100px] resize-none"
           placeholder="Describe where the ad space lives, who sees it, and why it performs well."
           value={draft.description}
           onChange={e => onChange({ description: e.target.value })}
@@ -103,8 +105,7 @@ export function StepBasics({
         </Field>
 
         <Field label="Target audience">
-          <input
-            className={fieldCn}
+          <TextInput
             placeholder="Students, commuters, fitness"
             value={draft.audience}
             onChange={e => onChange({ audience: e.target.value })}
@@ -180,7 +181,7 @@ export function StepBasics({
               hover:bg-[#f8faff] disabled:cursor-not-allowed disabled:opacity-50">
             <Upload className="size-4" />Upload image
           </button>
-          <input
+          <Input
             ref={fileRef}
             type="file"
             multiple

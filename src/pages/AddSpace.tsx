@@ -267,7 +267,7 @@ const AddSpace = () => {
 
         <div className="flex min-h-10 items-center gap-4">
           <h1 className="flex-1 text-2xl font-semibold text-[#1a1d25]">Add Space</h1>
-          <SecondaryButton onClick={saveAsDraft} className="h-8 text-[13px]">
+          <SecondaryButton onClick={saveAsDraft} className="h-8 text-[13px] leading-5">
             Save as draft
           </SecondaryButton>
         </div>

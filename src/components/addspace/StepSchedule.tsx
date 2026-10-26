@@ -3,7 +3,8 @@ import { ChevronUp, Plus, Clock, DollarSign, X, Trash2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Field, StepNav, fieldCn } from "./primitives";
+import { formatDate } from "@/lib/dates";
+import { AdornedInput, Field, StepNav, TextInput } from "./primitives";
 import { SlotGrid } from "./SlotGrid";
 import {
   DAYS, effectiveSlots, emptySlot, formatDays, slotLabel, slotMinutes, slotPlays, slotPricePerPlay,
@@ -200,8 +201,7 @@ function TimeSlotCard({
       {open && (
         <div className="flex w-full flex-col gap-5 border-t border-[#e8e8e8] p-5">
           <Field label="Name">
-            <input
-              className={fieldCn}
+            <TextInput
               placeholder={`Time Slot ${index + 1}`}
               value={slot.name}
               onChange={e => onChange({ ...slot, name: e.target.value })}
@@ -235,44 +235,38 @@ function TimeSlotCard({
           <div className="flex w-full flex-col gap-3">
             <div className="flex w-full items-start gap-6">
               <Field label="Starts">
-                <div className={`${fieldCn} flex items-center gap-2 py-0`}>
-                  <input
-                    type="time"
-                    step={1800}
-                    className="time-input min-w-0 flex-1 bg-transparent outline-none"
-                    value={slot.startTime}
-                    onChange={e => onChange({ ...slot, startTime: e.target.value })}
-                  />
-                  <Clock className="size-5 shrink-0 text-[#8f929d]" />
-                </div>
+                <AdornedInput
+                  type="time"
+                  step={1800}
+                  className="time-input"
+                  value={slot.startTime}
+                  onChange={e => onChange({ ...slot, startTime: e.target.value })}
+                  end={<Clock className="size-5 shrink-0 text-[#8f929d]" />}
+                />
               </Field>
 
               <Field label="Ends" error={timeError}>
-                <div className={`${fieldCn} flex items-center gap-2 py-0`}>
-                  <input
-                    type="time"
-                    step={1800}
-                    className="time-input min-w-0 flex-1 bg-transparent outline-none"
-                    value={slot.endTime}
-                    onChange={e => onChange({ ...slot, endTime: e.target.value })}
-                  />
-                  <Clock className="size-5 shrink-0 text-[#8f929d]" />
-                </div>
+                <AdornedInput
+                  type="time"
+                  step={1800}
+                  className="time-input"
+                  value={slot.endTime}
+                  onChange={e => onChange({ ...slot, endTime: e.target.value })}
+                  end={<Clock className="size-5 shrink-0 text-[#8f929d]" />}
+                />
               </Field>
 
               <Field label="Price per day" error={error}>
-                <div className={`${fieldCn} flex items-center gap-2 py-0`}>
-                  <DollarSign className="size-5 shrink-0 text-[#8f929d]" />
-                  <input
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    className="no-spinner min-w-0 flex-1 bg-transparent outline-none placeholder:text-[#8f929d]"
-                    placeholder="50"
-                    value={slot.pricePerDay}
-                    onChange={e => onChange({ ...slot, pricePerDay: e.target.value })}
-                  />
-                </div>
+                <AdornedInput
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  className="no-spinner"
+                  placeholder="50"
+                  value={slot.pricePerDay}
+                  onChange={e => onChange({ ...slot, pricePerDay: e.target.value })}
+                  start={<DollarSign className="size-5 shrink-0 text-[#8f929d]" />}
+                />
               </Field>
             </div>
 
@@ -313,13 +307,6 @@ function BlockedDates({
     setOpen(false);
   };
 
-  const label = (iso: string) => {
-    const [y, m, d] = iso.split("-").map(Number);
-    return new Date(y, m - 1, d).toLocaleDateString("en-US", {
-      month: "short", day: "numeric", year: "numeric",
-    });
-  };
-
   return (
     <div className="flex w-full flex-col gap-3">
       <p className="text-sm font-semibold text-[#4a4d56]">Blocked dates (holidays or closures)</p>
@@ -328,7 +315,7 @@ function BlockedDates({
           <span
             key={iso}
             className="flex h-8 items-center gap-2 rounded-lg border border-[#e3e5ea] bg-white px-3 text-sm text-[#1a1d25]">
-            {label(iso)}
+            {formatDate(iso)}
             <button
               type="button"
               onClick={() => onChange(dates.filter(d => d !== iso))}

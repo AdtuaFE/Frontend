@@ -1,7 +1,8 @@
 import { Send, Clock, CirclePercent, MonitorPlay } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { formatDate, type Role, type Tier } from "@/lib/plans";
+import { formatDate } from "@/lib/dates";
+import { type Role, type Tier } from "@/lib/plans";
 
 type LossItem = { icon: typeof Send; title: string; description: string };
 

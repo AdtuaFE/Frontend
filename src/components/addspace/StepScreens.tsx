@@ -5,7 +5,7 @@ import {
 } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Field, StepNav, fieldCn, fieldErrCn } from "./primitives";
+import { AdornedInput, Field, StepNav, TextInput, fieldCn, fieldErrCn } from "./primitives";
 import { AD_FORMATS, DISPLAY_TYPES, emptyScreen, type ScreenDraft } from "./types";
 
 type Props = {
@@ -65,8 +65,8 @@ export function StepScreens({ screens, errors, onChange, onBack, onNext }: Props
               <>
                 <div className="grid w-full grid-cols-2 gap-8">
                   <Field label="Screen name" required error={errors[`screen.${screen.id}.name`]}>
-                    <input
-                      className={errors[`screen.${screen.id}.name`] ? fieldErrCn : fieldCn}
+                    <TextInput
+                      invalid={!!errors[`screen.${screen.id}.name`]}
                       placeholder="Sports Screen"
                       value={screen.name}
                       onChange={e => patch(screen.id, { name: e.target.value })}
@@ -92,37 +92,30 @@ export function StepScreens({ screens, errors, onChange, onBack, onNext }: Props
                   </Field>
 
                   <Field label="Width">
-                    <div className={`${fieldCn} flex items-center gap-2 py-0`}>
-                      <input
-                        type="number"
-                        min={1}
-                        className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-[#8f929d]"
-                        placeholder="1920"
-                        value={screen.widthPx}
-                        onChange={e => patch(screen.id, { widthPx: e.target.value })}
-                      />
-                      <span className="shrink-0 text-right text-sm text-[#8f929d]">px</span>
-                    </div>
+                    <AdornedInput
+                      type="number"
+                      min={1}
+                      placeholder="1920"
+                      value={screen.widthPx}
+                      onChange={e => patch(screen.id, { widthPx: e.target.value })}
+                      end={<span className="shrink-0 text-right text-sm text-[#8f929d]">px</span>}
+                    />
                   </Field>
 
                   <Field label="Height">
-                    <div className={`${fieldCn} flex items-center gap-2 py-0`}>
-                      <input
-                        type="number"
-                        min={1}
-                        className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-[#8f929d]"
-                        placeholder="1020"
-                        value={screen.heightPx}
-                        onChange={e => patch(screen.id, { heightPx: e.target.value })}
-                      />
-                      <span className="shrink-0 text-right text-sm text-[#8f929d]">px</span>
-                    </div>
+                    <AdornedInput
+                      type="number"
+                      min={1}
+                      placeholder="1020"
+                      value={screen.heightPx}
+                      onChange={e => patch(screen.id, { heightPx: e.target.value })}
+                      end={<span className="shrink-0 text-right text-sm text-[#8f929d]">px</span>}
+                    />
                   </Field>
                 </div>
 
                 <Field label="Size label">
-                  <input
-                    className={fieldCn}
+                  <TextInput
                     placeholder="16:9 landscape"
                     value={screen.sizeLabel}
                     onChange={e => patch(screen.id, { sizeLabel: e.target.value })}
@@ -152,8 +145,7 @@ export function StepScreens({ screens, errors, onChange, onBack, onNext }: Props
                       </Tooltip>
                     </>
                   }>
-                  <input
-                    className={fieldCn}
+                  <TextInput
                     placeholder="Faces main street"
                     value={screen.orientation}
                     onChange={e => patch(screen.id, { orientation: e.target.value })}

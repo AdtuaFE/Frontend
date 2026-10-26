@@ -6,6 +6,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { ProfileModal } from "@/components/ProfileModal";
 import { PlansBilling } from "@/components/settings/PlansBilling";
 import { useAuth } from "@/context/AuthContext";
+import { userRoles } from "@/lib/roles";
 
 const TABS = ["general", "security", "plans"] as const;
 type Tab = (typeof TABS)[number];
@@ -19,9 +20,7 @@ export default function Settings() {
 
   const param = searchParams.get("tab");
   const tab: Tab = TABS.includes(param as Tab) ? (param as Tab) : "general";
-  const isAdvertiser = user.roles.includes("advertiser");
-  const isBroadcaster = user.roles.includes("broadcaster");
-  const isDual = isAdvertiser && isBroadcaster;
+  const { isAdvertiser, isBroadcaster, isDual } = userRoles(user);
 
   return (
     <AppLayout activeNav="settings">

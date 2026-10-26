@@ -4,6 +4,7 @@ import { MapContainer, TileLayer, Marker } from "react-leaflet";
 import L from "leaflet";
 import { Pencil, ChevronUp, Star, TrendingUp, Monitor } from "lucide-react";
 import { BROADCASTER_FREE_SHARE, BROADCASTER_PAID_SHARE } from "@/lib/plans";
+import { formatDate } from "@/lib/dates";
 import { PrimaryButton, SecondaryButton } from "./primitives";
 import { SlotGrid } from "./SlotGrid";
 import {
@@ -272,18 +273,13 @@ function ScreenSummary({
             <div className="flex flex-col gap-2">
               <p className="text-xs text-[#9c9c9c]">Blocked dates (holidays or closures)</p>
               <div className="flex flex-wrap gap-2">
-                {screen.blockedDates.map(iso => {
-                  const [y, m, d] = iso.split("-").map(Number);
-                  return (
-                    <span
-                      key={iso}
-                      className="flex h-8 items-center rounded-lg border border-[#e3e5ea] px-3 text-sm text-[#1a1d25]">
-                      {new Date(y, m - 1, d).toLocaleDateString("en-US", {
-                        month: "short", day: "numeric", year: "numeric",
-                      })}
-                    </span>
-                  );
-                })}
+                {screen.blockedDates.map(iso => (
+                  <span
+                    key={iso}
+                    className="flex h-8 items-center rounded-lg border border-[#e3e5ea] px-3 text-sm text-[#1a1d25]">
+                    {formatDate(iso)}
+                  </span>
+                ))}
               </div>
             </div>
           )}

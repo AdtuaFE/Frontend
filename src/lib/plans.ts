@@ -84,10 +84,6 @@ export function nextRenewal(from: Date, billing: Billing): Date {
   return addMonthsClamped(from, monthsPerPeriod(billing));
 }
 
-export function formatDate(iso: string | Date): string {
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-}
-
 function storageKey(userId: number, role: Role): string {
   return `adtua_plan_${role}_${userId}`;
 }

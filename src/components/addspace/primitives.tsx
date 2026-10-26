@@ -1,5 +1,10 @@
-import { type ReactNode } from "react";
+import { forwardRef, type ComponentProps, type ReactNode } from "react";
 import { Check } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label as UiLabel } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import { STEPS, type StepKey } from "./types";
 
 /* Field shells sized from the design: 46px min height, 8px radius, #e3e5ea border. */
@@ -12,12 +17,55 @@ export const fieldErrCn =
   "w-full min-h-[46px] rounded-lg border border-red-400 bg-white px-3 py-3 text-sm text-[#1a1d25] " +
   "placeholder:text-[#8f929d] outline-none transition-colors focus:ring-1 focus:ring-red-400";
 
+/** The shared ui inputs, styled as the design's fields. Their focus ring is sized down to match. */
+const controlCn = (invalid?: boolean) =>
+  cn(
+    invalid ? fieldErrCn : fieldCn,
+    "focus-visible:ring-1 focus-visible:ring-offset-0",
+    invalid ? "focus-visible:ring-red-400" : "focus-visible:ring-[#3a47c2]",
+  );
+
+type ControlProps = { invalid?: boolean };
+
+export const TextInput = forwardRef<HTMLInputElement, ComponentProps<"input"> & ControlProps>(
+  ({ invalid, className, ...props }, ref) => <Input ref={ref} className={cn(controlCn(invalid), className)} {...props} />,
+);
+TextInput.displayName = "TextInput";
+
+export const TextArea = forwardRef<HTMLTextAreaElement, ComponentProps<"textarea"> & ControlProps>(
+  ({ invalid, className, ...props }, ref) => <Textarea ref={ref} className={cn(controlCn(invalid), className)} {...props} />,
+);
+TextArea.displayName = "TextArea";
+
+/**
+ * A field with an icon or unit inside its box, like "$ 50" or "1920 px". The box draws the field
+ * and its focus ring; the shared ui Input inside it is left bare.
+ */
+export const AdornedInput = forwardRef<HTMLInputElement, ComponentProps<"input"> & { start?: ReactNode; end?: ReactNode }>(
+  ({ start, end, className, ...props }, ref) => (
+    <div className={cn(fieldCn, "flex items-center gap-2 focus-within:border-[#3a47c2] focus-within:ring-1 focus-within:ring-[#3a47c2]")}>
+      {start}
+      <Input
+        ref={ref}
+        className={cn(
+          "h-auto w-auto min-w-0 flex-1 rounded-none border-0 bg-transparent p-0 text-sm placeholder:text-[#8f929d]",
+          "focus-visible:ring-0 focus-visible:ring-offset-0",
+          className,
+        )}
+        {...props}
+      />
+      {end}
+    </div>
+  ),
+);
+AdornedInput.displayName = "AdornedInput";
+
 export function Label({ children, required }: { children: ReactNode; required?: boolean }) {
   return (
-    <span className="flex items-center gap-1.5 text-sm font-semibold text-[#4a4d56]">
+    <UiLabel className="flex items-center gap-1.5 text-sm font-semibold leading-5 text-[#4a4d56]">
       {children}
       {required && <span className="text-red-500">*</span>}
-    </span>
+    </UiLabel>
   );
 }
 
@@ -62,14 +110,13 @@ export function PrimaryButton({
   type?: "button" | "submit";
 }) {
   return (
-    <button
+    <Button
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className="flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-[#3a47c2] px-4 text-sm
-        font-medium text-white transition-colors hover:bg-[#2f3a9e] disabled:cursor-not-allowed disabled:opacity-50">
+      className="flex h-10 w-full rounded-lg bg-[#3a47c2] px-4 text-white hover:bg-[#2f3a9e]">
       {children}
-    </button>
+    </Button>
   );
 }
 
@@ -85,15 +132,17 @@ export function SecondaryButton({
   className?: string;
 }) {
   return (
-    <button
+    <Button
       type="button"
+      variant="outline"
       onClick={onClick}
       disabled={disabled}
-      className={`flex h-10 items-center justify-center gap-2 rounded-lg border-[0.8px] border-[#d2d4d9]
-        bg-white px-4 text-sm font-medium text-[#1a1d25] transition-colors hover:bg-[#f8faff]
-        disabled:cursor-not-allowed disabled:opacity-50 ${className}`}>
+      className={cn(
+        "flex h-10 rounded-lg border-[0.8px] border-[#d2d4d9] bg-white px-4 text-[#1a1d25] hover:bg-[#f8faff] hover:text-[#1a1d25]",
+        className,
+      )}>
       {children}
-    </button>
+    </Button>
   );
 }
 

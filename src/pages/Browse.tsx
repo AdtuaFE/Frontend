@@ -212,7 +212,7 @@ const Browse = () => {
 
         {/* All other spaces */}
         <div>
-          <SectionHeading title="All spaces" count={otherSpaces.length} />
+          <SectionHeading title={isBroadcaster ? "Other spaces" : "All spaces"} count={otherSpaces.length} />
           {otherSpaces.length > 0 ? (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {otherSpaces.map(s => (

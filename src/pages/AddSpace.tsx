@@ -15,7 +15,7 @@ import { StepScreens } from "@/components/addspace/StepScreens";
 import { StepSchedule } from "@/components/addspace/StepSchedule";
 import { StepReview } from "@/components/addspace/StepReview";
 import {
-  STEPS, clearDraft, emptyDraft, loadDraft, newId, saveDraft, toCreateSpacePayload, toScreenRequests,
+  STEPS, clearDraft, emptyDraft, loadDraft, newId, saveDraft, slotErrors, toCreateSpacePayload, toScreenRequests,
   type PhotoDraft, type ScreenDraft, type SpaceDraft, type StepKey,
 } from "@/components/addspace/types";
 
@@ -39,6 +39,7 @@ const AddSpace = () => {
    */
   const [photos, setPhotos] = useState<PhotoDraft[]>([]);
   const filesRef = useRef<Map<string, File>>(new Map());
+  const previewUrlsRef = useRef<Set<string>>(new Set());
 
   const broadcasterPaid = user ? isPaidTier(getPlanState(user.id, "broadcaster").tier) : false;
 
@@ -54,11 +55,14 @@ const AddSpace = () => {
     saveDraft(draft, step);
   }, [draft, step]);
 
-  // Object URLs are revoked only when leaving the flow — individual removals handle their own.
+  // Revoke every preview URL still alive when leaving the flow, published or not.
   useEffect(() => {
-    const urls = filesRef.current;
+    const files = filesRef.current;
+    const previewUrls = previewUrlsRef.current;
     return () => {
-      urls.clear();
+      previewUrls.forEach(url => URL.revokeObjectURL(url));
+      previewUrls.clear();
+      files.clear();
     };
   }, []);
 
@@ -78,9 +82,11 @@ const AddSpace = () => {
     const added = files.map((file, i) => {
       const id = newId();
       filesRef.current.set(id, file);
+      const previewUrl = URL.createObjectURL(file);
+      previewUrlsRef.current.add(previewUrl);
       return {
         id,
-        previewUrl: URL.createObjectURL(file),
+        previewUrl,
         name: file.name,
         isPrimary: photos.length === 0 && i === 0,
       };
@@ -91,6 +97,10 @@ const AddSpace = () => {
   const handlePhotosChange = (next: PhotoDraft[]) => {
     for (const [id] of filesRef.current) {
       if (!next.some(p => p.id === id)) filesRef.current.delete(id);
+    }
+    // StepBasics revokes a removed photo's URL itself; just stop tracking it.
+    for (const p of photos) {
+      if (!next.some(n => n.id === p.id)) previewUrlsRef.current.delete(p.previewUrl);
     }
     setPhotos(next);
   };
@@ -125,12 +135,7 @@ const AddSpace = () => {
     if (which === "schedule") {
       draft.screens.forEach(screen => {
         if (screen.sameScheduleAs) return;
-        screen.slots.forEach(slot => {
-          const price = Number(slot.pricePerDay);
-          if (!slot.pricePerDay.trim() || !Number.isFinite(price) || price <= 0) {
-            e[`slot.${slot.id}`] = "Set a price above $0";
-          }
-        });
+        Object.assign(e, slotErrors(screen.slots));
         if (!screen.slots.some(s => s.days.length > 0)) {
           e[`screen.${screen.id}.slots`] = "Pick at least one day";
         }
@@ -165,7 +170,7 @@ const AddSpace = () => {
   /* ---------- publish ---------- */
 
   const publish = async () => {
-    for (const s of STEPS.slice(0, 4)) {
+    for (const s of STEPS.filter(s => s.key !== "review")) {
       if (!validate(s.key)) {
         goTo(s.key);
         return;
@@ -182,22 +187,26 @@ const AddSpace = () => {
 
       // Screens and slots need the space id too. A space with no screens is valid (the
       // broadcaster can add them on the space page), so failures are reported, not fatal.
-      let slotsFailed = 0;
+      // Screens are created one by one because the space page lists them in creation order;
+      // each screen's slots start as soon as it exists, without waiting on earlier screens.
       let screensFailed = 0;
+      const slotJobs: Promise<boolean>[] = [];
       for (const screen of toScreenRequests(draft)) {
         try {
           const createdScreen = await api.post<{ id: number }>(
             `/api/spaces/${created.id}/screens`,
             { label: screen.label },
           );
-          const results = await Promise.allSettled(
-            screen.slots.map(slot => api.post(`/api/spaces/${created.id}/screens/${createdScreen.id}/slots`, slot)),
-          );
-          slotsFailed += results.filter(r => r.status === "rejected").length;
+          for (const slot of screen.slots) {
+            slotJobs.push(
+              api.post(`/api/spaces/${created.id}/screens/${createdScreen.id}/slots`, slot).then(() => true, () => false),
+            );
+          }
         } catch {
           screensFailed += 1;
         }
       }
+      const slotsFailed = (await Promise.all(slotJobs)).filter(ok => !ok).length;
       if (screensFailed || slotsFailed) {
         const parts = [
           screensFailed && `${screensFailed} screen(s)`,
@@ -208,6 +217,9 @@ const AddSpace = () => {
 
       // Images need the space id, so they go up after creation. A failed upload
       // shouldn't discard a space that already exists — report and carry on.
+      // One at a time, primary first: the API makes a space's first image its primary, orders
+      // the rest by arrival, and names files by upload millisecond, so parallel uploads end up
+      // with several primaries, out of order, or failing on a name clash.
       const ordered = [...photos].sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary));
       let uploaded = 0;
       for (const photo of ordered) {
@@ -228,7 +240,6 @@ const AddSpace = () => {
         );
       }
 
-      for (const photo of photos) URL.revokeObjectURL(photo.previewUrl);
       clearDraft();
       await queryClient.invalidateQueries({ queryKey: ["spaces-mine"] });
       toast.success("Space published");

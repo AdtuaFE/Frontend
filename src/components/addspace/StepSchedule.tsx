@@ -6,7 +6,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Field, StepNav, fieldCn } from "./primitives";
 import { SlotGrid } from "./SlotGrid";
 import {
-  DAYS, effectiveSlots, emptySlot, formatDays, slotMinutes, slotPlays, slotPricePerPlay,
+  DAYS, effectiveSlots, emptySlot, formatDays, slotLabel, slotMinutes, slotPlays, slotPricePerPlay,
   type DayKey, type ScreenDraft, type TimeSlot,
 } from "./types";
 
@@ -32,7 +32,7 @@ export function StepSchedule({ screens, errors, onChange, onBack, onNext }: Prop
         const mirrors = screen.sameScheduleAs
           ? screens.find(s => s.id === screen.sameScheduleAs)
           : null;
-        // Only screens before this one can be mirrored, so the chain can't loop.
+        // Every later screen can only mirror screen 1, which never mirrors anything, so the chain can't loop.
         const mirrorTarget = index > 0 ? screens[0] : null;
 
         return (
@@ -97,6 +97,7 @@ export function StepSchedule({ screens, errors, onChange, onBack, onNext }: Prop
                           index={slotIndex}
                           canRemove={screen.slots.length > 1}
                           error={errors[`slot.${slot.id}`]}
+                          timeError={errors[`slot.${slot.id}.time`]}
                           onChange={next =>
                             patchScreen(screen.id, {
                               slots: screen.slots.map(s => (s.id === slot.id ? next : s)),
@@ -141,12 +142,13 @@ export function StepSchedule({ screens, errors, onChange, onBack, onNext }: Prop
 }
 
 function TimeSlotCard({
-  slot, index, canRemove, error, onChange, onRemove,
+  slot, index, canRemove, error, timeError, onChange, onRemove,
 }: {
   slot: TimeSlot;
   index: number;
   canRemove: boolean;
   error?: string;
+  timeError?: string;
   onChange: (slot: TimeSlot) => void;
   onRemove: () => void;
 }) {
@@ -169,7 +171,7 @@ function TimeSlotCard({
       <div className="flex w-full items-center gap-4 py-3.5 pl-5 pr-4">
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <p className="text-sm font-semibold leading-5 text-[#4a4d56]">
-            {slot.name.trim() || `Time Slot ${index + 1}`}
+            {slotLabel(slot, index)}
           </p>
           <div className="flex items-center gap-1.5 text-sm leading-5 text-[#767676]">
             <span>{slot.days.length ? formatDays(slot.days) : "No days"}</span>
@@ -215,6 +217,7 @@ function TimeSlotCard({
                   <button
                     key={day.key}
                     type="button"
+                    aria-pressed={on}
                     onClick={() => toggleDay(day.key)}
                     className={`flex size-14 min-h-14 min-w-14 flex-col items-center justify-center
                       rounded-lg px-3 text-sm font-medium transition-colors ${
@@ -235,6 +238,7 @@ function TimeSlotCard({
                 <div className={`${fieldCn} flex items-center gap-2 py-0`}>
                   <input
                     type="time"
+                    step={1800}
                     className="time-input min-w-0 flex-1 bg-transparent outline-none"
                     value={slot.startTime}
                     onChange={e => onChange({ ...slot, startTime: e.target.value })}
@@ -243,10 +247,11 @@ function TimeSlotCard({
                 </div>
               </Field>
 
-              <Field label="Ends">
+              <Field label="Ends" error={timeError}>
                 <div className={`${fieldCn} flex items-center gap-2 py-0`}>
                   <input
                     type="time"
+                    step={1800}
                     className="time-input min-w-0 flex-1 bg-transparent outline-none"
                     value={slot.endTime}
                     onChange={e => onChange({ ...slot, endTime: e.target.value })}

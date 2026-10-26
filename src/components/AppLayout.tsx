@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
   House, Compass, Megaphone, MonitorCheck, Store, FileCheck,
   Search, Settings, Bell, PanelLeftOpen, PanelLeftClose, ChevronDown, X,
@@ -61,11 +61,17 @@ export function AppLayout({
   const isAdvertiser = user?.roles.includes("advertiser") ?? false;
   const isBroadcaster = user?.roles.includes("broadcaster") ?? false;
   const isDual = isAdvertiser && isBroadcaster;
-  const paidByRole = user
-    ? [isAdvertiser && "advertiser", isBroadcaster && "broadcaster"]
-        .filter((r): r is "advertiser" | "broadcaster" => !!r)
-        .map(r => isPaid(getPlanState(user.id, r).tier))
-    : [];
+  // Plan state comes from localStorage; read it once per user, not on every re-render
+  // (the controlled search input re-renders this on each keystroke).
+  const userId = user?.id;
+  const paidByRole = useMemo(
+    () => userId == null
+      ? []
+      : [isAdvertiser && "advertiser", isBroadcaster && "broadcaster"]
+          .filter((r): r is "advertiser" | "broadcaster" => !!r)
+          .map(r => isPaid(getPlanState(userId, r).tier)),
+    [userId, isAdvertiser, isBroadcaster],
+  );
   const hasAnyPaid = paidByRole.some(Boolean);
   const hasUnpaidRole = paidByRole.some(p => !p);
 

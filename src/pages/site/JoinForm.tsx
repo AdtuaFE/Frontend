@@ -1,22 +1,29 @@
-import { useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
 import { api } from "@/lib/api";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const ERRORS = {
+  empty: "Enter your email address so we can tell you when we open.",
+  invalid: "Enter an email address like name@business.com.",
+  failed: "We couldn't add you just now. Try again in a moment.",
+};
 
 type Props = {
   id: string;
   tone: "onIndigo" | "onTint";
   onJoined: () => void;
-  hint?: string;
+  /** Shown under the form and any error: a hint on the hero form, the privacy line on the last one. */
+  extra?: ReactNode;
 };
 
 /**
  * Waitlist email form. POST /api/waitlist returns 201 for a new address and 200 for one already on the
  * list; both show the same success state, as the design does.
  */
-export function JoinForm({ id, tone, onJoined, hint }: Props) {
+export function JoinForm({ id, tone, onJoined, extra }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [error, setError] = useState<"invalid" | "failed" | null>(null);
+  const [error, setError] = useState<"empty" | "invalid" | "failed" | null>(null);
   const [sending, setSending] = useState(false);
   const errId = `${id}-err`;
 
@@ -24,7 +31,7 @@ export function JoinForm({ id, tone, onJoined, hint }: Props) {
     e?.preventDefault();
     const email = inputRef.current?.value.trim() ?? "";
     if (!EMAIL.test(email)) {
-      setError("invalid");
+      setError(email ? "invalid" : "empty");
       inputRef.current?.focus();
       return;
     }
@@ -66,12 +73,10 @@ export function JoinForm({ id, tone, onJoined, hint }: Props) {
       </div>
       {error && (
         <p id={errId} className="err" role="alert" style={{ color: tone === "onIndigo" ? "#FFFFFF" : "#B42318" }}>
-          {error === "invalid"
-            ? "Enter an email address like name@business.com."
-            : "We couldn't add you just now. Try again in a moment."}
+          {ERRORS[error]}
         </p>
       )}
-      {hint && <p style={{ fontSize: 15, color: "#D3D8F8" }}>{hint}</p>}
+      {extra}
     </form>
   );
 }
@@ -81,11 +86,11 @@ export function Joined() {
     <div className="done" role="status" style={{ width: "100%", maxWidth: 560, background: "#FFFFFF", color: "#15173A", borderRadius: 16, padding: "18px 20px", display: "flex", flexWrap: "wrap", alignItems: "center", gap: 16, textAlign: "left" }}>
       <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#3A47C2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flex: "none" }}>
         <circle cx="12" cy="12" r="10" />
-        <path className="tick-p" d="m7.5 12.5 3 3 6-7" />
+        <path className="tick-p" d="m9 12 2 2 4-4" />
       </svg>
       <div style={{ flex: "1 1 200px" }}>
         <b style={{ display: "block", fontSize: 17, fontWeight: 600 }}>You're on the list</b>
-        <span style={{ fontSize: 15, color: "#4A4D66" }}>We'll email you the day sign-up opens.</span>
+        <span style={{ fontSize: 15, color: "#4A4D66" }}>We'll email you the day sign-up opens. We'll only email you about Adtua's launch.</span>
       </div>
     </div>
   );

@@ -1,82 +1,58 @@
-import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
 import { AppLayout } from "@/components/AppLayout";
-import { ProfileModal } from "@/components/ProfileModal";
-import { PlansBilling } from "@/components/settings/PlansBilling";
+import { GeneralTab } from "@/components/settings/GeneralTab";
+import { NotificationsTab } from "@/components/settings/NotificationsTab";
+import { SecurityTab } from "@/components/settings/SecurityTab";
+import { PlansBillingTab } from "@/components/settings/PlansBillingTab";
 import { useAuth } from "@/context/AuthContext";
 
-const TABS = ["general", "security", "plans"] as const;
-type Tab = (typeof TABS)[number];
+const TABS = [
+  { key: "general", label: "General" },
+  { key: "notifications", label: "Notifications" },
+  { key: "security", label: "Security" },
+  { key: "plans", label: "Plans and billing" },
+] as const;
+type Tab = (typeof TABS)[number]["key"];
 
 export default function Settings() {
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [profileTab, setProfileTab] = useState<"details" | "password" | null>(null);
-
   if (!user) return null;
 
   const param = searchParams.get("tab");
-  const tab: Tab = TABS.includes(param as Tab) ? (param as Tab) : "general";
-  const isAdvertiser = user.roles.includes("advertiser");
-  const isBroadcaster = user.roles.includes("broadcaster");
-  const isDual = isAdvertiser && isBroadcaster;
+  const tab: Tab = TABS.some(t => t.key === param) ? (param as Tab) : "general";
 
   return (
     <AppLayout activeNav="settings">
-      <div className="max-w-3xl mx-auto py-4">
-        <Tabs value={tab} onValueChange={v => setSearchParams({ tab: v })}>
-          <TabsList>
-            <TabsTrigger value="general">General</TabsTrigger>
-            <TabsTrigger value="security">Security</TabsTrigger>
-            <TabsTrigger value="plans">Plans and Billing</TabsTrigger>
-          </TabsList>
-
-          {/* General/Security weren't in the ready-for-dev Figma set, so they reuse the existing profile dialog. */}
-          <TabsContent value="general" className="mt-8">
-            <div className="border border-[#e8e8e8] rounded-2xl p-6 flex items-center justify-between">
-              <div>
-                <p className="text-base font-semibold text-[#4a5565]">{user.first_name} {user.last_name}</p>
-                <p className="text-sm text-[#767676]">{user.email}</p>
-              </div>
-              <Button variant="outline" onClick={() => setProfileTab("details")}>Edit profile</Button>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="security" className="mt-8">
-            <div className="border border-[#e8e8e8] rounded-2xl p-6 flex items-center justify-between">
-              <div>
-                <p className="text-base font-semibold text-[#4a5565]">Password</p>
-                <p className="text-sm text-[#767676]">Change the password used to sign in</p>
-              </div>
-              <Button variant="outline" onClick={() => setProfileTab("password")}>Change password</Button>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="plans" className="mt-8 space-y-16">
-            {isAdvertiser && (
-              <section className="space-y-8">
-                {isDual && <h2 className="text-xl font-semibold text-[#4a5565]">Advertiser plan</h2>}
-                <PlansBilling role="advertiser" />
-              </section>
-            )}
-            {isDual && <div className="border-t border-[#e8e8e8]" />}
-            {isBroadcaster && (
-              <section className="space-y-8">
-                {isDual && <h2 className="text-xl font-semibold text-[#4a5565]">Broadcaster plan</h2>}
-                <PlansBilling role="broadcaster" />
-              </section>
-            )}
-          </TabsContent>
-        </Tabs>
+      <div className="mx-auto flex w-full max-w-[1164px] flex-col gap-6">
+        <h1 className="min-h-10 text-2xl font-semibold text-[#1a1d25]">Settings</h1>
+        <div role="tablist" aria-label="Settings" className="flex gap-6 overflow-x-auto border-b-[0.8px] border-[#e6e7ec]">
+          {TABS.map(t => {
+            const on = t.key === tab;
+            return (
+              <button
+                key={t.key}
+                type="button"
+                role="tab"
+                id={`tab-${t.key}`}
+                aria-selected={on}
+                aria-controls="settings-panel"
+                onClick={() => setSearchParams({ tab: t.key })}
+                className={`-mb-[0.8px] shrink-0 border-b-[1.2px] px-0.5 pb-3 text-sm leading-5 transition-colors ${
+                  on ? "border-[#3a47c2] font-semibold text-[#3a47c2]" : "border-transparent font-medium text-[#656972] hover:text-[#1a1d25]"
+                }`}>
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+        <div id="settings-panel" role="tabpanel" aria-labelledby={`tab-${tab}`} className="px-0 pt-2 md:px-10">
+          {tab === "general" && <GeneralTab />}
+          {tab === "notifications" && <NotificationsTab />}
+          {tab === "security" && <SecurityTab />}
+          {tab === "plans" && <PlansBillingTab />}
+        </div>
       </div>
-
-      <ProfileModal
-        open={profileTab !== null}
-        onOpenChange={open => !open && setProfileTab(null)}
-        defaultTab={profileTab ?? "details"}
-      />
     </AppLayout>
   );
 }

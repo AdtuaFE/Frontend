@@ -10,6 +10,9 @@ export type Tier = AdvertiserTier | BroadcasterTier;
 export type PaidTier = Exclude<Tier, "free">;
 export type Billing = "monthly" | "annual";
 
+/** The card typed at checkout. Only the brand, last four digits and expiry are kept. */
+export type SavedCard = { brand: string; last4: string; exp: string };
+
 export type PlanState = {
   tier: Tier;
   billing: Billing | null;
@@ -17,6 +20,7 @@ export type PlanState = {
   amountPaid: number | null;
   renewsAt: string | null;
   cancelsAt: string | null; // set once cancelled; plan stays active until this date
+  card?: SavedCard | null;
 };
 
 export type Invoice = { date: string; amount: number; status: "paid" };
@@ -109,7 +113,9 @@ function persist(userId: number, role: Role, state: PlanState) {
   }
 }
 
-export async function subscribe(userId: number, role: Role, tier: PaidTier, billing: Billing): Promise<PlanState> {
+export async function subscribe(
+  userId: number, role: Role, tier: PaidTier, billing: Billing, card: SavedCard | null = null,
+): Promise<PlanState> {
   const now = new Date();
   const state: PlanState = {
     tier,
@@ -118,6 +124,7 @@ export async function subscribe(userId: number, role: Role, tier: PaidTier, bill
     amountPaid: chargeFor(tier, billing),
     renewsAt: nextRenewal(now, billing).toISOString(),
     cancelsAt: null,
+    card,
   };
   persist(userId, role, state);
   return state;
@@ -128,6 +135,16 @@ export async function cancelSubscription(userId: number, role: Role): Promise<Pl
   const state: PlanState = { ...current, cancelsAt: current.renewsAt };
   persist(userId, role, state);
   return state;
+}
+
+/** The card network from a card number's leading digits, for showing which card is on file. */
+export function cardBrand(number: string): string {
+  const d = number.replace(/\D/g, "");
+  if (/^4/.test(d)) return "Visa";
+  if (/^(5[1-5]|2[2-7])/.test(d)) return "Mastercard";
+  if (/^3[47]/.test(d)) return "American Express";
+  if (/^6/.test(d)) return "Discover";
+  return "Card";
 }
 
 export function isPaid(tier: Tier): tier is PaidTier {

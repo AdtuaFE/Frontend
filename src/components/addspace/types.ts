@@ -177,6 +177,61 @@ export function slotMinutes(slot: TimeSlot): number {
   return end > start ? end - start : 24 * 60 - start + end;
 }
 
+/** A slot's name, or its position when left blank — as the form shows it. */
+export function slotLabel(slot: TimeSlot, index: number): string {
+  return slot.name.trim() || `Time Slot ${index + 1}`;
+}
+
+/** The API takes at most this many slots per screen on one day. */
+export const MAX_SLOTS_PER_DAY = 3;
+
+/** "HH:MM" as minutes since midnight; NaN when unset. */
+function toMinutes(time: string): number {
+  const [h, m] = time.split(":").map(Number);
+  return h * 60 + m;
+}
+
+/** Slots can't run past midnight, so an end of 00:00 means midnight at the end of the day. */
+function endMinutes(slot: TimeSlot): number {
+  const end = toMinutes(slot.endTime);
+  return end === 0 ? 24 * 60 : end;
+}
+
+/**
+ * What the API would reject in one screen's slots, keyed `slot.<id>` for the price and
+ * `slot.<id>.time` for the times. The API only checks a new slot against the ones already
+ * saved, and publish sends a screen's slots together, so they're checked against each other
+ * here. A slot with no days creates nothing on publish, so it's skipped.
+ */
+export function slotErrors(slots: TimeSlot[]): Record<string, string> {
+  const errors: Record<string, string> = {};
+  const live = slots.filter(s => s.days.length > 0);
+  live.forEach((slot, i) => {
+    const price = Number(slot.pricePerDay);
+    if (!slot.pricePerDay.trim() || !Number.isFinite(price) || price <= 0) {
+      errors[`slot.${slot.id}`] = "Set a price above $0";
+    }
+
+    const start = toMinutes(slot.startTime);
+    const end = endMinutes(slot);
+    const earlier = live.slice(0, i);
+    const sharedDay = (other: TimeSlot) => DAYS.find(d => slot.days.includes(d.key) && other.days.includes(d.key));
+    const clash = earlier.find(o => sharedDay(o) && start < endMinutes(o) && toMinutes(o.startTime) < end);
+    const fullDay = DAYS.find(
+      d => slot.days.includes(d.key) && earlier.filter(o => o.days.includes(d.key)).length >= MAX_SLOTS_PER_DAY,
+    );
+
+    let timeError = "";
+    if (Number.isNaN(start) || Number.isNaN(end)) timeError = "Set a start and end time";
+    else if (start % 30 || end % 30) timeError = "Times must be on the hour or half hour";
+    else if (end <= start) timeError = "End time must be after the start time";
+    else if (clash) timeError = `Overlaps ${slotLabel(clash, slots.indexOf(clash))} on ${sharedDay(clash)!.label}`;
+    else if (fullDay) timeError = `${fullDay.label} already has ${MAX_SLOTS_PER_DAY} time slots`;
+    if (timeError) errors[`slot.${slot.id}.time`] = timeError;
+  });
+  return errors;
+}
+
 export function slotPlays(slot: TimeSlot): number {
   return Math.floor((slotMinutes(slot) * 60) / PLAY_SECONDS);
 }
@@ -287,12 +342,13 @@ export type ScreenRequest = { label: string; slots: SlotRequest[] };
 export function toScreenRequests(draft: SpaceDraft): ScreenRequest[] {
   return draft.screens.map((screen, i) => ({
     label: screen.name.trim() || `Screen ${i + 1}`,
-    slots: effectiveSlots(screen, draft.screens).flatMap(slot =>
+    slots: effectiveSlots(screen, draft.screens).flatMap((slot, slotIndex) =>
       slot.days.map(day => ({
         day_of_week: DAYS.findIndex(d => d.key === day) + 1,
-        label: slot.name,
+        label: slotLabel(slot, slotIndex),
         start_time: `${slot.startTime}:00`,
-        end_time: `${slot.endTime}:00`,
+        // The API writes the end of the day as 24:00, which a time input can't show.
+        end_time: slot.endTime === "00:00" ? "24:00:00" : `${slot.endTime}:00`,
         est_impressions_per_playback: DEFAULT_IMPRESSIONS_PER_PLAY,
         daily_capacity_playbacks: slotPlays(slot),
         total_price: Number(slot.pricePerDay),

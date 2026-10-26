@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { validateBroadcasterSection, type FieldErrors } from "@/utils/validators";
 import { loadWizardData } from "@/pages/Onboarding";
 import { LocationAutocomplete, type LocationResult } from "@/components/LocationAutocomplete";
+import { parsePlaceName } from "@/lib/location";
 
 type Props = {
   open: boolean;
@@ -93,18 +94,7 @@ export function CreateSpaceModal({ open, onOpenChange }: Props) {
   };
 
   const handleLocationSelect = (result: LocationResult) => {
-    const parts = result.place_name.split(", ");
-    // If the first part starts with a digit it's a street address e.g. "42 Maple Avenue"
-    const firstIsStreet = /^\d/.test(parts[0]);
-    const addressLine1 = firstIsStreet ? parts[0] : "";
-    const city = firstIsStreet ? (parts[1] ?? "") : (parts[0] ?? "");
-    const country = parts[parts.length - 1] ?? "";
-    // Second-to-last part may be "Indiana 47401" — split into region + postal code
-    const regionRaw = parts.length >= 3 ? parts[parts.length - 2] : "";
-    const postalMatch = regionRaw.match(/^(.+?)\s+(\d[\w-]+)$/);
-    const region = postalMatch ? postalMatch[1].trim() : regionRaw;
-    const postalCode = postalMatch ? postalMatch[2].trim() : "";
-
+    const { addressLine1, city, region, postalCode, country } = parsePlaceName(result.place_name);
     setFormData(prev => ({
       ...prev,
       ...(addressLine1 ? { addressLine1 } : {}),

@@ -9,7 +9,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/context/AuthContext";
-import { PAID_PLANS, cardBrand, chargeFor, formatDate, nextRenewal, subscribe, type Billing, type PaidTier, type Role } from "@/lib/plans";
+import { formatDate } from "@/lib/dates";
+import { PAID_PLANS, cardBrand, chargeFor, nextRenewal, subscribe, type Billing, type PaidTier, type Role } from "@/lib/plans";
 import { toast } from "sonner";
 
 const inputCn = "h-10 rounded-lg border-[#d7dce3] bg-white text-sm shadow-none focus-visible:ring-[#3a47c2]";

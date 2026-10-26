@@ -1,6 +1,7 @@
 import { Lock } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/context/AuthContext";
+import { userRoles } from "@/lib/roles";
 import { Section } from "./SettingsBits";
 
 type Item = { title: string; sub: string; email: boolean; inApp: boolean };
@@ -46,8 +47,7 @@ function Group({ label, items }: { label: string; items: Item[] }) {
 /** Notification choices aren't stored anywhere yet, so the grid shows the defaults and can't be changed. */
 export function NotificationsTab() {
   const { user } = useAuth();
-  const isAdvertiser = user?.roles.includes("advertiser") ?? false;
-  const isBroadcaster = user?.roles.includes("broadcaster") ?? false;
+  const { isAdvertiser, isBroadcaster } = userRoles(user);
 
   return (
     <Section title="What we tell you about" soon

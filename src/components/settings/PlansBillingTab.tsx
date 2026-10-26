@@ -7,8 +7,10 @@ import { CancelPremiumModal } from "@/components/CancelPremiumModal";
 import { useAuth } from "@/context/AuthContext";
 import {
   ADVERTISER_FREE_IMPRESSIONS, ADVERTISER_PREMIUM_IMPRESSIONS, BROADCASTER_FREE_SHARE, BROADCASTER_PAID_SHARE, PAID_PLANS,
-  cancelSubscription, formatDate, getInvoices, getPlanState, isPaid, nextRenewal, type PlanState, type Role,
+  cancelSubscription, getInvoices, getPlanState, isPaid, nextRenewal, type PlanState, type Role,
 } from "@/lib/plans";
+import { formatDate } from "@/lib/dates";
+import { userRoles } from "@/lib/roles";
 import { ChoosePlanDialog } from "./ChoosePlanDialog";
 import { Pill, Section, SoonTag } from "./SettingsBits";
 
@@ -69,9 +71,7 @@ const priceLabel = (p: PlanState) => (p.billing === "annual" ? `$${p.amountPaid}
 export function PlansBillingTab() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const isAdvertiser = user?.roles.includes("advertiser") ?? false;
-  const isBroadcaster = user?.roles.includes("broadcaster") ?? false;
-  const isDual = isAdvertiser && isBroadcaster;
+  const { isAdvertiser, isBroadcaster, isDual } = userRoles(user);
   const [plans, setPlans] = useState(() => ({
     advertiser: getPlanState(user!.id, "advertiser"),
     broadcaster: getPlanState(user!.id, "broadcaster"),

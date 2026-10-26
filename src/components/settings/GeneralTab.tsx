@@ -6,6 +6,7 @@ import { CampaignButton } from "@/components/campaigns/CampaignBits";
 import { useAuth, type User } from "@/context/AuthContext";
 import { api } from "@/lib/api";
 import { getPlanState, isPaid } from "@/lib/plans";
+import { userRoles } from "@/lib/roles";
 import { Field, Pill, Row, RowList, Section, SoonTag } from "./SettingsBits";
 import { bareInputCn, boxCn } from "./settingsStyles";
 
@@ -23,9 +24,7 @@ const businessName = (u: User) => u.company_name ?? u.org_name ?? "";
 
 export function GeneralTab() {
   const { user, refreshUser } = useAuth();
-  const isAdvertiser = user?.roles.includes("advertiser") ?? false;
-  const isBroadcaster = user?.roles.includes("broadcaster") ?? false;
-  const isDual = isAdvertiser && isBroadcaster;
+  const { isAdvertiser, isBroadcaster, isDual } = userRoles(user);
 
   const [person, setPerson] = useState({ first_name: "", last_name: "", phone: "" });
   const [business, setBusiness] = useState({ name: "", address_line1: "", city: "", region: "", postal_code: "" });

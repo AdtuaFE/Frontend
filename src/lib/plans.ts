@@ -70,15 +70,22 @@ export function chargeFor(tier: PaidTier, billing: Billing): number {
   return billing === "annual" && plan.priceAnnual ? plan.priceAnnual * 12 : plan.priceMonthly;
 }
 
-export function nextRenewal(from: Date, billing: Billing): Date {
+// setMonth on the 29th–31st overflows into the following month (Jan 31 + 1 → Mar 3), so clamp
+// to the last day of the target month instead.
+function addMonthsClamped(from: Date, months: number): Date {
   const d = new Date(from);
-  if (billing === "annual") d.setFullYear(d.getFullYear() + 1);
-  else d.setMonth(d.getMonth() + 1);
+  const day = d.getDate();
+  d.setDate(1);
+  d.setMonth(d.getMonth() + months);
+  const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(Math.min(day, lastDay));
   return d;
 }
 
-export function formatDate(iso: string | Date): string {
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+const monthsPerPeriod = (billing: Billing) => (billing === "annual" ? 12 : 1);
+
+export function nextRenewal(from: Date, billing: Billing): Date {
+  return addMonthsClamped(from, monthsPerPeriod(billing));
 }
 
 function storageKey(userId: number, role: Role): string {
@@ -99,9 +106,14 @@ export function getPlanState(userId: number, role: Role): PlanState {
   const now = new Date();
   if (state.cancelsAt && new Date(state.cancelsAt) <= now) return FREE_STATE;
 
-  // Simulate auto-renewal so a mock subscription doesn't show a renewal date in the past.
-  let renews = new Date(state.renewsAt);
-  while (renews <= now) renews = nextRenewal(renews, state.billing);
+  // Simulate auto-renewal so a mock subscription doesn't show a renewal date in the past. Each
+  // period is counted from the start date, not the previous renewal, so a clamp (Jan 31 → Feb 28)
+  // doesn't carry into later months.
+  const anchor = new Date(state.startedAt ?? state.renewsAt);
+  const step = monthsPerPeriod(state.billing);
+  let periods = state.startedAt ? 1 : 0;
+  let renews = addMonthsClamped(anchor, periods * step);
+  while (renews <= now) renews = addMonthsClamped(anchor, ++periods * step);
   return { ...state, renewsAt: renews.toISOString() };
 }
 

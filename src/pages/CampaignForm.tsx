@@ -136,8 +136,12 @@ export default function CampaignForm() {
     if (failure) failureRef.current?.closest("main")?.scrollTo({ top: 0, behavior: "smooth" });
   }, [failure]);
 
+  const dirty = JSON.stringify(form) !== JSON.stringify(initial);
+
+  // `campaign` gets a new object on every refetch (e.g. a window-focus refetch while
+  // editing), so only resync from it when there's nothing unsaved to lose.
   useEffect(() => {
-    if (!campaign) return;
+    if (!campaign || dirty) return;
     setForm(fromCampaign(campaign));
     setInitial(fromCampaign(campaign));
   }, [campaign]);
@@ -146,7 +150,6 @@ export default function CampaignForm() {
     setForm(f => ({ ...f, [key]: value }));
     if (errors[key]) setErrors(e => ({ ...e, [key]: undefined }));
   };
-  const dirty = JSON.stringify(form) !== JSON.stringify(initial);
   const backTo = editing ? `/campaigns/${id}` : "/campaigns";
 
   const submit = async () => {

@@ -27,21 +27,40 @@ export function GeneralTab() {
   const { isAdvertiser, isBroadcaster, isDual } = userRoles(user);
 
   const [person, setPerson] = useState({ first_name: "", last_name: "", phone: "" });
+  const [initialPerson, setInitialPerson] = useState(person);
   const [business, setBusiness] = useState({ name: "", address_line1: "", city: "", region: "", postal_code: "" });
+  const [initialBusiness, setInitialBusiness] = useState(business);
   const [savingPerson, setSavingPerson] = useState(false);
   const [savingBusiness, setSavingBusiness] = useState(false);
   const [errors, setErrors] = useState<{ first_name?: string; last_name?: string }>({});
 
+  const personDirty = person.first_name !== initialPerson.first_name
+    || person.last_name !== initialPerson.last_name || person.phone !== initialPerson.phone;
+  const businessDirty = business.name !== initialBusiness.name
+    || (isBroadcaster && (business.address_line1 !== initialBusiness.address_line1 || business.city !== initialBusiness.city
+      || business.region !== initialBusiness.region || business.postal_code !== initialBusiness.postal_code));
+
+  // `user` gets a new object on every refreshUser() call, including the one saving a
+  // section triggers — only resync a section from it when it has no unsaved edits, so
+  // saving Person (say) can't wipe an in-progress edit to Business, or vice versa.
   useEffect(() => {
     if (!user) return;
-    setPerson({ first_name: user.first_name ?? "", last_name: user.last_name ?? "", phone: user.phone ?? "" });
-    setBusiness({
-      name: businessName(user),
-      address_line1: user.address_line1 ?? "",
-      city: user.city ?? "",
-      region: user.region ?? "",
-      postal_code: user.postal_code ?? "",
-    });
+    if (!personDirty) {
+      const fromUser = { first_name: user.first_name ?? "", last_name: user.last_name ?? "", phone: user.phone ?? "" };
+      setPerson(fromUser);
+      setInitialPerson(fromUser);
+    }
+    if (!businessDirty) {
+      const fromUser = {
+        name: businessName(user),
+        address_line1: user.address_line1 ?? "",
+        city: user.city ?? "",
+        region: user.region ?? "",
+        postal_code: user.postal_code ?? "",
+      };
+      setBusiness(fromUser);
+      setInitialBusiness(fromUser);
+    }
   }, [user]);
 
   if (!user) return null;
@@ -51,11 +70,6 @@ export function GeneralTab() {
   const paid = (["advertiser", "broadcaster"] as const)
     .filter(r => user.roles.includes(r))
     .some(r => isPaid(getPlanState(user.id, r).tier));
-
-  const personDirty = person.first_name !== (user.first_name ?? "") || person.last_name !== (user.last_name ?? "") || person.phone !== (user.phone ?? "");
-  const businessDirty = business.name !== businessName(user)
-    || (isBroadcaster && (business.address_line1 !== (user.address_line1 ?? "") || business.city !== (user.city ?? "")
-      || business.region !== (user.region ?? "") || business.postal_code !== (user.postal_code ?? "")));
 
   const savePerson = async () => {
     const e: typeof errors = {};

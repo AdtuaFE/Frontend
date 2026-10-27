@@ -60,6 +60,22 @@ const FieldError = ({ msg }: { msg?: string }) =>
 
 const fmtTime = (t: string) => t.slice(0, 5);
 
+// Mirrors the backend's getMatchingDates exactly: UTC, both ends inclusive,
+// ISO day-of-week (1=Monday..7=Sunday). A slot only bills on dates that
+// actually fall on its own day_of_week, not every day in the range.
+function countMatchingDates(startDate: string, endDate: string, dayOfWeek: number): number {
+  if (!startDate || !endDate) return 0;
+  let count = 0;
+  const cur = new Date(`${startDate}T00:00:00Z`);
+  const end = new Date(`${endDate}T00:00:00Z`);
+  while (cur.getTime() <= end.getTime()) {
+    const isoDay = cur.getUTCDay() === 0 ? 7 : cur.getUTCDay();
+    if (isoDay === dayOfWeek) count++;
+    cur.setUTCDate(cur.getUTCDate() + 1);
+  }
+  return count;
+}
+
 export function CreateBookingModal({ open, onOpenChange, space }: Props) {
   const queryClient = useQueryClient();
   const [campaignId, setCampaignId] = useState("");
@@ -125,18 +141,21 @@ export function CreateBookingModal({ open, onOpenChange, space }: Props) {
     clearError("slots");
   };
 
+  // Inclusive of both ends, matching how the backend counts the range.
   const durationDays = startDate && endDate
-    ? Math.round((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86400000)
+    ? Math.round((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86400000) + 1
     : 0;
 
   const selectedSlotEntries = Object.entries(selectedSlots);
-  const rawEstimate = durationDays > 0 && selectedSlotEntries.length > 0
+  const rawEstimate = startDate && endDate && selectedSlotEntries.length > 0
     ? selectedSlotEntries.reduce((total, [id, pb]) => {
         const slot = slots.find(s => s.id === Number(id));
         const plays = Number(pb);
         if (!slot || plays <= 0 || slot.daily_capacity_playbacks <= 0) return total;
+        const matchingDays = countMatchingDates(startDate, endDate, slot.day_of_week);
+        if (matchingDays === 0) return total;
         const pricePerPlay = slot.total_price / slot.daily_capacity_playbacks;
-        return total + plays * durationDays * pricePerPlay;
+        return total + plays * matchingDays * pricePerPlay;
       }, 0)
     : 0;
   const estimatedPrice = rawEstimate > 0 ? rawEstimate : null;

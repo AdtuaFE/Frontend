@@ -9,9 +9,10 @@ import { CancelPremiumModal } from "@/components/CancelPremiumModal";
 import { useAuth } from "@/context/AuthContext";
 import {
   ADVERTISER_FREE_IMPRESSIONS, ADVERTISER_PREMIUM_IMPRESSIONS, PAID_PLANS,
-  cancelSubscription, formatDate, getInvoices, getPlanState, isPaid,
+  cancelSubscription, getInvoices, getPlanState, isPaid,
   type Billing, type PaidTier, type PlanState, type Role,
 } from "@/lib/plans";
+import { formatDate } from "@/lib/dates";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 

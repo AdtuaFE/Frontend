@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
   House, Compass, Megaphone, MonitorCheck, Store, FileCheck,
   Search, Settings, Bell, PanelLeftOpen, PanelLeftClose, ChevronDown, X,
@@ -7,7 +7,9 @@ import { useAuth } from "@/context/AuthContext";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { ProfileModal } from "@/components/ProfileModal";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getPlanState, isPaid } from "@/lib/plans";
+import { userRoles } from "@/lib/roles";
 import logo from "@/assets/adtua-logo.svg";
 
 export type NavKey = "home" | "browse" | "spaces" | "campaigns" | "marketplace" | "bookings" | "settings";
@@ -37,13 +39,13 @@ const TAIL_ITEMS: NavItem[] = [
   { key: "bookings", label: "Bookings", icon: FileCheck, to: "/bookings" },
 ];
 
-function Avatar({ initials, size = 40 }: { initials: string; size?: number }) {
+function UserAvatar({ initials }: { initials: string }) {
   return (
-    <div
-      className="bg-[rgba(58,71,194,0.1)] rounded-full shrink-0 flex items-center justify-center text-[#3a47c2] font-medium"
-      style={{ width: size, height: size, fontSize: size * 0.4 }}>
-      {initials}
-    </div>
+    <Avatar className="h-[34px] w-[34px]">
+      <AvatarFallback className="bg-[rgba(58,71,194,0.1)] text-[13.6px] font-medium text-[#3a47c2]">
+        {initials}
+      </AvatarFallback>
+    </Avatar>
   );
 }
 
@@ -58,14 +60,18 @@ export function AppLayout({
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const queryClient = useQueryClient();
-  const isAdvertiser = user?.roles.includes("advertiser") ?? false;
-  const isBroadcaster = user?.roles.includes("broadcaster") ?? false;
-  const isDual = isAdvertiser && isBroadcaster;
-  const paidByRole = user
-    ? [isAdvertiser && "advertiser", isBroadcaster && "broadcaster"]
-        .filter((r): r is "advertiser" | "broadcaster" => !!r)
-        .map(r => isPaid(getPlanState(user.id, r).tier))
-    : [];
+  const { isAdvertiser, isBroadcaster, isDual } = userRoles(user);
+  // Plan state comes from localStorage; read it once per user, not on every re-render
+  // (the controlled search input re-renders this on each keystroke).
+  const userId = user?.id;
+  const paidByRole = useMemo(
+    () => userId == null
+      ? []
+      : [isAdvertiser && "advertiser", isBroadcaster && "broadcaster"]
+          .filter((r): r is "advertiser" | "broadcaster" => !!r)
+          .map(r => isPaid(getPlanState(userId, r).tier)),
+    [userId, isAdvertiser, isBroadcaster],
+  );
   const hasAnyPaid = paidByRole.some(Boolean);
   const hasUnpaidRole = paidByRole.some(p => !p);
 
@@ -181,7 +187,7 @@ export function AppLayout({
             <div className={`border-t border-[#e8e8e8] ${collapsed ? "p-2" : "p-4"}`}>
               <div className={`flex items-center gap-3 ${collapsed ? "justify-center" : "px-2"}`}>
                 <button onClick={() => setProfileOpen(true)} className="flex items-center gap-3 min-w-0 flex-1 text-left rounded-lg hover:opacity-80 transition-opacity" title="Profile">
-                  <Avatar initials={initials} size={34} />
+                  <UserAvatar initials={initials} />
                   {!collapsed && (
                     <div className="min-w-0">
                       <p className="text-[13px] font-semibold text-[#4a5565] leading-5 truncate">{fullName}</p>
@@ -220,7 +226,7 @@ export function AppLayout({
               </div>
               <div className="relative group">
                 <button className="block rounded-full hover:ring-2 hover:ring-[#3a47c2] transition-all" title="Your profile">
-                  <Avatar initials={initials} size={34} />
+                  <UserAvatar initials={initials} />
                 </button>
                 {/* pt-1 bridges the gap between avatar and menu so hover doesn't break */}
                 <div className="absolute top-full right-0 pt-1 hidden group-hover:block z-50">

@@ -4,7 +4,8 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LocationAutocomplete, type LocationResult } from "@/components/LocationAutocomplete";
-import { Field, StepNav, fieldCn, fieldErrCn } from "./primitives";
+import { parsePlaceName } from "@/lib/location";
+import { Field, StepNav, TextInput, fieldCn, fieldErrCn } from "./primitives";
 import type { SpaceDraft } from "./types";
 
 /** Short list first — the autocomplete fills this in for anywhere else. */
@@ -36,21 +37,8 @@ export function StepLocation({
     [hasPin, draft.geoLat, draft.geoLng],
   );
 
-  /**
-   * Mapbox-style place names come back coarse-to-fine, e.g.
-   * "42 Maple Avenue, Bloomington, Indiana 47401, United States".
-   */
   const handleSelect = (result: LocationResult) => {
-    const parts = result.place_name.split(", ");
-    const firstIsStreet = /^\d/.test(parts[0]);
-    const addressLine1 = firstIsStreet ? parts[0] : "";
-    const city = firstIsStreet ? (parts[1] ?? "") : (parts[0] ?? "");
-    const country = parts[parts.length - 1] ?? "";
-    const regionRaw = parts.length >= 3 ? parts[parts.length - 2] : "";
-    const postalMatch = regionRaw.match(/^(.+?)\s+(\d[\w-]+)$/);
-    const region = postalMatch ? postalMatch[1].trim() : regionRaw;
-    const postalCode = postalMatch ? postalMatch[2].trim() : "";
-
+    const { addressLine1, city, region, postalCode, country } = parsePlaceName(result.place_name);
     onChange({
       ...(addressLine1 ? { addressLine1 } : {}),
       city: city || draft.city,
@@ -94,8 +82,8 @@ export function StepLocation({
       </div>
 
       <Field label="Address line 1" required error={errors.addressLine1}>
-        <input
-          className={errors.addressLine1 ? fieldErrCn : fieldCn}
+        <TextInput
+          invalid={!!errors.addressLine1}
           placeholder="123 Main Street"
           value={draft.addressLine1}
           onChange={e => onChange({ addressLine1: e.target.value })}
@@ -103,8 +91,7 @@ export function StepLocation({
       </Field>
 
       <Field label="Address line 2 (optional)">
-        <input
-          className={fieldCn}
+        <TextInput
           placeholder="Suite, floor, or landmark"
           value={draft.addressLine2}
           onChange={e => onChange({ addressLine2: e.target.value })}
@@ -114,16 +101,15 @@ export function StepLocation({
       <div className="flex w-full flex-col gap-8">
         <div className="flex w-full items-start gap-8">
           <Field label="City" required error={errors.city}>
-            <input
-              className={errors.city ? fieldErrCn : fieldCn}
+            <TextInput
+              invalid={!!errors.city}
               placeholder="Bloomington"
               value={draft.city}
               onChange={e => onChange({ city: e.target.value })}
             />
           </Field>
           <Field label="State/Region">
-            <input
-              className={fieldCn}
+            <TextInput
               placeholder="Indiana"
               value={draft.region}
               onChange={e => onChange({ region: e.target.value })}
@@ -149,8 +135,7 @@ export function StepLocation({
             </Select>
           </Field>
           <Field label="ZIP/Postal Code">
-            <input
-              className={fieldCn}
+            <TextInput
               placeholder="47208"
               value={draft.postalCode}
               onChange={e => onChange({ postalCode: e.target.value })}

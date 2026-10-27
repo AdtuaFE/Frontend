@@ -1,34 +1,86 @@
-import { useState, type ReactNode } from "react";
-import { ChevronDown, Plus } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useMemo, useState, type ReactNode } from "react";
+import {
+  House, Compass, Megaphone, MonitorCheck, Store, FileCheck,
+  Search, Settings, Bell, PanelLeftOpen, PanelLeftClose, ChevronDown, X,
+} from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { ProfileModal } from "@/components/ProfileModal";
-import { CreateCampaignModal } from "@/components/CreateCampaignModal";
-import { CreateSpaceModal } from "@/components/CreateSpaceModal";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { getPlanState, isPaid } from "@/lib/plans";
+import { userRoles } from "@/lib/roles";
+import logo from "@/assets/adtua-logo.svg";
 
-export type NavKey = "home" | "browse" | "campaigns" | "bookings" | "analytics";
+export type NavKey = "home" | "browse" | "spaces" | "campaigns" | "marketplace" | "bookings" | "settings";
 
 type Props = {
   children: ReactNode;
   activeNav: NavKey;
   noPadding?: boolean;
   rightSlot?: ReactNode;
+  searchValue?: string;
+  onSearchChange?: (value: string) => void;
+  searchPlaceholder?: string;
 };
 
-export function AppLayout({ children, activeNav, noPadding, rightSlot }: Props) {
+type NavItem = { key: NavKey; label: string; icon: typeof House; to?: string };
+
+const ADVERTISER_ITEMS: NavItem[] = [
+  { key: "browse", label: "Browse Spaces", icon: Compass, to: "/browse" },
+  { key: "campaigns", label: "Campaigns", icon: Megaphone, to: "/campaigns" },
+];
+const BROADCASTER_ITEMS: NavItem[] = [
+  { key: "spaces", label: "My Spaces", icon: MonitorCheck, to: "/spaces" },
+  { key: "marketplace", label: "Marketplace", icon: Store, to: "/campaigns/marketplace" },
+];
+const HOME_ITEM: NavItem = { key: "home", label: "Dashboard", icon: House, to: "/dashboard" };
+const TAIL_ITEMS: NavItem[] = [
+  { key: "bookings", label: "Bookings", icon: FileCheck, to: "/bookings" },
+];
+
+function UserAvatar({ initials }: { initials: string }) {
+  return (
+    <Avatar className="h-[34px] w-[34px]">
+      <AvatarFallback className="bg-[rgba(58,71,194,0.1)] text-[13.6px] font-medium text-[#3a47c2]">
+        {initials}
+      </AvatarFallback>
+    </Avatar>
+  );
+}
+
+export function AppLayout({
+  children, activeNav, noPadding, rightSlot, searchValue, onSearchChange, searchPlaceholder,
+}: Props) {
   const [profileOpen, setProfileOpen] = useState(false);
-  const [campaignModalOpen, setCampaignModalOpen] = useState(false);
-  const [spaceModalOpen, setSpaceModalOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [openGroups, setOpenGroups] = useState({ advertiser: true, broadcaster: true });
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const queryClient = useQueryClient();
-  const isAdvertiser = user?.roles.includes("advertiser") ?? false;
-  const isBroadcaster = user?.roles.includes("broadcaster") ?? false;
+  const { isAdvertiser, isBroadcaster, isDual } = userRoles(user);
+  // Plan state comes from localStorage; read it once per user, not on every re-render
+  // (the controlled search input re-renders this on each keystroke).
+  const userId = user?.id;
+  const paidByRole = useMemo(
+    () => userId == null
+      ? []
+      : [isAdvertiser && "advertiser", isBroadcaster && "broadcaster"]
+          .filter((r): r is "advertiser" | "broadcaster" => !!r)
+          .map(r => isPaid(getPlanState(userId, r).tier)),
+    [userId, isAdvertiser, isBroadcaster],
+  );
+  const hasAnyPaid = paidByRole.some(Boolean);
+  const hasUnpaidRole = paidByRole.some(p => !p);
 
   const initials =
     [user?.first_name?.[0], user?.last_name?.[0]].filter(Boolean).join("").toUpperCase() || "U";
+  const fullName = [user?.first_name, user?.last_name].filter(Boolean).join(" ") || "Your account";
+
+  const activeKey: NavKey =
+    activeNav === "campaigns" && pathname.startsWith("/campaigns/marketplace") ? "marketplace" : activeNav;
 
   const handleLogout = async () => {
     await logout();
@@ -36,145 +88,173 @@ export function AppLayout({ children, activeNav, noPadding, rightSlot }: Props) 
     navigate("/signin");
   };
 
-  const navCls = (key: NavKey) =>
-    `px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-      activeNav === key
-        ? "bg-[#FFE5CC] text-foreground"
-        : "text-muted-foreground hover:bg-accent hover:text-foreground"
-    }`;
+  const renderItem = (item: NavItem, indent = false) => {
+    const Icon = item.icon;
+    const active = activeKey === item.key;
+    return (
+      <button
+        key={item.key + item.label}
+        onClick={() => item.to && navigate(item.to)}
+        disabled={!item.to}
+        title={collapsed ? item.label : undefined}
+        className={`w-full flex items-center gap-2.5 py-2 rounded-lg text-sm transition-colors ${
+          collapsed ? "justify-center px-0" : indent ? "pl-9 pr-3" : "px-3"
+        } ${
+          active
+            ? "bg-[rgba(58,71,194,0.1)] text-[#3a47c2] font-semibold"
+            : "text-[#767676] hover:bg-[#f9f9f9] hover:text-[#4a5565] disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-default"
+        }`}>
+        <Icon className="h-[18px] w-[18px] shrink-0" />
+        {!collapsed && <span className="whitespace-nowrap">{item.label}</span>}
+      </button>
+    );
+  };
+
+  const renderGroup = (id: "advertiser" | "broadcaster", label: string, items: NavItem[]) => (
+    <div key={id} className="w-full">
+      {!collapsed && (
+        <button
+          onClick={() => setOpenGroups(g => ({ ...g, [id]: !g[id] }))}
+          className="w-full flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-[#9c9c9c] uppercase tracking-wide">
+          {label}
+          <ChevronDown className={`h-4 w-4 transition-transform ${openGroups[id] ? "" : "-rotate-90"}`} />
+        </button>
+      )}
+      {(collapsed || openGroups[id]) && (
+        <div className="flex flex-col gap-1">{items.map(i => renderItem(i, !collapsed))}</div>
+      )}
+    </div>
+  );
 
   return (
     <>
-      <div className="h-screen bg-background flex flex-col overflow-hidden">
-        {/* TOP NAV */}
-        <header className="h-14 border-b shrink-0 px-6 flex items-center gap-1">
-          {/* Logo */}
-          <button
-            onClick={() => navigate("/dashboard")}
-            className="text-xl font-bold mr-5 hover:opacity-75 transition-opacity">
-            adtua
-          </button>
-
-          {/* Primary nav */}
-          <nav className="flex items-center gap-0.5">
-            {isBroadcaster ? (
-              <div className="relative group">
-                <button className={`${navCls("browse")} flex items-center gap-1`}>
-                  Browse
-                  <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+      <div className="h-screen bg-white flex overflow-hidden">
+        {/* SIDE NAV */}
+        <aside
+          className={`${collapsed ? "w-[64px]" : "w-[240px]"} shrink-0 border-r border-[#e8e8e8] bg-white h-full flex flex-col justify-between overflow-hidden transition-[width] duration-200`}>
+          <div className="flex flex-col w-full min-h-0">
+            <div className={`border-b border-[#e8e8e8] flex items-center h-14 shrink-0 ${collapsed ? "justify-center px-0" : "justify-between px-5"}`}>
+              {!collapsed && (
+                <button onClick={() => navigate("/dashboard")} className="hover:opacity-75 transition-opacity">
+                  <img src={logo} alt="Adtua" className="h-7 w-auto" />
                 </button>
-                <div className="absolute top-full left-0 pt-1 hidden group-hover:block z-50">
-                  <div className="bg-background border rounded-lg shadow-lg py-1 min-w-[180px]">
-                    <button
-                      onClick={() => navigate("/browse")}
-                      className="w-full px-4 py-2 text-sm text-left hover:bg-accent hover:text-accent-foreground transition-colors">
-                      Browse spaces
-                    </button>
-                    <div className="border-t mx-3 my-1" />
-                    <button
-                      onClick={() => setSpaceModalOpen(true)}
-                      className="w-full px-4 py-2 text-sm text-left hover:bg-accent hover:text-accent-foreground transition-colors flex items-center gap-2 font-medium text-[#ff8a00]">
-                      <Plus className="h-4 w-4" />
-                      New Space
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <button onClick={() => navigate("/browse")} className={navCls("browse")}>
-                Browse
+              )}
+              <button
+                onClick={() => setCollapsed(c => !c)}
+                className="p-1 rounded-md text-[#4a5565] hover:bg-[#f9f9f9] transition-colors"
+                title={collapsed ? "Expand sidebar" : "Collapse sidebar"}>
+                {collapsed ? <PanelLeftOpen className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
               </button>
-            )}
+            </div>
 
-            {/* Campaigns with role-gated hover dropdown */}
-            {(isAdvertiser || isBroadcaster) && (
-              <div className="relative group">
-                <button className={`${navCls("campaigns")} flex items-center gap-1`}>
-                  Campaigns
-                  <ChevronDown className="h-3.5 w-3.5 opacity-60" />
-                </button>
-                {/* pt-1 bridges the gap between button and dropdown so hover doesn't break */}
-                <div className="absolute top-full left-0 pt-1 hidden group-hover:block z-50">
-                  <div className="bg-background border rounded-lg shadow-lg py-1 min-w-[190px]">
-                    {isAdvertiser && (
-                      <button
-                        onClick={() => navigate("/campaigns")}
-                        className="w-full px-4 py-2 text-sm text-left hover:bg-accent hover:text-accent-foreground transition-colors">
-                        All Campaigns
+            <nav className={`flex flex-col gap-2 pt-5 overflow-y-auto ${collapsed ? "px-2" : "px-4"}`}>
+              {renderItem(HOME_ITEM)}
+              {isDual ? (
+                <>
+                  {renderGroup("advertiser", "Advertiser", ADVERTISER_ITEMS)}
+                  {renderGroup("broadcaster", "Broadcaster", BROADCASTER_ITEMS)}
+                </>
+              ) : (
+                (isBroadcaster ? BROADCASTER_ITEMS : ADVERTISER_ITEMS).map(i => renderItem(i))
+              )}
+              {TAIL_ITEMS.map(i => renderItem(i))}
+            </nav>
+          </div>
+
+          <div className="flex flex-col gap-4 w-full shrink-0">
+            {!collapsed && !bannerDismissed && hasUnpaidRole && (
+              <div className="px-4">
+                <div className="flex flex-col gap-4 px-4 py-5 rounded-xl bg-[#f2f5ff]">
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                      <p className="flex-1 text-sm font-semibold leading-5 text-[#4a4d56]">Upgrade to Premium</p>
+                      <button onClick={() => setBannerDismissed(true)} className="shrink-0 text-[#656972] hover:opacity-75" title="Dismiss">
+                        <X className="h-[18px] w-[18px]" />
                       </button>
-                    )}
-                    {isBroadcaster && (
-                      <>
-                        {isAdvertiser && <div className="border-t mx-3 my-1" />}
-                        <button
-                          onClick={() => navigate("/campaigns/marketplace")}
-                          className="w-full px-4 py-2 text-sm text-left hover:bg-accent transition-colors">
-                          Browse marketplace
-                        </button>
-                      </>
-                    )}
-                    {isAdvertiser && (
-                      <>
-                        <div className="border-t mx-3 my-1" />
-                        <button
-                          onClick={() => setCampaignModalOpen(true)}
-                          className="w-full px-4 py-2 text-sm text-left hover:bg-accent hover:text-accent-foreground transition-colors flex items-center gap-2 font-medium text-[#ff8a00]">
-                          <Plus className="h-4 w-4" />
-                          New Campaign
-                        </button>
-                      </>
-                    )}
+                    </div>
+                    {/* Figma's new copy ("Premium broadcasters keep a higher share…") shows to advertisers too; kept the old line until that's confirmed. */}
+                    <p className="text-sm leading-5 text-[#656972]">Choose your space, control your timing, double your reach.</p>
                   </div>
+                  <button
+                    onClick={() => navigate("/settings?tab=plans")}
+                    className="h-10 w-full rounded-lg bg-[#3a47c2] text-sm font-medium text-white hover:bg-[#2f3a9e] transition-colors">
+                    Upgrade now
+                  </button>
                 </div>
               </div>
             )}
 
-            <button onClick={() => navigate("/bookings")} className={navCls("bookings")}>
-              Bookings
-            </button>
-          </nav>
-
-          <div className="flex-1" />
-
-          {/* Right side */}
-          {rightSlot && <div className="mr-3">{rightSlot}</div>}
-
-          {/* Avatar with dropdown */}
-          <div className="relative group">
-            <button
-              className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff8a00]"
-              title="Your profile">
-              <Avatar className="h-8 w-8 hover:ring-2 hover:ring-[#ff8a00] transition-all">
-                <AvatarFallback className="text-xs">{initials}</AvatarFallback>
-              </Avatar>
-            </button>
-            <div className="absolute top-full right-0 pt-1 hidden group-hover:block z-50">
-              <div className="bg-background border rounded-lg shadow-lg py-1 min-w-[160px]">
-                <button
-                  onClick={() => setProfileOpen(true)}
-                  className="w-full px-4 py-2 text-sm text-left hover:bg-accent hover:text-accent-foreground transition-colors">
-                  Profile
-                </button>
-                <div className="border-t mx-3 my-1" />
-                <button
-                  onClick={handleLogout}
-                  className="w-full px-4 py-2 text-sm text-left hover:bg-accent hover:text-accent-foreground transition-colors text-muted-foreground">
-                  Sign out
+            <div className={`border-t border-[#e8e8e8] ${collapsed ? "p-2" : "p-4"}`}>
+              <div className={`flex items-center gap-3 ${collapsed ? "justify-center" : "px-2"}`}>
+                <button onClick={() => setProfileOpen(true)} className="flex items-center gap-3 min-w-0 flex-1 text-left rounded-lg hover:opacity-80 transition-opacity" title="Profile">
+                  <UserAvatar initials={initials} />
+                  {!collapsed && (
+                    <div className="min-w-0">
+                      <p className="text-[13px] font-semibold text-[#4a5565] leading-5 truncate">{fullName}</p>
+                      <p className="text-[10px] text-[#9c9c9c] truncate">{hasAnyPaid ? "Premium" : "Free Plan"}</p>
+                    </div>
+                  )}
                 </button>
               </div>
             </div>
           </div>
-        </header>
+        </aside>
 
-        {/* Content */}
-        <main className={noPadding ? "flex-1 overflow-hidden" : "flex-1 p-8 overflow-auto"}>
-          {children}
-        </main>
+        <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+          {/* TOP BAR */}
+          <header className="h-14 border-b border-[#e8e8e8] shrink-0 px-5 flex items-center justify-between gap-4 bg-white">
+            <div className={`flex items-center gap-2 border border-[#e8e8e8] rounded-lg px-3 py-2 w-full max-w-[360px] ${onSearchChange ? "" : "opacity-50"}`}>
+              <Search className="h-4 w-4 text-[#9c9c9c] shrink-0" />
+              <input
+                value={searchValue ?? ""}
+                onChange={e => onSearchChange?.(e.target.value)}
+                disabled={!onSearchChange}
+                placeholder={searchPlaceholder ?? "Search campaigns, spaces, analytics"}
+                className="w-full bg-transparent text-sm leading-none outline-none text-[#4a5565] placeholder:text-[#9c9c9c] disabled:cursor-default"
+              />
+            </div>
+
+            <div className="flex items-center gap-3 shrink-0">
+              {rightSlot}
+              <div className="flex items-center gap-1">
+                <button className="p-2 rounded-md text-[#4a5565] hover:bg-[#f9f9f9] transition-colors" title="Settings" onClick={() => navigate("/settings")}>
+                  <Settings className="h-[18px] w-[18px]" />
+                </button>
+                <button className="p-2 rounded-md text-[#4a5565] hover:bg-[#f9f9f9] transition-colors" title="Notifications">
+                  <Bell className="h-[18px] w-[18px]" />
+                </button>
+              </div>
+              <div className="relative group">
+                <button className="block rounded-full hover:ring-2 hover:ring-[#3a47c2] transition-all" title="Your profile">
+                  <UserAvatar initials={initials} />
+                </button>
+                {/* pt-1 bridges the gap between avatar and menu so hover doesn't break */}
+                <div className="absolute top-full right-0 pt-1 hidden group-hover:block z-50">
+                  <div className="bg-white border border-[#e8e8e8] rounded-lg shadow-lg py-1 min-w-[160px]">
+                    <button
+                      onClick={() => setProfileOpen(true)}
+                      className="w-full px-4 py-2 text-sm text-left text-[#4a5565] hover:bg-[#f9f9f9] transition-colors">
+                      Profile
+                    </button>
+                    <div className="border-t border-[#e8e8e8] mx-3 my-1" />
+                    <button
+                      onClick={handleLogout}
+                      className="w-full px-4 py-2 text-sm text-left text-[#9c9c9c] hover:bg-[#f9f9f9] hover:text-[#4a5565] transition-colors">
+                      Sign out
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </header>
+
+          <main className={noPadding ? "flex-1 overflow-hidden" : "flex-1 p-6 overflow-auto"}>
+            {children}
+          </main>
+        </div>
       </div>
 
       <ProfileModal open={profileOpen} onOpenChange={setProfileOpen} />
-      <CreateCampaignModal open={campaignModalOpen} onOpenChange={setCampaignModalOpen} />
-      <CreateSpaceModal open={spaceModalOpen} onOpenChange={setSpaceModalOpen} />
     </>
   );
 }

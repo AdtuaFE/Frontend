@@ -9,15 +9,27 @@ import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 
+type Screen = {
+  id: number;
+  space_id: number;
+  label: string;
+  is_active: boolean;
+};
+
 type Slot = {
   id: number;
+  screen_id: number;
+  day_of_week: number; // 1 = Monday .. 7 = Sunday
   label: string;
   start_time: string;
   end_time: string;
   est_impressions_per_playback: number;
   daily_capacity_playbacks: number;
-  price_multiplier: number;
+  total_price: number;
 };
+
+const DAY_NAMES = ["", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+const dayName = (d: number) => DAY_NAMES[d] ?? `Day ${d}`;
 
 type MySpace = {
   id: number;
@@ -49,6 +61,7 @@ const fmtTime = (t: string) => t.slice(0, 5);
 export function SubmitOfferModal({ open, onOpenChange, campaignId, campaignBudget, onSuccess }: Props) {
   const [selected, setSelected] = useState<Record<number, SpaceSelection>>({});
   const [slotsMap, setSlotsMap] = useState<Record<number, Slot[]>>({});
+  const [screensMap, setScreensMap] = useState<Record<number, Screen[]>>({});
   const [loadingSlots, setLoadingSlots] = useState<Record<number, boolean>>({});
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -69,7 +82,12 @@ export function SubmitOfferModal({ open, onOpenChange, campaignId, campaignBudge
     if (slotsMap[spaceId] !== undefined || loadingSlots[spaceId]) return;
     setLoadingSlots(prev => ({ ...prev, [spaceId]: true }));
     try {
-      const slots = await api.get<Slot[]>(`/api/spaces/${spaceId}/slots`);
+      const screens = await api.get<Screen[]>(`/api/spaces/${spaceId}/screens`);
+      const slotArrays = await Promise.all(
+        screens.map(s => api.get<Slot[]>(`/api/spaces/${spaceId}/screens/${s.id}/slots`))
+      );
+      const slots = slotArrays.flat();
+      setScreensMap(prev => ({ ...prev, [spaceId]: screens }));
       setSlotsMap(prev => ({ ...prev, [spaceId]: slots }));
       // Auto-check single slot
       if (slots.length === 1) {
@@ -200,7 +218,7 @@ export function SubmitOfferModal({ open, onOpenChange, campaignId, campaignBudge
                   return (
                     <div key={s.id}
                       className={`rounded-lg border p-3 transition-colors ${
-                        isSelected ? "border-[#ff8a00] bg-[#fff8f0]" : "border-border"
+                        isSelected ? "border-[#3a47c2] bg-[#fff8f0]" : "border-border"
                       }`}>
                       {/* Space header */}
                       <div className="flex items-center gap-3">
@@ -208,7 +226,7 @@ export function SubmitOfferModal({ open, onOpenChange, campaignId, campaignBudge
                           id={`os-${s.id}`}
                           checked={isSelected}
                           onCheckedChange={() => handleToggle(s.id, s.cpm)}
-                          className="data-[state=checked]:bg-[#ff8a00] data-[state=checked]:border-[#ff8a00] shrink-0"
+                          className="data-[state=checked]:bg-[#3a47c2] data-[state=checked]:border-[#3a47c2] shrink-0"
                         />
                         <div className="flex-1 min-w-0">
                           <label htmlFor={`os-${s.id}`}
@@ -234,43 +252,64 @@ export function SubmitOfferModal({ open, onOpenChange, campaignId, campaignBudge
                             ) : spaceSlots.length === 0 ? (
                               <p className="text-xs text-muted-foreground py-1">No slots found</p>
                             ) : (
-                              <div className="space-y-1.5">
-                                {spaceSlots.map(slot => {
-                                  const slotChecked = sel.slots.some(sl => sl.slotId === String(slot.id));
-                                  const slotPb = sel.slots.find(sl => sl.slotId === String(slot.id))?.playbacks ?? "";
+                              <div className="space-y-3">
+                                {(screensMap[s.id] ?? []).map(screen => {
+                                  const screenSlots = spaceSlots.filter(sl => sl.screen_id === screen.id);
+                                  if (screenSlots.length === 0) return null;
+                                  const screenDays = [1, 2, 3, 4, 5, 6, 7].filter(d => screenSlots.some(sl => sl.day_of_week === d));
+                                  const multiScreen = (screensMap[s.id] ?? []).length > 1;
                                   return (
-                                    <div key={slot.id}
-                                      className={`rounded-lg border px-2.5 py-2 transition-colors ${slotChecked ? "border-[#ff8a00] bg-white" : "border-border"}`}>
-                                      <div className="flex items-start gap-2">
-                                        <Checkbox
-                                          id={`slot-${s.id}-${slot.id}`}
-                                          checked={slotChecked}
-                                          onCheckedChange={() => toggleSlot(s.id, String(slot.id))}
-                                          className="mt-0.5 shrink-0 data-[state=checked]:bg-[#ff8a00] data-[state=checked]:border-[#ff8a00]"
-                                        />
-                                        <div className="flex-1 min-w-0">
-                                          <label htmlFor={`slot-${s.id}-${slot.id}`} className="text-xs font-medium cursor-pointer">
-                                            {slot.label}
-                                            <span className="ml-1.5 font-normal text-muted-foreground">
-                                              {fmtTime(slot.start_time)}–{fmtTime(slot.end_time)}
-                                            </span>
-                                          </label>
-                                          {slotChecked && (
-                                            <div className="mt-1.5 flex items-center gap-2">
-                                              <span className="text-xs text-muted-foreground shrink-0">Daily plays</span>
-                                              <Input
-                                                type="number" min="1"
-                                                max={slot.daily_capacity_playbacks}
-                                                value={slotPb}
-                                                onChange={e => updateSlotPlaybacks(s.id, String(slot.id), e.target.value)}
-                                                placeholder="e.g. 48"
-                                                className="h-7 w-24 text-xs rounded-md border-[#d7dce3] shadow-none focus-visible:ring-[#ff8a00]"
-                                              />
-                                              <span className="text-xs text-muted-foreground">max {slot.daily_capacity_playbacks}</span>
-                                            </div>
-                                          )}
+                                    <div key={screen.id} className="space-y-2">
+                                      {multiScreen && (
+                                        <p className="text-xs font-semibold text-muted-foreground">{screen.label}</p>
+                                      )}
+                                      {screenDays.map(day => (
+                                        <div key={day} className="space-y-1.5">
+                                          <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{dayName(day)}</p>
+                                          {screenSlots
+                                            .filter(sl => sl.day_of_week === day)
+                                            .sort((a, b) => a.start_time.localeCompare(b.start_time))
+                                            .map(slot => {
+                                              const slotChecked = sel.slots.some(sl => sl.slotId === String(slot.id));
+                                              const slotPb = sel.slots.find(sl => sl.slotId === String(slot.id))?.playbacks ?? "";
+                                              return (
+                                                <div key={slot.id}
+                                                  className={`rounded-lg border px-2.5 py-2 transition-colors ${slotChecked ? "border-[#3a47c2] bg-white" : "border-border"}`}>
+                                                  <div className="flex items-start gap-2">
+                                                    <Checkbox
+                                                      id={`slot-${s.id}-${slot.id}`}
+                                                      checked={slotChecked}
+                                                      onCheckedChange={() => toggleSlot(s.id, String(slot.id))}
+                                                      className="mt-0.5 shrink-0 data-[state=checked]:bg-[#3a47c2] data-[state=checked]:border-[#3a47c2]"
+                                                    />
+                                                    <div className="flex-1 min-w-0">
+                                                      <label htmlFor={`slot-${s.id}-${slot.id}`} className="text-xs font-medium cursor-pointer">
+                                                        {slot.label}
+                                                        <span className="ml-1.5 font-normal text-muted-foreground">
+                                                          {fmtTime(slot.start_time)}–{fmtTime(slot.end_time)}
+                                                        </span>
+                                                      </label>
+                                                      {slotChecked && (
+                                                        <div className="mt-1.5 flex items-center gap-2">
+                                                          <span className="text-xs text-muted-foreground shrink-0">Daily plays</span>
+                                                          <Input
+                                                            type="number" min="1"
+                                                            max={slot.daily_capacity_playbacks}
+                                                            value={slotPb}
+                                                            onChange={e => updateSlotPlaybacks(s.id, String(slot.id), e.target.value)}
+                                                            placeholder="e.g. 48"
+                                                            className="h-7 w-24 text-xs rounded-md border-[#d7dce3] shadow-none focus-visible:ring-[#3a47c2]"
+                                                          />
+                                                          <span className="text-xs text-muted-foreground">max {slot.daily_capacity_playbacks}</span>
+                                                        </div>
+                                                      )}
+                                                    </div>
+                                                  </div>
+                                                </div>
+                                              );
+                                            })}
                                         </div>
-                                      </div>
+                                      ))}
                                     </div>
                                   );
                                 })}
@@ -286,7 +325,7 @@ export function SubmitOfferModal({ open, onOpenChange, campaignId, campaignBudge
                               value={sel.price}
                               onChange={e => updatePrice(s.id, e.target.value)}
                               placeholder="Price"
-                              className="h-8 w-32 text-sm rounded-md border-[#d7dce3] shadow-none focus-visible:ring-[#ff8a00]"
+                              className="h-8 w-32 text-sm rounded-md border-[#d7dce3] shadow-none focus-visible:ring-[#3a47c2]"
                             />
                           </div>
                         </div>
@@ -317,7 +356,7 @@ export function SubmitOfferModal({ open, onOpenChange, campaignId, campaignBudge
               value={message}
               onChange={e => setMessage(e.target.value)}
               placeholder="Tell the advertiser why your space is a great fit…"
-              className="min-h-[80px] rounded-lg border-[#d7dce3] px-3 py-2 text-sm focus-visible:ring-[#ff8a00]"
+              className="min-h-[80px] rounded-lg border-[#d7dce3] px-3 py-2 text-sm focus-visible:ring-[#3a47c2]"
             />
           </div>
 
@@ -326,7 +365,7 @@ export function SubmitOfferModal({ open, onOpenChange, campaignId, campaignBudge
             <Button
               type="submit"
               disabled={isSubmitting || selectedCount === 0}
-              className="bg-[#ff8a00] text-white hover:bg-[#e77700]">
+              className="bg-[#3a47c2] text-white hover:bg-[#2f3a9e]">
               {isSubmitting ? "Submitting…" : "Submit offer"}
             </Button>
           </div>

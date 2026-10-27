@@ -11,6 +11,7 @@ import { toast } from "sonner";
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  defaultTab?: "details" | "password";
 };
 
 type DetailsForm = {
@@ -27,7 +28,7 @@ type PasswordForm = {
   confirm_password: string;
 };
 
-const inputCn = "h-10 rounded-lg border-[#d7dce3] bg-white text-sm shadow-none focus-visible:ring-[#ff8a00]";
+const inputCn = "h-10 rounded-lg border-[#d7dce3] bg-white text-sm shadow-none focus-visible:ring-[#3a47c2]";
 
 const ROLE_COLORS: Record<string, string> = {
   advertiser: "bg-blue-100 text-blue-700",
@@ -45,7 +46,7 @@ function toDetailsForm(user: User): DetailsForm {
   };
 }
 
-export function ProfileModal({ open, onOpenChange }: Props) {
+export function ProfileModal({ open, onOpenChange, defaultTab = "details" }: Props) {
   const { user, refreshUser } = useAuth();
 
   const [details, setDetails] = useState<DetailsForm>(() =>
@@ -139,7 +140,7 @@ export function ProfileModal({ open, onOpenChange }: Props) {
           </div>
         </div>
 
-        <Tabs defaultValue="details" className="mt-1">
+        <Tabs defaultValue={defaultTab} className="mt-1">
           <TabsList className="grid grid-cols-2 w-full">
             <TabsTrigger value="details">Personal details</TabsTrigger>
             <TabsTrigger value="password">Change password</TabsTrigger>
@@ -187,7 +188,7 @@ export function ProfileModal({ open, onOpenChange }: Props) {
 
               <div className="flex justify-end pt-1">
                 <Button type="submit" disabled={savingDetails}
-                  className="bg-[#ff8a00] text-white hover:bg-[#e77700]">
+                  className="bg-[#3a47c2] text-white hover:bg-[#2f3a9e]">
                   {savingDetails ? "Saving…" : "Save changes"}
                 </Button>
               </div>
@@ -224,7 +225,7 @@ export function ProfileModal({ open, onOpenChange }: Props) {
 
               <div className="flex justify-end pt-1">
                 <Button type="submit" disabled={savingPassword}
-                  className="bg-[#ff8a00] text-white hover:bg-[#e77700]">
+                  className="bg-[#3a47c2] text-white hover:bg-[#2f3a9e]">
                   {savingPassword ? "Updating…" : "Update password"}
                 </Button>
               </div>

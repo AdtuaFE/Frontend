@@ -19,8 +19,8 @@ const SignIn = () => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const res = await api.post<{ user: User; token: string }>("/api/signin", { email, password });
-      login(res.token, res.user);
+      const res = await api.post<{ user: User }>("/api/signin", { email, password });
+      login(res.user);
       navigate("/dashboard");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Invalid email or password");

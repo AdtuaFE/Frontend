@@ -8,6 +8,7 @@ import { componentTagger } from "lovable-tagger";
 export default defineConfig(({ mode }) => ({
   test: {
     environment: "node",
+    include: ["src/**/*.{test,spec}.{ts,tsx}"],
   },
   server: {
     host: "::",

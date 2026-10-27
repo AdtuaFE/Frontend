@@ -54,7 +54,7 @@ type FormData = {
   estDailyImpressions: string;
 };
 
-const inputCn = "h-12 rounded-xl border-[#d7dce3] bg-white text-base shadow-none focus-visible:ring-[#ff8a00]";
+const inputCn = "h-12 rounded-xl border-[#d7dce3] bg-white text-base shadow-none focus-visible:ring-[#3a47c2]";
 const inputErrCn = "h-12 rounded-xl border-red-400 bg-white text-base shadow-none focus-visible:ring-red-400";
 const sectionCn = "rounded-[28px] border border-[#e5e8ed] bg-white p-6 sm:p-8 shadow-[0_24px_60px_rgba(15,23,42,0.06)]";
 
@@ -248,7 +248,7 @@ const OnboardingForm = () => {
     <div className="min-h-screen bg-[linear-gradient(180deg,#fff8f1_0%,#f6f8fb_28%,#eef3f8_100%)] px-4 py-10 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-5xl">
         {/* Header */}
-        <div className="mb-8 overflow-hidden rounded-[32px] border border-[#f1d7b5] bg-[#fff7ed] shadow-[0_30px_80px_rgba(255,138,0,0.12)]">
+        <div className="mb-8 overflow-hidden rounded-[32px] border border-[#dfe3f5] bg-[#f8faff] shadow-[0_30px_80px_rgba(58,71,194,0.12)]">
           <div className="grid gap-8 p-8 lg:grid-cols-[1.1fr_0.9fr] lg:p-10">
             <div>
               <p className="mb-3 text-sm font-semibold uppercase tracking-[0.24em] text-[#c26600]">
@@ -265,15 +265,15 @@ const OnboardingForm = () => {
               <p className="text-sm font-semibold text-[#18181b]">What this collects</p>
               <div className="mt-5 grid gap-4 text-sm text-[#4b5563]">
                 <div className="flex items-start gap-3">
-                  <Megaphone className="mt-0.5 h-5 w-5 text-[#ff8a00]" />
+                  <Megaphone className="mt-0.5 h-5 w-5 text-[#3a47c2]" />
                   <span>Advertiser details like organization, campaign objective, budget, and ad setup.</span>
                 </div>
                 <div className="flex items-start gap-3">
-                  <MonitorSmartphone className="mt-0.5 h-5 w-5 text-[#ff8a00]" />
+                  <MonitorSmartphone className="mt-0.5 h-5 w-5 text-[#3a47c2]" />
                   <span>Broadcaster details like company, address, space type, sizing, CPM, and impressions.</span>
                 </div>
                 <div className="flex items-start gap-3">
-                  <MapPin className="mt-0.5 h-5 w-5 text-[#ff8a00]" />
+                  <MapPin className="mt-0.5 h-5 w-5 text-[#3a47c2]" />
                   <span>Location data aligned with the profiles, spaces, and campaign records in the backend schema.</span>
                 </div>
               </div>
@@ -359,7 +359,7 @@ const OnboardingForm = () => {
                   <Label htmlFor="objective">Campaign objective</Label>
                   <Textarea id="objective" name="objective" value={formData.objective} onChange={handleChange}
                     placeholder="What are you trying to achieve with this campaign?"
-                    className="min-h-[120px] rounded-2xl border-[#d7dce3] px-4 py-3 text-base focus-visible:ring-[#ff8a00]" />
+                    className="min-h-[120px] rounded-2xl border-[#d7dce3] px-4 py-3 text-base focus-visible:ring-[#3a47c2]" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="totalBudget">Total budget</Label>
@@ -399,7 +399,7 @@ const OnboardingForm = () => {
                   <Textarea id="advertiserNotes" name="advertiserNotes" value={formData.advertiserNotes}
                     onChange={handleChange}
                     placeholder="Anything else we should know before building your advertiser dashboard?"
-                    className="min-h-[120px] rounded-2xl border-[#d7dce3] px-4 py-3 text-base focus-visible:ring-[#ff8a00]" />
+                    className="min-h-[120px] rounded-2xl border-[#d7dce3] px-4 py-3 text-base focus-visible:ring-[#3a47c2]" />
                 </div>
               </div>
             </section>
@@ -432,7 +432,7 @@ const OnboardingForm = () => {
                   <Textarea id="spaceDescription" name="spaceDescription" value={formData.spaceDescription}
                     onChange={handleChange}
                     placeholder="Describe where the ad space lives, who sees it, and why it performs well."
-                    className="min-h-[120px] rounded-2xl border-[#d7dce3] px-4 py-3 text-base focus-visible:ring-[#ff8a00]" />
+                    className="min-h-[120px] rounded-2xl border-[#d7dce3] px-4 py-3 text-base focus-visible:ring-[#3a47c2]" />
                 </div>
                 <div className="space-y-2 md:col-span-2">
                   <Label htmlFor="addressLine1">Address line 1</Label>
@@ -538,7 +538,7 @@ const OnboardingForm = () => {
                 )}
               </div>
               <Button type="submit" disabled={isSubmitting}
-                className="h-12 rounded-xl bg-[#ff8a00] px-8 text-base font-medium text-white hover:bg-[#e77700]">
+                className="h-12 rounded-xl bg-[#3a47c2] px-8 text-base font-medium text-white hover:bg-[#2f3a9e]">
                 {isSubmitting
                   ? "Saving…"
                   : completedSteps.size > 0 && !isSubmitted

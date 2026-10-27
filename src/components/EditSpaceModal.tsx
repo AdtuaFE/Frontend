@@ -78,7 +78,7 @@ const DISPLAY_TYPES = [
   { value: "other",       label: "Other" },
 ];
 
-const inputCn = "h-10 rounded-lg border-[#d7dce3] bg-white text-sm shadow-none focus-visible:ring-[#ff8a00]";
+const inputCn = "h-10 rounded-lg border-[#d7dce3] bg-white text-sm shadow-none focus-visible:ring-[#3a47c2]";
 const inputErrCn = "h-10 rounded-lg border-red-400 bg-white text-sm shadow-none focus-visible:ring-red-400";
 
 function toFormState(s: SpaceFields): FormState {
@@ -210,13 +210,13 @@ export function EditSpaceModal({ open, onOpenChange, space }: Props) {
               <Label htmlFor="es-description">Description</Label>
               <Textarea id="es-description" name="description" value={form.description}
                 onChange={handleChange}
-                className="min-h-[80px] rounded-lg border-[#d7dce3] px-3 py-2 text-sm focus-visible:ring-[#ff8a00]" />
+                className="min-h-[80px] rounded-lg border-[#d7dce3] px-3 py-2 text-sm focus-visible:ring-[#3a47c2]" />
             </div>
 
             <div className="space-y-1.5">
               <Label>Space type</Label>
               <Select value={form.spaceType} onValueChange={v => handleSelect("spaceType", v)}>
-                <SelectTrigger className="h-10 rounded-lg border-[#d7dce3] text-sm focus:ring-[#ff8a00]">
+                <SelectTrigger className="h-10 rounded-lg border-[#d7dce3] text-sm focus:ring-[#3a47c2]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -228,7 +228,7 @@ export function EditSpaceModal({ open, onOpenChange, space }: Props) {
             <div className="space-y-1.5">
               <Label>Display type</Label>
               <Select value={form.displayType} onValueChange={v => handleSelect("displayType", v)}>
-                <SelectTrigger className="h-10 rounded-lg border-[#d7dce3] text-sm focus:ring-[#ff8a00]">
+                <SelectTrigger className="h-10 rounded-lg border-[#d7dce3] text-sm focus:ring-[#3a47c2]">
                   <SelectValue placeholder="Select display type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -335,7 +335,7 @@ export function EditSpaceModal({ open, onOpenChange, space }: Props) {
           <div className="flex justify-end gap-3 pt-2">
             <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>Cancel</Button>
             <Button type="submit" disabled={isSubmitting}
-              className="bg-[#ff8a00] text-white hover:bg-[#e77700]">
+              className="bg-[#3a47c2] text-white hover:bg-[#2f3a9e]">
               {isSubmitting ? "Saving…" : "Save changes"}
             </Button>
           </div>

@@ -12,13 +12,13 @@ export type MapSpace = {
 };
 
 function markerIcon(active: boolean, own: boolean, selected: boolean) {
-  // own+active=orange, own+inactive=gray, other+active=blue, other+inactive=light gray
+  // own+active=indigo, own+inactive=gray, other+active=blue, other+inactive=light gray
   const color = own
-    ? (active ? '#ff8a00' : '#94a3b8')
+    ? (active ? '#3a47c2' : '#94a3b8')
     : (active ? '#3b82f6' : '#cbd5e1');
   const size = selected ? 22 : 16;
   const ring = selected
-    ? `box-shadow:0 0 0 3px ${own ? 'rgba(255,138,0,0.25)' : 'rgba(59,130,246,0.25)'}, 0 2px 8px rgba(0,0,0,0.3)`
+    ? `box-shadow:0 0 0 3px ${own ? 'rgba(58,71,194,0.25)' : 'rgba(59,130,246,0.25)'}, 0 2px 8px rgba(0,0,0,0.3)`
     : '0 2px 6px rgba(0,0,0,0.3)';
   return L.divIcon({
     html: `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};border:2.5px solid white;box-shadow:${ring}"></div>`,

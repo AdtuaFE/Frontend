@@ -101,7 +101,7 @@ export function LocationAutocomplete({
           className={`pl-9 ${value ? "pr-8" : ""} h-10 rounded-lg text-sm shadow-none ${
             error
               ? "border-red-400 focus-visible:ring-red-400"
-              : "border-[#d7dce3] focus-visible:ring-[#ff8a00]"
+              : "border-[#d7dce3] focus-visible:ring-[#3a47c2]"
           }`}
         />
         {value && (

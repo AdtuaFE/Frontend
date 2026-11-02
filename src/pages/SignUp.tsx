@@ -43,6 +43,7 @@ const SignUp = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isResending, setIsResending] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -108,11 +109,14 @@ const SignUp = () => {
   };
 
   const handleResendEmail = async () => {
+    setIsResending(true);
     try {
       await api.post("/api/otp/send", { email });
       toast.success("Code resent");
     } catch {
       toast.error("Failed to resend code");
+    } finally {
+      setIsResending(false);
     }
   };
 
@@ -224,13 +228,13 @@ const SignUp = () => {
                 </InputOTP>
               </div>
               <div className="text-center">
-                <button type="button" onClick={handleResendEmail}
-                  className="text-sm text-muted-foreground hover:text-foreground">
+                <button type="button" onClick={handleResendEmail} disabled={isLoading || isResending}
+                  className="text-sm text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:pointer-events-none">
                   Resend email
                 </button>
               </div>
               <Button type="submit" className="w-full h-12 text-base font-medium rounded-lg"
-                disabled={isLoading || otp.length < 6}>
+                disabled={isLoading || isResending || otp.length < 6}>
                 {isLoading ? "Verifying…" : "Continue"}
               </Button>
               <p className="text-center text-sm text-muted-foreground">Step 1 of 3</p>
@@ -331,7 +335,7 @@ const SignUp = () => {
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
             Already have an account?{" "}
-            <button onClick={() => navigate("/signin")} disabled={isLoading}
+            <button onClick={() => navigate("/signin")} disabled={isLoading || isResending}
               className="text-primary hover:underline font-medium disabled:opacity-50 disabled:pointer-events-none">
               Sign in
             </button>

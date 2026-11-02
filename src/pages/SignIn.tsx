@@ -72,8 +72,8 @@ const SignIn = () => {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="password" className="text-base text-muted-foreground">Password</Label>
-                <button type="button" onClick={() => navigate("/forgot-password")}
-                  className="text-sm text-muted-foreground hover:text-foreground underline">
+                <button type="button" onClick={() => navigate("/forgot-password")} disabled={isLoading}
+                  className="text-sm text-muted-foreground hover:text-foreground underline disabled:opacity-50 disabled:pointer-events-none">
                   Forgot password?
                 </button>
               </div>

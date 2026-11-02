@@ -202,9 +202,9 @@ When a broadcaster creates or updates a space with address fields (`address_line
 Broadcasters can pair physical screen devices (e.g. a Raspberry Pi in kiosk mode) to their spaces. The device polls the API every 30 seconds and receives the active creative to display.
 
 **Device lifecycle:**
-1. **Register** — device boots and calls `POST /api/player/register`. Receives a unique `device_id` (stored locally) and a 6-digit pairing code (valid 10 minutes).
-2. **Pair** — broadcaster enters the 6-digit code in the dashboard via `POST /api/player/pair`, linking the device to a space.
-3. **Poll** — device calls `GET /api/player/:deviceId` every 30 seconds. Returns the active creative, the current slot, and `duration_seconds` (always 15). If the device is not yet paired, returns the pairing code instead.
+1. **Request a code** — on the space's page, the broadcaster generates a code for a specific screen via `POST /api/spaces/:id/screens/:screenId/pairing-code`. The 6-digit code is valid for 10 minutes and tied to that screen from the moment it's created; generating again replaces it.
+2. **Pair** — the broadcaster enters the code on the device at `/player`, which calls `POST /api/player/pair`. This creates the device record already paired to the screen and returns a unique `device_id` (stored locally).
+3. **Poll** — device calls `GET /api/player/:deviceId` every 30 seconds. Returns the active creative, the current slot, and `duration_seconds` (always 15). If the device was removed or its screen deleted, the player returns to the code entry page.
 4. **Report** — after each play, device calls `POST /api/player/:deviceId/played` to log a play event (booking, asset, duration, completion).
 5. **Deactivate** — broadcaster can remove a device via `DELETE /api/player/:deviceId`.
 

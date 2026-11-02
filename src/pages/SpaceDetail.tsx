@@ -106,6 +106,7 @@ type Device = {
   device_id: string;
   screen_id: number | null;
   is_active: boolean;
+  online: boolean;
   paired_at: string;
   last_seen: string | null;
 };
@@ -216,6 +217,8 @@ const SpaceDetail = () => {
     queryKey: ["space-devices", Number(id)],
     queryFn: () => api.get<Device[]>(`/api/spaces/${id}/devices`),
     enabled: !!id && !!space && isOwner,
+    // Keeps each device's Online/Offline badge current without a reload
+    refetchInterval: 30_000,
   });
 
   const { data: myBookingsForSpace = [] } = useQuery<AdvertiserBooking[]>({
@@ -786,11 +789,11 @@ const SpaceDetail = () => {
                               : device.device_id}
                           </span>
                           <span className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${
-                            device.is_active
+                            device.online
                               ? "bg-green-100 text-green-700"
                               : "bg-muted text-muted-foreground"
                           }`}>
-                            {device.is_active ? "active" : "inactive"}
+                            {device.online ? "online" : "offline"}
                           </span>
                           {screens.length > 1 && (
                             <span className="text-xs text-muted-foreground">

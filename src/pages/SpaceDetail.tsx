@@ -105,9 +105,9 @@ type SpaceUsage = {
 type Device = {
   device_id: string;
   screen_id: number | null;
-  status: "active" | "inactive";
-  paired_at: string | null;
-  last_seen_at: string | null;
+  is_active: boolean;
+  paired_at: string;
+  last_seen: string | null;
 };
 
 type AdvertiserBooking = {
@@ -786,11 +786,11 @@ const SpaceDetail = () => {
                               : device.device_id}
                           </span>
                           <span className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${
-                            device.status === "active"
+                            device.is_active
                               ? "bg-green-100 text-green-700"
                               : "bg-muted text-muted-foreground"
                           }`}>
-                            {device.status}
+                            {device.is_active ? "active" : "inactive"}
                           </span>
                           {screens.length > 1 && (
                             <span className="text-xs text-muted-foreground">
@@ -799,11 +799,9 @@ const SpaceDetail = () => {
                           )}
                         </div>
                         <p className="text-xs text-muted-foreground mt-0.5">
-                          {device.last_seen_at
-                            ? `Last seen ${new Date(device.last_seen_at).toLocaleString()}`
-                            : device.paired_at
-                            ? `Paired ${new Date(device.paired_at).toLocaleDateString()} · never checked in`
-                            : "Never checked in"}
+                          {device.last_seen
+                            ? `Last seen ${new Date(device.last_seen).toLocaleString()}`
+                            : `Paired ${new Date(device.paired_at).toLocaleDateString()} · never checked in`}
                         </p>
                       </div>
                     </div>

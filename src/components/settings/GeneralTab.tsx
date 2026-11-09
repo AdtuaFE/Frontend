@@ -79,11 +79,11 @@ export function GeneralTab() {
     if (Object.keys(e).length) return;
     setSavingPerson(true);
     try {
-      await api.patch("/api/user/profile", {
-        first_name: person.first_name.trim(),
-        last_name: person.last_name.trim(),
-        phone: person.phone.trim() || null,
-      });
+      const saved = { first_name: person.first_name.trim(), last_name: person.last_name.trim(), phone: person.phone.trim() };
+      await api.patch("/api/user/profile", { ...saved, phone: saved.phone || null });
+      // Saved values are the new baseline, so the section reads as unchanged again.
+      setPerson(saved);
+      setInitialPerson(saved);
       await refreshUser();
       toast.success("Changes saved");
     } catch (err) {
@@ -98,17 +98,25 @@ export function GeneralTab() {
   const saveBusiness = async () => {
     setSavingBusiness(true);
     try {
-      const name = business.name.trim() || null;
+      const saved = {
+        name: business.name.trim(),
+        address_line1: business.address_line1.trim(),
+        city: business.city.trim(),
+        region: business.region.trim(),
+        postal_code: business.postal_code.trim(),
+      };
       await api.patch("/api/user/profile", {
-        ...(isAdvertiser ? { org_name: name } : {}),
+        ...(isAdvertiser ? { org_name: saved.name || null } : {}),
         ...(isBroadcaster ? {
-          company_name: name,
-          address_line1: business.address_line1.trim() || null,
-          city: business.city.trim() || null,
-          region: business.region.trim() || null,
-          postal_code: business.postal_code.trim() || null,
+          company_name: saved.name || null,
+          address_line1: saved.address_line1 || null,
+          city: saved.city || null,
+          region: saved.region || null,
+          postal_code: saved.postal_code || null,
         } : {}),
       });
+      setBusiness(saved);
+      setInitialBusiness(saved);
       await refreshUser();
       toast.success("Business details saved");
     } catch (err) {

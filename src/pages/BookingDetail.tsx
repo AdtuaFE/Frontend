@@ -12,14 +12,38 @@ import {
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
   AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { AppLayout } from "@/components/AppLayout";
+import { fmtMoney } from "@/components/campaigns/campaignData";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api";
+import { spotsFor } from "@/lib/creative";
 import { toast } from "sonner";
 
+type SlotStatus = "pending" | "approved" | "rejected" | "dropped" | "rescheduled" | "cancelled";
+
+/**
+ * A booked slot as GET /api/bookings/:id returns it (creating and listing bookings return fewer
+ * fields). `daily_playbacks_allocated` counts 15-second spots, and `slot_id` is the screen slot's id.
+ */
 type BookingSlot = {
+  id: number;
   slot_id: number;
   daily_playbacks_allocated: number;
+  reserved_price: number | string;
+  status: SlotStatus;
+};
+
+const SLOT_STATUS: Record<SlotStatus, { label: string; cn: string }> = {
+  pending:     { label: "Waiting for review", cn: "bg-yellow-100 text-yellow-700" },
+  approved:    { label: "Approved", cn: "bg-green-100 text-green-700" },
+  rejected:    { label: "Turned down", cn: "bg-red-100 text-red-700" },
+  dropped:     { label: "Dropped", cn: "bg-muted text-muted-foreground" },
+  rescheduled: { label: "Moved", cn: "bg-muted text-muted-foreground" },
+  cancelled:   { label: "Cancelled", cn: "bg-muted text-muted-foreground" },
 };
 
 type Booking = {
@@ -36,12 +60,14 @@ type Booking = {
   booking_slots?: BookingSlot[];
   /** A swapped-in ad is waiting for the broadcaster to approve it. */
   has_pending_creative_review?: boolean;
+  /** Some slots were turned down and none are left to review: the advertiser drops or moves them. */
+  needs_resolution?: boolean;
 };
 
 type Campaign = { id: number; name: string; advertiser_id: number };
 type Space = { id: number; name: string; city: string | null; region: string | null; country: string | null };
 type Screen = { id: number; space_id: number; label: string; is_active: boolean };
-type Slot = { id: number; label: string; start_time: string; end_time: string };
+type Slot = { id: number; label: string; day_of_week: number; start_time: string; end_time: string };
 
 type AssetStatus = "active" | "archived" | "pending_review" | "rejected";
 
@@ -73,9 +99,21 @@ type Review = {
 const STATUS_BADGE: Record<string, string> = {
   pending:   "bg-yellow-100 text-yellow-700",
   accepted:  "bg-green-100 text-green-700",
+  active:    "bg-green-100 text-green-700",
   rejected:  "bg-red-100 text-red-700",
   cancelled: "bg-muted text-muted-foreground",
+  expired:   "bg-muted text-muted-foreground",
   completed: "bg-blue-100 text-blue-700",
+  needs_resolution: "bg-orange-100 text-orange-700",
+};
+
+const DAY = ["", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+// Earliest start for a booking: today's UTC date + 3 days (the backend's rule).
+const minStartDate = () => {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + 3);
+  return d.toISOString().split("T")[0];
 };
 
 const ACCEPTED_TYPES = "image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime";
@@ -213,6 +251,11 @@ const BookingDetail = () => {
   const [bookingActioning, setBookingActioning] = useState(false);
   const [pendingStatusAction, setPendingStatusAction] = useState<"accepted" | "rejected" | null>(null);
 
+  // Per-slot review (broadcaster) and resolving turned-down slots (advertiser)
+  const [slotActioning, setSlotActioning] = useState<number | null>(null);
+  const [moving, setMoving] = useState<BookingSlot | null>(null);
+  const [move, setMove] = useState({ slotId: "", start: "", end: "", plays: "" });
+
   // Review state
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewComment, setReviewComment] = useState("");
@@ -308,6 +351,70 @@ const BookingDetail = () => {
     } finally {
       setBookingActioning(false);
       setPendingStatusAction(null);
+    }
+  };
+
+  const refreshBooking = () => Promise.all([
+    queryClient.invalidateQueries({ queryKey: ["booking", Number(id)] }),
+    queryClient.invalidateQueries({ queryKey: ["bookings"] }),
+    queryClient.invalidateQueries({ queryKey: ["broadcaster-bookings"] }),
+  ]);
+
+  const handleSlotReview = async (bs: BookingSlot, decision: "approved" | "rejected") => {
+    if (!booking) return;
+    setSlotActioning(bs.slot_id);
+    try {
+      const updated = await api.patch<Booking>(`/api/bookings/${booking.id}/slots/${bs.slot_id}/review`, { decision });
+      await refreshBooking();
+      toast.success(decision === "rejected"
+        ? "Slot turned down. The advertiser can drop it or move it."
+        : updated.status === "accepted" ? "Slot approved. Every slot is approved, so the booking is accepted." : "Slot approved");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Action failed");
+    } finally {
+      setSlotActioning(null);
+    }
+  };
+
+  const handleDropSlot = async (bs: BookingSlot) => {
+    if (!booking) return;
+    setSlotActioning(bs.slot_id);
+    try {
+      await api.post(`/api/bookings/${booking.id}/slots/${bs.slot_id}/resolve`, { action: "drop" });
+      await Promise.all([refreshBooking(), queryClient.invalidateQueries({ queryKey: ["wallet"] })]);
+      toast.success(`Slot dropped. ${fmtMoney(Number(bs.reserved_price))} went back to your wallet.`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't drop the slot");
+    } finally {
+      setSlotActioning(null);
+    }
+  };
+
+  const handleMoveSlot = async () => {
+    if (!booking || !moving) return;
+    if (!move.slotId || !move.start || !move.end || !(Number(move.plays) >= 1)) {
+      toast.error("Pick a slot, the dates and how many plays a day");
+      return;
+    }
+    if (move.end < move.start) { toast.error("The end date has to be on or after the start date"); return; }
+    setSlotActioning(moving.slot_id);
+    try {
+      const created = await api.post<Booking>(`/api/bookings/${booking.id}/slots/${moving.slot_id}/resolve`, {
+        action: "reschedule",
+        new_slot_id: Number(move.slotId),
+        new_start_date: move.start,
+        new_end_date: move.end,
+        play_count: Number(move.plays),
+      });
+      await Promise.all([refreshBooking(), queryClient.invalidateQueries({ queryKey: ["wallet"] })]);
+      setMoving(null);
+      toast.success("Moved to a new booking", { description: "It reuses your ad, and the broadcaster reviews it like any request." });
+      // Moving makes a new booking with its own id; this one keeps only what's left.
+      navigate(`/bookings/${created.id}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't move the slot");
+    } finally {
+      setSlotActioning(null);
     }
   };
 
@@ -437,12 +544,33 @@ const BookingDetail = () => {
   }
 
   const canCancel = booking.status === "pending" && isBookingAdvertiser;
+  const bookingSlots = booking.booking_slots ?? [];
+  const turnedDown = bookingSlots.filter(bs => bs.status === "rejected");
+  // A slot holds 15-second spots; with the ad's length known, show them as plays.
+  const activeAsset = assets.find(a => a.status === "active");
+  const spotsPerPlay = activeAsset ? spotsFor(activeAsset.duration_seconds ?? 15) : null;
+  const playsOf = (bs: BookingSlot) => (spotsPerPlay ? Math.round(bs.daily_playbacks_allocated / spotsPerPlay) : null);
+  const dailyLabel = (bs: BookingSlot) => {
+    const plays = playsOf(bs);
+    return plays != null ? `${plays.toLocaleString()} plays/day` : `${bs.daily_playbacks_allocated.toLocaleString()} spots/day`;
+  };
+  const slotName = (slotId: number) => {
+    const slot = slots.find(s => s.id === slotId);
+    return slot
+      ? `${slot.label} · ${DAY[slot.day_of_week] ?? ""} ${fmtTime(slot.start_time)}–${fmtTime(slot.end_time)} UTC`
+      : `Slot #${slotId}`;
+  };
+  const openMove = (bs: BookingSlot) => {
+    const start = booking.start_date >= minStartDate() ? booking.start_date : minStartDate();
+    setMove({ slotId: "", start, end: booking.end_date >= start ? booking.end_date : start, plays: String(playsOf(bs) ?? "") });
+    setMoving(bs);
+  };
+  const badgeKey = booking.needs_resolution ? "needs_resolution" : booking.status;
   const pendingSwap = assets.some(a => a.status === "pending_review") || !!booking.has_pending_creative_review;
   // Swaps on an accepted booking go to the broadcaster for review, and have to match the current ad's length.
   const isLive = booking.status === "accepted" || booking.status === "active";
   const uploadBlockedTitle = pendingSwap ? "Wait until the broadcaster has reviewed the new ad" : undefined;
   const location = [space?.city, space?.region, space?.country].filter(Boolean).join(", ") || null;
-  const slotById = new Map(slots.map(s => [s.id, s]));
 
   return (
     <AppLayout activeNav="home">
@@ -459,8 +587,8 @@ const BookingDetail = () => {
               <h1 className="text-3xl font-bold">
                 {space ? space.name : `Booking #${booking.id}`}
               </h1>
-              <span className={`rounded-full px-3 py-1 text-xs font-medium capitalize ${STATUS_BADGE[booking.status] ?? "bg-muted text-muted-foreground"}`}>
-                {booking.status}
+              <span className={`rounded-full px-3 py-1 text-xs font-medium ${booking.needs_resolution ? "" : "capitalize"} ${STATUS_BADGE[badgeKey] ?? "bg-muted text-muted-foreground"}`}>
+                {booking.needs_resolution ? "Needs a decision" : booking.status}
               </span>
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -506,18 +634,18 @@ const BookingDetail = () => {
           <Field label="Agreed CPM" value={booking.agreed_cpm != null ? `$${booking.agreed_cpm}` : null} />
           <Field label="Total price"
             value={booking.total_price != null ? `$${booking.total_price.toLocaleString()}` : null} />
-          {booking.booking_slots && booking.booking_slots.length > 0 && (
+          {bookingSlots.length > 0 && (
             <div className="col-span-2 sm:col-span-3">
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Time slots</p>
               <div className="mt-1 flex flex-wrap gap-2">
-                {booking.booking_slots.map(bs => {
-                  const slot = slotById.get(bs.slot_id);
-                  const slotLabel = slot
-                    ? `${slot.label} ${fmtTime(slot.start_time)}–${fmtTime(slot.end_time)} UTC`
-                    : `Slot #${bs.slot_id}`;
+                {bookingSlots.map(bs => {
+                  const status = SLOT_STATUS[bs.status];
+                  // Once everything is approved the per-slot state stops being news.
+                  const showStatus = status && (booking.status === "pending" || bs.status !== "approved");
                   return (
-                    <span key={bs.slot_id} className="rounded-md bg-muted px-2.5 py-1 text-xs">
-                      {slotLabel} · {bs.daily_playbacks_allocated.toLocaleString()} plays/day
+                    <span key={bs.slot_id} className="flex items-center gap-1.5 rounded-md bg-muted px-2.5 py-1 text-xs">
+                      {slotName(bs.slot_id)} · {dailyLabel(bs)}
+                      {showStatus && <span className={`rounded px-1.5 py-px font-medium ${status.cn}`}>{status.label}</span>}
                     </span>
                   );
                 })}
@@ -526,8 +654,89 @@ const BookingDetail = () => {
           )}
         </div>
 
-        {/* Broadcaster: accept / reject */}
-        {isBookingBroadcaster && booking.status === "pending" && (
+        {/* Broadcaster: review each slot when there's more than one */}
+        {isBookingBroadcaster && booking.status === "pending" && !booking.needs_resolution && bookingSlots.length > 1 && (
+          <div className="rounded-xl border bg-card p-6">
+            <h2 className="text-sm font-semibold mb-1">Review each time slot</h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              Approve the slots you can run and turn down the ones you can't. The booking is accepted once every slot is approved.
+            </p>
+            <div className="divide-y rounded-lg border">
+              {bookingSlots.map(bs => {
+                const status = SLOT_STATUS[bs.status];
+                return (
+                  <div key={bs.slot_id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">{slotName(bs.slot_id)}</p>
+                      <p className="text-xs text-muted-foreground">{dailyLabel(bs)} · {fmtMoney(Number(bs.reserved_price))}</p>
+                    </div>
+                    {bs.status === "pending" ? (
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" disabled={slotActioning !== null}
+                          className="text-red-600 hover:text-red-700 hover:border-red-300"
+                          onClick={() => handleSlotReview(bs, "rejected")}>
+                          Turn down
+                        </Button>
+                        <Button size="sm" disabled={slotActioning !== null}
+                          className="bg-[#3a47c2] text-white hover:bg-[#2f3a9e]"
+                          onClick={() => handleSlotReview(bs, "approved")}>
+                          Approve
+                        </Button>
+                      </div>
+                    ) : status && (
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${status.cn}`}>{status.label}</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {isBookingBroadcaster && booking.needs_resolution && (
+          <div className="rounded-xl border bg-card p-6">
+            <h2 className="text-sm font-semibold mb-1">Waiting for the advertiser</h2>
+            <p className="text-sm text-muted-foreground">
+              You turned down {turnedDown.length === 1 ? "a slot" : `${turnedDown.length} slots`}. The advertiser can drop or move{" "}
+              {turnedDown.length === 1 ? "it" : "them"}, and anything left is dropped automatically after 48 hours.
+            </p>
+          </div>
+        )}
+
+        {/* Advertiser: deal with turned-down slots */}
+        {isBookingAdvertiser && booking.needs_resolution && (
+          <div className="rounded-xl border border-orange-200 bg-orange-50 p-6">
+            <h2 className="text-sm font-semibold text-orange-900 mb-1">
+              The broadcaster turned down {turnedDown.length === 1 ? "a time slot" : `${turnedDown.length} time slots`}
+            </h2>
+            <p className="text-sm text-orange-900/80 mb-4">
+              Drop a slot to get its money back, or move it to another slot. Slots you leave are dropped automatically 48 hours
+              after they were turned down.
+            </p>
+            <div className="divide-y divide-orange-200 rounded-lg border border-orange-200 bg-white">
+              {turnedDown.map(bs => (
+                <div key={bs.slot_id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">{slotName(bs.slot_id)}</p>
+                    <p className="text-xs text-muted-foreground">{dailyLabel(bs)} · {fmtMoney(Number(bs.reserved_price))} held</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" disabled={slotActioning !== null} onClick={() => handleDropSlot(bs)}>
+                      Drop
+                    </Button>
+                    <Button size="sm" disabled={slotActioning !== null} onClick={() => openMove(bs)}
+                      className="bg-[#3a47c2] text-white hover:bg-[#2f3a9e]">
+                      Move to another slot
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Broadcaster: accept / reject a single-slot booking whole */}
+        {isBookingBroadcaster && booking.status === "pending" && !booking.needs_resolution && bookingSlots.length <= 1 && (
           <div className="rounded-xl border bg-card p-6">
             <h2 className="text-sm font-semibold mb-1">Action required</h2>
             <p className="text-sm text-muted-foreground mb-4">
@@ -710,6 +919,55 @@ const BookingDetail = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Advertiser: move a turned-down slot */}
+      <Dialog open={!!moving} onOpenChange={open => { if (!open) setMoving(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Move this slot</DialogTitle>
+            <DialogDescription>
+              {moving ? `${slotName(moving.slot_id)} was turned down. ` : ""}Moving it makes a new booking request with
+              the same ad. The broadcaster reviews it like any request.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>New time slot</Label>
+              <Select value={move.slotId} onValueChange={v => setMove(m => ({ ...m, slotId: v }))}>
+                <SelectTrigger className="h-10 rounded-lg border-[#d7dce3] text-sm"><SelectValue placeholder="Pick a slot" /></SelectTrigger>
+                <SelectContent>
+                  {slots.filter(s => s.id !== moving?.slot_id).map(s => (
+                    <SelectItem key={s.id} value={String(s.id)}>{slotName(s.id)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="move-start">Start date</Label>
+                <Input id="move-start" type="date" min={minStartDate()} value={move.start}
+                  onChange={e => setMove(m => ({ ...m, start: e.target.value }))} className="h-10 rounded-lg border-[#d7dce3] text-sm" />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="move-end">End date</Label>
+                <Input id="move-end" type="date" min={move.start} value={move.end}
+                  onChange={e => setMove(m => ({ ...m, end: e.target.value }))} className="h-10 rounded-lg border-[#d7dce3] text-sm" />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="move-plays">Plays per day</Label>
+              <Input id="move-plays" type="number" min={1} value={move.plays}
+                onChange={e => setMove(m => ({ ...m, plays: e.target.value }))} className="h-10 w-32 rounded-lg border-[#d7dce3] text-sm" />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setMoving(null)}>Cancel</Button>
+            <Button disabled={slotActioning !== null} onClick={handleMoveSlot} className="bg-[#3a47c2] text-white hover:bg-[#2f3a9e]">
+              {slotActioning !== null ? "Moving…" : "Move slot"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Broadcaster: accept / reject confirmation */}
       <AlertDialog open={!!pendingStatusAction} onOpenChange={open => { if (!open) setPendingStatusAction(null); }}>

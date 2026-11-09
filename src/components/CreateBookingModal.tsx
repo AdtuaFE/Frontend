@@ -339,7 +339,7 @@ export function CreateBookingModal({ open, onOpenChange, space, defaultCampaignI
                                       </label>
                                       <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
                                         <span>{slot.est_impressions_per_playback} imp/play</span>
-                                        <span>{slot.daily_capacity_playbacks.toLocaleString()} plays/day cap</span>
+                                        <span>{slot.daily_capacity_playbacks.toLocaleString()} spots/day</span>
                                         <span>${slot.total_price.toLocaleString()}/day</span>
                                       </div>
                                       {isChecked && (

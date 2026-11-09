@@ -18,25 +18,35 @@ export type Campaign = {
   created_at: string;
 };
 
-export type BookingStatus = "pending" | "accepted" | "rejected" | "cancelled" | "active" | "completed";
+export type BookingStatus =
+  | "pending" | "accepted" | "rejected" | "cancelled" | "active" | "completed" | "expired"
+  /** Held by a broadcaster's offer until the advertiser answers it. Only listed when asked for. */
+  | "offer_pending";
 
+/**
+ * A booking as GET /api/bookings lists it. `daily_playbacks_allocated` counts 15-second spots,
+ * so a 30-second ad playing 10 times a day holds 20.
+ */
 export type Booking = {
   id: number;
   campaign_id: number;
   space_id: number;
+  broadcaster_id?: number;
   status: BookingStatus;
   start_date: string;
   end_date: string;
   total_price: number | string;
-  booking_slots?: { slot_id: number; daily_playbacks_allocated: number }[];
+  created_at?: string;
+  booking_slots?: { id?: number; slot_id: number; daily_playbacks_allocated: number; status?: string }[];
 };
 
-/** The list endpoint returns the offer row only; which space and price it proposes isn't included. */
+/** The list endpoint returns the offer row only; which spaces and slots it covers isn't included. */
 export type Offer = {
   id: number;
   campaign_id: number;
   broadcaster_id: number;
-  status: "pending" | "accepted" | "rejected" | "cancelled";
+  status: "pending" | "accepted" | "rejected" | "cancelled" | "expired";
+  proposed_price?: number | string | null;
   message: string | null;
   created_at: string;
 };
@@ -162,8 +172,26 @@ export function campaignRows(bookings: Booking[], offers: Offer[], today = new D
   return rows;
 }
 
-export function playsPerDay(b: Booking): number {
+/** 15-second spots a day across the booking's slots (a longer ad uses more than one per play). */
+export function spotsPerDay(b: Booking): number {
   return (b.booking_slots ?? []).reduce((n, s) => n + (s.daily_playbacks_allocated ?? 0), 0);
+}
+
+/**
+ * The space holds behind an offer. The offers list doesn't say which spaces or slots an offer
+ * covers, but submitting one creates an `offer_pending` booking per space in the same request
+ * (GET /api/bookings?status=offer_pending lists them). So a held booking belongs to the pending
+ * offer from the same broadcaster on the same campaign that was created closest to it.
+ */
+export function offerHolds(offer: Offer, offers: Offer[], held: Booking[]): Booking[] {
+  const siblings = offers.filter(o =>
+    o.status === "pending" && o.campaign_id === offer.campaign_id && o.broadcaster_id === offer.broadcaster_id);
+  const gap = (a: string, b: string) => Math.abs(new Date(a).getTime() - new Date(b).getTime());
+  return held.filter(b => {
+    if (b.status !== "offer_pending" || b.campaign_id !== offer.campaign_id || b.broadcaster_id !== offer.broadcaster_id || !b.created_at) return false;
+    const closest = siblings.reduce((best, o) => (gap(o.created_at, b.created_at!) < gap(best.created_at, b.created_at!) ? o : best), offer);
+    return closest.id === offer.id;
+  });
 }
 
 /** Bookings that hold a screen: everything but turned-down and cancelled requests. */

@@ -11,9 +11,16 @@ import { fmtMoney } from "@/components/campaigns/campaignData";
  * Shown when a booking costs more than the wallet holds. Top-ups are simulated for now (no card
  * is charged), but the backend asks for them to be treated as real money in the UI.
  */
-export function WalletShortfall({ needed, available }: { needed: number | null; available: number | null }) {
+export function WalletShortfall({ needed, available, what = "booking", note }: {
+  needed: number | null;
+  available: number | null;
+  /** What's being paid for, as the panel names it. */
+  what?: string;
+  /** A sentence after the amounts, e.g. when the money actually leaves the wallet. */
+  note?: string;
+}) {
   const queryClient = useQueryClient();
-  const short = needed != null && available != null ? Math.max(0, needed - available) : null;
+  const short = needed != null && available != null && needed > available ? needed - available : null;
   const [amount, setAmount] = useState(short ? String(Math.ceil(short)) : "");
   const [adding, setAdding] = useState(false);
 
@@ -39,9 +46,9 @@ export function WalletShortfall({ needed, available }: { needed: number | null; 
         <div>
           <p className="font-medium text-red-700">Not enough money in your wallet</p>
           <p className="text-red-700/80">
-            {needed != null && available != null
-              ? `This booking costs ${fmtMoney(needed)} and your wallet has ${fmtMoney(available)}. The money is held when you send the request and only paid once the broadcaster approves.`
-              : "Add money to your wallet, then send the request again."}
+            {short != null
+              ? `This ${what} costs ${fmtMoney(needed!)} and your wallet has ${fmtMoney(available!)}.${note ? ` ${note}` : ""}`
+              : "Your wallet doesn't have enough for this right now. Add money, then try again."}
           </p>
         </div>
       </div>

@@ -47,6 +47,17 @@ async function parseResponse<T>(res: Response): Promise<T> {
   return rest as T;
 }
 
+// No Content-Type: the browser sets it, with the multipart boundary.
+async function sendMultipart<T>(method: 'POST' | 'PATCH', path: string, formData: FormData): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    method,
+    body: formData,
+    headers: csrfHeader(method),
+    credentials: 'include',
+  });
+  return parseResponse<T>(res);
+}
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     ...init,
@@ -78,14 +89,6 @@ export const api = {
   patch: <T>(path: string, data?: unknown) =>
     request<T>(path, { method: 'PATCH', body: data !== undefined ? JSON.stringify(data) : undefined }),
   delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
-  postMultipart: async <T>(path: string, formData: FormData): Promise<T> => {
-    const res = await fetch(`${BASE}${path}`, {
-      method: 'POST',
-      body: formData,
-      // No Content-Type — browser sets it with multipart boundary
-      headers: csrfHeader('POST'),
-      credentials: 'include',
-    });
-    return parseResponse<T>(res);
-  },
+  postMultipart: <T>(path: string, formData: FormData) => sendMultipart<T>('POST', path, formData),
+  patchMultipart: <T>(path: string, formData: FormData) => sendMultipart<T>('PATCH', path, formData),
 };

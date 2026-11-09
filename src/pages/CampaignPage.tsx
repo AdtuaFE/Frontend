@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ChevronRight, Ellipsis, Globe, Lock, Pause, Pencil, Play, Search } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
@@ -11,20 +11,17 @@ import {
 import {
   AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Alert, Breadcrumb, CampaignButton, CampaignStatusBadge, RowStatusBadge } from "@/components/campaigns/CampaignBits";
 import { campaignToast } from "@/components/campaigns/campaignToast";
 import {
-  campaignMoney, campaignRows, fmtMoney, fmtRange, playsPerDay, scheduleNote,
+  campaignMoney, campaignRows, fmtMoney, fmtRange, scheduleNote, spotsPerDay,
   type Booking, type Campaign, type CampaignRow, type CampaignStatus, type Money, type Offer,
 } from "@/components/campaigns/campaignData";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api";
 import CampaignDetail from "@/pages/CampaignDetail";
-
-type Space = { id: number; name: string };
-type Screen = { id: number; label: string };
-type Slot = { id: number; screen_id: number };
+import { OfferDialog } from "@/components/campaigns/OfferDialog";
+import { useBookingPlaces } from "@/components/campaigns/useBookingPlaces";
 
 /** Owners get the campaign page; broadcasters looking at a public campaign keep the offer view. */
 export default function CampaignRoute() {
@@ -44,31 +41,6 @@ export default function CampaignRoute() {
   }
   if (campaign && user && campaign.advertiser_id === user.id) return <CampaignPage campaign={campaign} />;
   return <CampaignDetail />;
-}
-
-/** Space names and screen labels for the bookings in the table, looked up through their slots. */
-function useBookingPlaces(bookings: Booking[]) {
-  const spaceIds = [...new Set(bookings.map(b => b.space_id))];
-  const spaces = useQueries({
-    queries: spaceIds.map(id => ({ queryKey: ["space", id], queryFn: () => api.get<Space>(`/api/spaces/${id}`) })),
-  });
-  const screens = useQueries({
-    queries: spaceIds.map(id => ({ queryKey: ["space-screens", id], queryFn: () => api.get<Screen[]>(`/api/spaces/${id}/screens`) })),
-  });
-  const screenList = spaceIds.flatMap((spaceId, i) => (screens[i]?.data ?? []).map(s => ({ spaceId, screen: s })));
-  const slots = useQueries({
-    queries: screenList.map(({ spaceId, screen }) => ({
-      queryKey: ["screen-slots", spaceId, screen.id],
-      queryFn: () => api.get<Slot[]>(`/api/spaces/${spaceId}/screens/${screen.id}/slots`),
-    })),
-  });
-  const spaceName = new Map(spaceIds.map((id, i) => [id, spaces[i]?.data?.name]));
-  const screenOfSlot = new Map<number, string>();
-  screenList.forEach(({ screen }, i) => (slots[i]?.data ?? []).forEach(sl => screenOfSlot.set(sl.id, screen.label)));
-  return (b: Booking) => ({
-    name: spaceName.get(b.space_id) ?? `Space ${b.space_id}`,
-    screen: [...new Set((b.booking_slots ?? []).map(s => screenOfSlot.get(s.slot_id)).filter(Boolean))].join(", "),
-  });
 }
 
 function SpendCard({ budget, money, note, hasActivity }: { budget: number; money: Money; note: string; hasActivity: boolean }) {
@@ -151,7 +123,7 @@ const cellCn = "flex items-center px-4 py-3.5 text-sm leading-5 text-[#1a1d25]";
 function RowsTable({ campaign, rows, place, onOpen }: {
   campaign: Campaign;
   rows: ReturnType<typeof campaignRows>;
-  place: ReturnType<typeof useBookingPlaces>;
+  place: ReturnType<typeof useBookingPlaces>["place"];
   onOpen: (row: CampaignRow) => void;
 }) {
   const groups = [
@@ -165,7 +137,7 @@ function RowsTable({ campaign, rows, place, onOpen }: {
       <div role="table" aria-label="Screens in this campaign" className="min-w-[640px]">
         <div role="row" className={`grid ${COLS} border-b-[0.8px] border-[#e3e5ea]`}>
           {["Screen", "Status", "Dates"].map(h => <div key={h} role="columnheader" className={headCn}>{h}</div>)}
-          {["Plays a day", "Total"].map(h => <div key={h} role="columnheader" className={`${headCn} justify-end`}>{h}</div>)}
+          {["Spots a day", "Total"].map(h => <div key={h} role="columnheader" className={`${headCn} justify-end`}>{h}</div>)}
           <div role="columnheader" className={headCn}><span className="sr-only">Open</span></div>
         </div>
         {groups.map(g => (
@@ -196,7 +168,7 @@ function RowsTable({ campaign, rows, place, onOpen }: {
                   <span role="cell" className={cellCn}>
                     {isOffer ? fmtRange(campaign.start_date, campaign.end_date) : fmtRange(row.booking.start_date, row.booking.end_date)}
                   </span>
-                  <span role="cell" className={`${cellCn} justify-end`}>{isOffer ? "—" : playsPerDay(row.booking) || "—"}</span>
+                  <span role="cell" className={`${cellCn} justify-end`}>{isOffer ? "—" : spotsPerDay(row.booking) || "—"}</span>
                   <span role="cell" className={`${cellCn} justify-end`}>{isOffer ? "—" : fmtMoney(Number(row.booking.total_price))}</span>
                   <span role="cell" className="flex items-center justify-center"><ChevronRight className="size-4 text-[#656972]" aria-hidden="true" /></span>
                 </button>
@@ -257,7 +229,7 @@ function CampaignPage({ campaign }: { campaign: Campaign }) {
   const money = campaignMoney(budget, bookings);
   const rows = campaignRows(bookings, offers);
   const hasRows = rows.needs.length + rows.waiting.length + rows.booked.length > 0;
-  const place = useBookingPlaces(bookings);
+  const { place } = useBookingPlaces(bookings);
   const isPublic = campaign.visibility !== "private";
 
   const refresh = async () => {
@@ -302,21 +274,6 @@ function CampaignPage({ campaign }: { campaign: Campaign }) {
       toast.error(err instanceof Error ? err.message : "Couldn't delete the campaign");
       setBusy(false);
       setConfirmDelete(false);
-    }
-  };
-
-  const answerOffer = async (offer: Offer, status: "accepted" | "rejected") => {
-    setBusy(true);
-    try {
-      await api.patch(`/api/campaigns/${campaign.id}/offers/${offer.id}`, { status });
-      await queryClient.invalidateQueries({ queryKey: ["campaign-offers", campaign.id] });
-      await queryClient.invalidateQueries({ queryKey: ["bookings"] });
-      campaignToast(status === "accepted" ? "Offer accepted" : "Offer declined");
-      setOpenOffer(null);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Couldn't answer the offer");
-    } finally {
-      setBusy(false);
     }
   };
 
@@ -425,21 +382,7 @@ function CampaignPage({ campaign }: { campaign: Campaign }) {
         </AlertDialogContent>
       </AlertDialog>
 
-      <Dialog open={!!openOffer} onOpenChange={open => !open && setOpenOffer(null)}>
-        <DialogContent className="max-w-[440px] rounded-xl p-6">
-          <DialogHeader className="space-y-2 text-left">
-            <DialogTitle className="text-xl font-semibold leading-7 text-[#1a1d25]">Offer from a broadcaster</DialogTitle>
-            <DialogDescription className="text-sm leading-5 text-[#4a4d56]">
-              If you accept, it's booked for {fmtRange(campaign.start_date, campaign.end_date, true)} and comes out of this campaign's budget.
-            </DialogDescription>
-          </DialogHeader>
-          {openOffer?.message && <p className="rounded-lg bg-[#f8faff] p-3 text-sm leading-5 text-[#1a1d25]">“{openOffer.message}”</p>}
-          <div className="flex justify-end gap-2 pt-4">
-            <CampaignButton size="md" disabled={busy} onClick={() => openOffer && answerOffer(openOffer, "rejected")}>Decline</CampaignButton>
-            <CampaignButton size="md" variant="primary" disabled={busy} onClick={() => openOffer && answerOffer(openOffer, "accepted")}>Accept</CampaignButton>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <OfferDialog campaign={campaign} offer={openOffer} offers={offers} onClose={() => setOpenOffer(null)} />
     </AppLayout>
   );
 }

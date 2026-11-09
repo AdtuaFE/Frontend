@@ -8,9 +8,11 @@ import { Label } from "@/components/ui/label";
 import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { spotsFor } from "@/lib/creative";
+import { useDebounced } from "@/hooks/use-debounced";
 import { fmtMoney } from "@/components/campaigns/campaignData";
 import { CreativePicker, type Creative } from "@/components/booking/CreativePicker";
 import { WalletShortfall } from "@/components/booking/WalletShortfall";
+import { useWalletAvailable } from "@/components/booking/useWalletAvailable";
 import { toast } from "sonner";
 
 type Screen = {
@@ -69,16 +71,6 @@ const fmtTime = (t: string) => t.slice(0, 5);
 type Simulation = { total_price: number };
 type CreatedBooking = { id: number; total_price: number; price_adjusted?: boolean; measured_duration_seconds?: number };
 
-// Holds a value back until it has stopped changing for `ms`, so typing doesn't fire a request per key.
-function useDebounced<T>(value: T, ms: number): T {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const t = setTimeout(() => setDebounced(value), ms);
-    return () => clearTimeout(t);
-  }, [value, ms]);
-  return debounced;
-}
-
 export function CreateBookingModal({ open, onOpenChange, space, defaultCampaignId }: Props) {
   const queryClient = useQueryClient();
   const [campaignId, setCampaignId] = useState("");
@@ -114,13 +106,7 @@ export function CreateBookingModal({ open, onOpenChange, space, defaultCampaignI
 
   const bookableCampaigns = campaigns.filter(c => c.status !== "archived");
 
-  const { data: wallet, error: walletError } = useQuery<{ available: number | string }>({
-    queryKey: ["wallet"],
-    queryFn: () => api.get<{ available: number | string }>("/api/wallet"),
-    enabled: open,
-    retry: false,
-  });
-  const walletAvailable = wallet ? Number(wallet.available) : walletError?.message === "Wallet not found" ? 0 : null;
+  const walletAvailable = useWalletAvailable(open);
 
   useEffect(() => {
     if (!open) {
@@ -240,8 +226,10 @@ export function CreateBookingModal({ open, onOpenChange, space, defaultCampaignI
         duration: 10_000,
       } : undefined);
     } catch (err) {
-      if (err instanceof Error && /insufficient wallet balance/i.test(err.message)) setWalletShort(true);
-      else toast.error(err instanceof Error ? err.message : "Something went wrong");
+      if (err instanceof Error && /insufficient wallet balance/i.test(err.message)) {
+        setWalletShort(true);
+        void queryClient.invalidateQueries({ queryKey: ["wallet"] });
+      } else toast.error(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setIsSubmitting(false);
     }
@@ -413,7 +401,8 @@ export function CreateBookingModal({ open, onOpenChange, space, defaultCampaignI
           ))}
 
           {(walletShort || overBudget) && (
-            <WalletShortfall key={price ?? "unknown"} needed={price} available={walletAvailable} />
+            <WalletShortfall key={price ?? "unknown"} needed={price} available={walletAvailable}
+              note="The money is held when you send the request and only paid once the broadcaster approves." />
           )}
 
           <div className="flex justify-end gap-3 pt-1">

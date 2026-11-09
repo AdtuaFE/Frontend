@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, XCircle, CheckCircle, Plus, Upload, Film,
-  Archive, RefreshCw, Trash2, MessageSquare, Star,
+  Archive, RefreshCw, Trash2, MessageSquare, Star, Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -34,6 +34,8 @@ type Booking = {
   total_price: number | null;
   created_at: string;
   booking_slots?: BookingSlot[];
+  /** A swapped-in ad is waiting for the broadcaster to approve it. */
+  has_pending_creative_review?: boolean;
 };
 
 type Campaign = { id: number; name: string; advertiser_id: number };
@@ -41,13 +43,23 @@ type Space = { id: number; name: string; city: string | null; region: string | n
 type Screen = { id: number; space_id: number; label: string; is_active: boolean };
 type Slot = { id: number; label: string; start_time: string; end_time: string };
 
+type AssetStatus = "active" | "archived" | "pending_review" | "rejected";
+
 type Asset = {
   id: number;
   booking_id: number;
   signed_url: string;
   mime_type: string;
-  status: "active" | "archived";
+  duration_seconds?: number | null;
+  status: AssetStatus;
   set_at: string;
+};
+
+const ASSET_STATUS: Record<AssetStatus, { label: string; cn: string }> = {
+  active:         { label: "Active", cn: "bg-green-100 text-green-700" },
+  archived:       { label: "Archived", cn: "bg-muted text-muted-foreground" },
+  pending_review: { label: "Waiting for review", cn: "bg-yellow-100 text-yellow-700" },
+  rejected:       { label: "Rejected", cn: "bg-red-100 text-red-700" },
 };
 
 type Review = {
@@ -103,26 +115,39 @@ function StarRating({ value, onChange }: { value: number; onChange: (v: number) 
 }
 
 
+/**
+ * Who can do what to an ad:
+ * - active: the advertiser can archive it
+ * - archived: the advertiser can make it active again or delete it
+ * - pending_review (a swap on an accepted booking): only the broadcaster acts, approving or rejecting it
+ * - rejected: nobody; the old ad keeps playing, and the advertiser can upload another
+ */
 function AssetCard({
   asset,
-  readOnly = false,
+  viewer,
   actioning,
   onArchive,
   onActivate,
   onDelete,
+  onApprove,
+  onReject,
 }: {
   asset: Asset;
-  readOnly?: boolean;
+  viewer: "advertiser" | "broadcaster" | "other";
   actioning: boolean;
   onArchive: () => void;
   onActivate: () => void;
   onDelete: () => void;
+  onApprove: () => void;
+  onReject: () => void;
 }) {
   const isImage = asset.mime_type.startsWith("image/");
   const isVideo = asset.mime_type.startsWith("video/");
+  const status = ASSET_STATUS[asset.status] ?? ASSET_STATUS.archived;
+  const iconCn = "h-7 w-7";
 
   return (
-    <div className={`rounded-xl border bg-card overflow-hidden transition-opacity ${asset.status === "archived" ? "opacity-50" : ""}`}>
+    <div className={`rounded-xl border bg-card overflow-hidden transition-opacity ${asset.status === "archived" || asset.status === "rejected" ? "opacity-50" : ""}`}>
       <div className="aspect-video bg-muted flex items-center justify-center overflow-hidden">
         {isImage ? (
           <img src={asset.signed_url} alt="" className="w-full h-full object-cover" />
@@ -137,32 +162,33 @@ function AssetCard({
       </div>
 
       <div className="px-3 py-2.5 flex items-center justify-between gap-2">
-        <span className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${
-          asset.status === "active" ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"
-        }`}>
-          {asset.status}
-        </span>
+        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${status.cn}`}>{status.label}</span>
 
-        {!readOnly && (
+        {viewer === "advertiser" && asset.status === "active" && (
+          <Button size="icon" variant="ghost" className={iconCn} disabled={actioning} onClick={onArchive} title="Archive">
+            <Archive className="h-3.5 w-3.5" />
+          </Button>
+        )}
+        {viewer === "advertiser" && asset.status === "archived" && (
           <div className="flex items-center gap-0.5">
-            {asset.status === "active" ? (
-              <Button
-                size="icon" variant="ghost" className="h-7 w-7"
-                disabled={actioning} onClick={onArchive} title="Archive">
-                <Archive className="h-3.5 w-3.5" />
-              </Button>
-            ) : (
-              <Button
-                size="icon" variant="ghost" className="h-7 w-7"
-                disabled={actioning} onClick={onActivate} title="Activate">
-                <RefreshCw className="h-3.5 w-3.5" />
-              </Button>
-            )}
-            <Button
-              size="icon" variant="ghost"
-              className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50"
+            <Button size="icon" variant="ghost" className={iconCn} disabled={actioning} onClick={onActivate} title="Make active">
+              <RefreshCw className="h-3.5 w-3.5" />
+            </Button>
+            <Button size="icon" variant="ghost" className={`${iconCn} text-red-500 hover:text-red-600 hover:bg-red-50`}
               disabled={actioning} onClick={onDelete} title="Delete permanently">
               <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        )}
+        {viewer === "broadcaster" && asset.status === "pending_review" && (
+          <div className="flex items-center gap-1.5">
+            <Button size="sm" variant="outline" disabled={actioning} onClick={onReject}
+              className="h-7 px-2.5 text-xs text-red-600 hover:text-red-700 hover:border-red-300">
+              Reject
+            </Button>
+            <Button size="sm" disabled={actioning} onClick={onApprove}
+              className="h-7 px-2.5 text-xs bg-[#3a47c2] text-white hover:bg-[#2f3a9e]">
+              Approve
             </Button>
           </div>
         )}
@@ -240,8 +266,11 @@ const BookingDetail = () => {
     enabled: !!id && booking?.status === "completed",
   });
 
-  const invalidateAssets = () =>
-    queryClient.invalidateQueries({ queryKey: ["booking-assets", Number(id)] });
+  // Swaps change the booking's has_pending_creative_review too, so both refresh together.
+  const invalidateAssets = () => Promise.all([
+    queryClient.invalidateQueries({ queryKey: ["booking-assets", Number(id)] }),
+    queryClient.invalidateQueries({ queryKey: ["booking", Number(id)] }),
+  ]);
 
   const isBookingBroadcaster = !!user && !!booking && user.id === booking.broadcaster_id;
   const isBookingAdvertiser = !!user && !!campaign && user.id === campaign.advertiser_id;
@@ -290,9 +319,14 @@ const BookingDetail = () => {
     fd.append("asset", file);
     setUploading(true);
     try {
-      await api.postMultipart(`/api/bookings/${booking.id}/assets`, fd);
+      const uploaded = await api.postMultipart<Asset>(`/api/bookings/${booking.id}/assets`, fd);
       await invalidateAssets();
-      toast.success("Asset uploaded");
+      // On an accepted booking a new ad waits for the broadcaster; the current one keeps playing.
+      if (uploaded.status === "pending_review") {
+        toast.success("New ad sent for review", { description: "Your current ad keeps playing until the broadcaster approves it." });
+      } else {
+        toast.success("Ad uploaded");
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Upload failed");
     } finally {
@@ -321,6 +355,20 @@ const BookingDetail = () => {
       await api.patch(`/api/bookings/${booking.id}/assets/${assetId}/activate`);
       await invalidateAssets();
       toast.success("Asset activated");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Action failed");
+    } finally {
+      setAssetActioning(null);
+    }
+  };
+
+  const handleReview = async (assetId: number, decision: "approve" | "reject") => {
+    if (!booking) return;
+    setAssetActioning(assetId);
+    try {
+      await api.patch(`/api/bookings/${booking.id}/assets/${assetId}/${decision}`);
+      await invalidateAssets();
+      toast.success(decision === "approve" ? "New ad approved. It plays from now on." : "New ad rejected. The current ad keeps playing.");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Action failed");
     } finally {
@@ -389,6 +437,10 @@ const BookingDetail = () => {
   }
 
   const canCancel = booking.status === "pending" && isBookingAdvertiser;
+  const pendingSwap = assets.some(a => a.status === "pending_review") || !!booking.has_pending_creative_review;
+  // Swaps on an accepted booking go to the broadcaster for review, and have to match the current ad's length.
+  const isLive = booking.status === "accepted" || booking.status === "active";
+  const uploadBlockedTitle = pendingSwap ? "Wait until the broadcaster has reviewed the new ad" : undefined;
   const location = [space?.city, space?.region, space?.country].filter(Boolean).join(", ") || null;
   const slotById = new Map(slots.map(s => [s.id, s]));
 
@@ -507,7 +559,8 @@ const BookingDetail = () => {
                 <Button
                   size="sm" variant="outline"
                   className="gap-1.5"
-                  disabled={uploading}
+                  disabled={uploading || pendingSwap}
+                  title={uploadBlockedTitle}
                   onClick={() => fileInputRef.current?.click()}>
                   <Upload className="h-4 w-4" />
                   {uploading ? "Uploading…" : "Upload file"}
@@ -532,6 +585,22 @@ const BookingDetail = () => {
             onChange={handleFileChange}
           />
 
+          {pendingSwap && (isBookingAdvertiser || isBookingBroadcaster) && (
+            <div className="flex gap-2.5 rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
+              <Clock className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+              <p>
+                {isBookingBroadcaster
+                  ? "The advertiser sent a new ad. Approve it to start showing it, or reject it to keep the current one."
+                  : "Your new ad is waiting for the broadcaster to approve it. The current ad keeps playing until then."}
+              </p>
+            </div>
+          )}
+          {isLive && isBookingAdvertiser && assets.length > 0 && !pendingSwap && (
+            <p className="text-xs text-muted-foreground">
+              A new ad has to be the same length as the current one, and the broadcaster approves it before it plays.
+            </p>
+          )}
+
           {assets.length === 0 ? (
             isBookingBroadcaster ? (
               <p className="text-sm text-muted-foreground py-4">
@@ -555,16 +624,19 @@ const BookingDetail = () => {
                 <AssetCard
                   key={asset.id}
                   asset={asset}
-                  readOnly={isBookingBroadcaster}
+                  viewer={isBookingBroadcaster ? "broadcaster" : isBookingAdvertiser ? "advertiser" : "other"}
                   actioning={assetActioning === asset.id}
                   onArchive={() => handleArchive(asset.id)}
                   onActivate={() => handleActivate(asset.id)}
                   onDelete={() => setPendingDeleteId(asset.id)}
+                  onApprove={() => handleReview(asset.id, "approve")}
+                  onReject={() => handleReview(asset.id, "reject")}
                 />
               ))}
               {!isBookingBroadcaster && (
                 <button
-                  disabled={uploading}
+                  disabled={uploading || pendingSwap}
+                  title={uploadBlockedTitle}
                   onClick={() => fileInputRef.current?.click()}
                   className="rounded-xl border-2 border-dashed border-[#d7dce3] aspect-video flex flex-col items-center justify-center gap-2 text-sm text-muted-foreground hover:border-[#3a47c2] hover:text-[#3a47c2] transition-colors disabled:pointer-events-none">
                   <Plus className="h-6 w-6" />

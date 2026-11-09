@@ -7,6 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { spotsFor } from "@/lib/creative";
+import { fmtMoney } from "@/components/campaigns/campaignData";
+import { CreativePicker, type Creative } from "@/components/booking/CreativePicker";
+import { WalletShortfall } from "@/components/booking/WalletShortfall";
 import { toast } from "sonner";
 
 type Screen = {
@@ -62,20 +66,17 @@ const FieldError = ({ msg }: { msg?: string }) =>
 
 const fmtTime = (t: string) => t.slice(0, 5);
 
-// Mirrors the backend's getMatchingDates exactly: UTC, both ends inclusive,
-// ISO day-of-week (1=Monday..7=Sunday). A slot only bills on dates that
-// actually fall on its own day_of_week, not every day in the range.
-function countMatchingDates(startDate: string, endDate: string, dayOfWeek: number): number {
-  if (!startDate || !endDate) return 0;
-  let count = 0;
-  const cur = new Date(`${startDate}T00:00:00Z`);
-  const end = new Date(`${endDate}T00:00:00Z`);
-  while (cur.getTime() <= end.getTime()) {
-    const isoDay = cur.getUTCDay() === 0 ? 7 : cur.getUTCDay();
-    if (isoDay === dayOfWeek) count++;
-    cur.setUTCDate(cur.getUTCDate() + 1);
-  }
-  return count;
+type Simulation = { total_price: number };
+type CreatedBooking = { id: number; total_price: number; price_adjusted?: boolean; measured_duration_seconds?: number };
+
+// Holds a value back until it has stopped changing for `ms`, so typing doesn't fire a request per key.
+function useDebounced<T>(value: T, ms: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), ms);
+    return () => clearTimeout(t);
+  }, [value, ms]);
+  return debounced;
 }
 
 export function CreateBookingModal({ open, onOpenChange, space, defaultCampaignId }: Props) {
@@ -84,8 +85,10 @@ export function CreateBookingModal({ open, onOpenChange, space, defaultCampaignI
   const [selectedSlots, setSelectedSlots] = useState<Record<number, string>>({});
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [creative, setCreative] = useState<Creative | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [walletShort, setWalletShort] = useState(false);
 
   const { data: campaigns = [] } = useQuery<Campaign[]>({
     queryKey: ["campaigns"],
@@ -111,10 +114,18 @@ export function CreateBookingModal({ open, onOpenChange, space, defaultCampaignI
 
   const bookableCampaigns = campaigns.filter(c => c.status !== "archived");
 
+  const { data: wallet, error: walletError } = useQuery<{ available: number | string }>({
+    queryKey: ["wallet"],
+    queryFn: () => api.get<{ available: number | string }>("/api/wallet"),
+    enabled: open,
+    retry: false,
+  });
+  const walletAvailable = wallet ? Number(wallet.available) : walletError?.message === "Wallet not found" ? 0 : null;
+
   useEffect(() => {
     if (!open) {
-      setCampaignId(""); setSelectedSlots({});
-      setStartDate(""); setEndDate(""); setErrors({});
+      setCampaignId(""); setSelectedSlots({}); setCreative(null);
+      setStartDate(""); setEndDate(""); setErrors({}); setWalletShort(false);
     }
   }, [open]);
 
@@ -154,37 +165,48 @@ export function CreateBookingModal({ open, onOpenChange, space, defaultCampaignI
     clearError("slots");
   };
 
-  // Inclusive of both ends, matching how the backend counts the range.
-  const durationDays = startDate && endDate
-    ? Math.round((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86400000) + 1
-    : 0;
-
   const selectedSlotEntries = Object.entries(selectedSlots);
-  const rawEstimate = startDate && endDate && selectedSlotEntries.length > 0
-    ? selectedSlotEntries.reduce((total, [id, pb]) => {
-        const slot = slots.find(s => s.id === Number(id));
-        const plays = Number(pb);
-        if (!slot || plays <= 0 || slot.daily_capacity_playbacks <= 0) return total;
-        const matchingDays = countMatchingDates(startDate, endDate, slot.day_of_week);
-        if (matchingDays === 0) return total;
-        const pricePerPlay = slot.total_price / slot.daily_capacity_playbacks;
-        return total + plays * matchingDays * pricePerPlay;
-      }, 0)
-    : 0;
-  const estimatedPrice = rawEstimate > 0 ? rawEstimate : null;
+  // A slot's capacity is counted in 15-second spots, so a longer video fits fewer plays a day.
+  const spots = spotsFor(creative?.seconds ?? 15);
+  const maxPlays = (slot: Slot) => Math.floor(slot.daily_capacity_playbacks / spots);
+
+  // The server works out the price (it has the real per-day matching and capacity rules), so the
+  // form asks it for a dry run whenever the inputs are complete. With no ad picked yet it prices
+  // a 15-second ad.
+  const readyToPrice = !!campaignId && !!startDate && startDate >= minStartDate() && !!endDate && endDate >= startDate
+    && selectedSlotEntries.length > 0 && selectedSlotEntries.every(([, pb]) => Number(pb) >= 1);
+  const simulateBody = readyToPrice ? JSON.stringify({
+    campaign_id: Number(campaignId),
+    space_id: space?.id,
+    start_date: startDate,
+    end_date: endDate,
+    asset_duration_seconds: creative?.seconds ?? 15,
+    slots: selectedSlotEntries.map(([id, pb]) => ({ slot_id: Number(id), play_count: Number(pb) })),
+  }) : null;
+  const debouncedBody = useDebounced(simulateBody, 400);
+  const simulation = useQuery<Simulation>({
+    queryKey: ["booking-simulate", debouncedBody],
+    queryFn: () => api.post<Simulation>("/api/bookings/simulate", JSON.parse(debouncedBody!)),
+    enabled: open && !!debouncedBody && debouncedBody === simulateBody,
+    retry: false,
+    placeholderData: prev => prev,
+  });
+  const price = readyToPrice && simulation.data ? Number(simulation.data.total_price) : null;
+  const overBudget = price != null && walletAvailable != null && price > walletAvailable;
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     const errs: Record<string, string> = {};
     if (!campaignId) errs.campaignId = "Select a campaign";
+    if (!creative) errs.creative = "Attach the ad you want to show";
     if (selectedSlotEntries.length === 0) {
       errs.slots = "Select at least one time slot";
     } else {
       for (const [id, pb] of selectedSlotEntries) {
         const slot = slots.find(s => s.id === Number(id));
-        if (!pb || Number(pb) < 1) { errs.slots = "Enter daily playbacks for each selected slot (min 1)"; break; }
-        if (slot && Number(pb) > slot.daily_capacity_playbacks) {
-          errs.slots = `"${slot.label}" allows max ${slot.daily_capacity_playbacks} plays/day`; break;
+        if (!pb || Number(pb) < 1) { errs.slots = "Enter plays per day for each selected slot (min 1)"; break; }
+        if (slot && Number(pb) > maxPlays(slot)) {
+          errs.slots = `"${slot.label}" fits at most ${maxPlays(slot)} plays a day of this ad`; break;
         }
       }
     }
@@ -195,22 +217,31 @@ export function CreateBookingModal({ open, onOpenChange, space, defaultCampaignI
     if (Object.keys(errs).length) { setErrors(errs); return; }
 
     setIsSubmitting(true);
+    setWalletShort(false);
     try {
-      await api.post("/api/bookings", {
-        campaign_id: Number(campaignId),
-        space_id: space!.id,
-        start_date: startDate,
-        end_date: endDate,
-        slots: selectedSlotEntries.map(([id, pb]) => ({
-          slot_id: Number(id),
-          daily_playbacks_allocated: Number(pb),
-        })),
-      });
-      await queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      const form = new FormData();
+      form.append("campaign_id", campaignId);
+      form.append("space_id", String(space!.id));
+      form.append("start_date", startDate);
+      form.append("end_date", endDate);
+      form.append("slots", JSON.stringify(selectedSlotEntries.map(([id, pb]) => ({ slot_id: Number(id), play_count: Number(pb) }))));
+      form.append("asset", creative!.file);
+      if (creative!.video) form.append("asset_duration_seconds", String(creative!.seconds));
+      const booking = await api.postMultipart<CreatedBooking>("/api/bookings", form);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["bookings"] }),
+        queryClient.invalidateQueries({ queryKey: ["wallet"] }),
+      ]);
       onOpenChange(false);
-      toast.success("Booking request sent");
+      // The server measures the video itself and reprices if it differs from what the browser read.
+      // The booking is already made at that point, so this just says so.
+      toast.success("Booking request sent", booking.price_adjusted ? {
+        description: `The price changed to ${fmtMoney(Number(booking.total_price))} because your video measured ${booking.measured_duration_seconds} seconds.`,
+        duration: 10_000,
+      } : undefined);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Something went wrong");
+      if (err instanceof Error && /insufficient wallet balance/i.test(err.message)) setWalletShort(true);
+      else toast.error(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setIsSubmitting(false);
     }
@@ -253,6 +284,13 @@ export function CreateBookingModal({ open, onOpenChange, space, defaultCampaignI
               </SelectContent>
             </Select>
             <FieldError msg={errors.campaignId} />
+          </div>
+
+          {/* Ad */}
+          <div className="space-y-1.5">
+            <Label htmlFor="bk-ad">Your ad <span className="text-red-500">*</span></Label>
+            <CreativePicker id="bk-ad" value={creative} error={errors.creative}
+              onChange={c => { setCreative(c); clearError("creative"); }} />
           </div>
 
           {/* Time slots */}
@@ -307,18 +345,18 @@ export function CreateBookingModal({ open, onOpenChange, space, defaultCampaignI
                                       {isChecked && (
                                         <div className="mt-2 flex items-center gap-2">
                                           <label htmlFor={`pb-${slot.id}`} className="text-xs text-muted-foreground shrink-0">
-                                            Daily playbacks
+                                            Plays per day
                                           </label>
                                           <Input
                                             id={`pb-${slot.id}`}
                                             type="number" min="1"
-                                            max={slot.daily_capacity_playbacks}
+                                            max={maxPlays(slot)}
                                             value={pb}
                                             onChange={e => updateSlotPlaybacks(slot.id, e.target.value)}
                                             placeholder="e.g. 48"
                                             className="h-8 w-28 text-sm rounded-md border-[#d7dce3] shadow-none focus-visible:ring-[#3a47c2]"
                                           />
-                                          <span className="text-xs text-muted-foreground">max {slot.daily_capacity_playbacks}</span>
+                                          <span className="text-xs text-muted-foreground">max {maxPlays(slot)}</span>
                                         </div>
                                       )}
                                     </div>
@@ -357,15 +395,25 @@ export function CreateBookingModal({ open, onOpenChange, space, defaultCampaignI
             </div>
           </div>
 
-          {/* Price estimate */}
-          {estimatedPrice != null && (
-            <div className="rounded-lg bg-[#fff3e0] px-4 py-3 text-sm text-[#9a4f00]">
-              Estimated total:{" "}
-              <strong>${estimatedPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
-              <span className="ml-2 text-xs opacity-75">
-                {durationDays} day{durationDays !== 1 ? "s" : ""} across {selectedSlotEntries.length} slot{selectedSlotEntries.length !== 1 ? "s" : ""}
-              </span>
+          {/* Price, worked out by the server */}
+          {readyToPrice && (simulation.isError ? (
+            <p role="alert" className="whitespace-pre-line rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+              {simulation.error instanceof Error ? simulation.error.message : "We couldn't price this booking."}
+            </p>
+          ) : (
+            <div className="rounded-lg bg-[#fff3e0] px-4 py-3 text-sm text-[#9a4f00]" aria-live="polite">
+              {price == null ? "Working out the price…" : <>Total: <strong>{fmtMoney(price)}</strong></>}
+              {price != null && (
+                <span className="ml-2 text-xs opacity-75">
+                  {creative ? "" : "for a 15-second ad · "}
+                  {walletAvailable != null && `wallet has ${fmtMoney(walletAvailable)}`}
+                </span>
+              )}
             </div>
+          ))}
+
+          {(walletShort || overBudget) && (
+            <WalletShortfall key={price ?? "unknown"} needed={price} available={walletAvailable} />
           )}
 
           <div className="flex justify-end gap-3 pt-1">

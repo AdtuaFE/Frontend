@@ -8,8 +8,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
@@ -21,6 +19,7 @@ import { fmt } from "@/lib/utils";
 import { toast } from "sonner";
 import { EditSpaceModal } from "@/components/EditSpaceModal";
 import { CreateBookingModal, type SpaceInfo } from "@/components/CreateBookingModal";
+import { ScreenPairingCode } from "@/components/ScreenPairingCode";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -105,10 +104,11 @@ type SpaceUsage = {
 
 type Device = {
   device_id: string;
-  space_id: number;
-  status: "active" | "inactive";
-  paired_at: string | null;
-  last_seen_at: string | null;
+  screen_id: number | null;
+  is_active: boolean;
+  online: boolean;
+  paired_at: string;
+  last_seen: string | null;
 };
 
 type AdvertiserBooking = {
@@ -167,9 +167,6 @@ const SpaceDetail = () => {
   const [slotSaving, setSlotSaving] = useState(false);
 
   // Device state
-  const [pairCode, setPairCode] = useState("");
-  const [pairScreenId, setPairScreenId] = useState("");
-  const [pairing, setPairing] = useState(false);
   const [pendingDeactivateId, setPendingDeactivateId] = useState<string | null>(null);
   const [deactivating, setDeactivating] = useState(false);
 
@@ -220,6 +217,8 @@ const SpaceDetail = () => {
     queryKey: ["space-devices", Number(id)],
     queryFn: () => api.get<Device[]>(`/api/spaces/${id}/devices`),
     enabled: !!id && !!space && isOwner,
+    // Keeps each device's Online/Offline badge current without a reload
+    refetchInterval: 30_000,
   });
 
   const { data: myBookingsForSpace = [] } = useQuery<AdvertiserBooking[]>({
@@ -321,23 +320,6 @@ const SpaceDetail = () => {
       toast.error(err instanceof Error ? err.message : "Update failed");
     } finally {
       setSlotSaving(false);
-    }
-  };
-
-  const handlePairDevice = async () => {
-    const screenId = pairScreenId || (screens.length === 1 ? String(screens[0].id) : "");
-    if (!space || pairCode.length !== 6 || !screenId) return;
-    setPairing(true);
-    try {
-      await api.post("/api/player/pair", { pairing_code: Number(pairCode), screen_id: Number(screenId) });
-      await queryClient.invalidateQueries({ queryKey: ["space-devices", space.id] });
-      setPairCode("");
-      setPairScreenId("");
-      toast.success("Device paired successfully");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Pairing failed — check the code and try again");
-    } finally {
-      setPairing(false);
     }
   };
 
@@ -777,37 +759,16 @@ const SpaceDetail = () => {
             <div className="rounded-xl border bg-card p-6">
               <h3 className="text-sm font-semibold mb-1">Pair a new device</h3>
               <p className="text-xs text-muted-foreground mb-4">
-                Boot your Raspberry Pi or screen device. Enter the 6-digit code shown on its screen.
+                Generate a code for the screen you're setting up, then open {window.location.origin}/player on
+                the device and enter it there.
               </p>
               {screens.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Add a screen to this space before pairing a device.</p>
               ) : (
-                <div className="flex flex-wrap items-center gap-4">
-                  {screens.length > 1 && (
-                    <Select value={pairScreenId} onValueChange={setPairScreenId}>
-                      <SelectTrigger className="h-10 w-48 rounded-lg text-sm border-[#d7dce3]">
-                        <SelectValue placeholder="Select screen" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {screens.map(screen => (
-                          <SelectItem key={screen.id} value={String(screen.id)}>{screen.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                  <InputOTP maxLength={6} value={pairCode} onChange={setPairCode}>
-                    <InputOTPGroup>
-                      {[0, 1, 2, 3, 4, 5].map(i => (
-                        <InputOTPSlot key={i} index={i} className="h-11 w-11 text-base" />
-                      ))}
-                    </InputOTPGroup>
-                  </InputOTP>
-                  <Button
-                    onClick={handlePairDevice}
-                    disabled={pairing || pairCode.length !== 6 || (screens.length > 1 && !pairScreenId)}
-                    className="bg-[#3a47c2] text-white hover:bg-[#2f3a9e]">
-                    {pairing ? "Pairing…" : "Pair device"}
-                  </Button>
+                <div className="space-y-3">
+                  {screens.map(screen => (
+                    <ScreenPairingCode key={screen.id} spaceId={Number(id)} screen={screen} />
+                  ))}
                 </div>
               )}
             </div>
@@ -828,19 +789,22 @@ const SpaceDetail = () => {
                               : device.device_id}
                           </span>
                           <span className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${
-                            device.status === "active"
+                            device.online
                               ? "bg-green-100 text-green-700"
                               : "bg-muted text-muted-foreground"
                           }`}>
-                            {device.status}
+                            {device.online ? "online" : "offline"}
                           </span>
+                          {screens.length > 1 && (
+                            <span className="text-xs text-muted-foreground">
+                              {screens.find(screen => screen.id === device.screen_id)?.label}
+                            </span>
+                          )}
                         </div>
                         <p className="text-xs text-muted-foreground mt-0.5">
-                          {device.last_seen_at
-                            ? `Last seen ${new Date(device.last_seen_at).toLocaleString()}`
-                            : device.paired_at
-                            ? `Paired ${new Date(device.paired_at).toLocaleDateString()} · never checked in`
-                            : "Never checked in"}
+                          {device.last_seen
+                            ? `Last seen ${new Date(device.last_seen).toLocaleString()}`
+                            : `Paired ${new Date(device.paired_at).toLocaleDateString()} · never checked in`}
                         </p>
                       </div>
                     </div>

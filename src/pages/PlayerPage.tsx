@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { REGEXP_ONLY_DIGITS } from "input-otp";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 
 const BASE = import.meta.env.VITE_API_BASE_URL ?? '';
+const DEVICE_ID_KEY = 'adtua_player_device_id';
 
 type Creative = {
   url: string;
@@ -11,17 +14,31 @@ type Creative = {
 
 type ViewState =
   | { tag: 'loading' }
-  | { tag: 'unpaired'; code: string }
+  | { tag: 'unpaired' }
   | { tag: 'off_air' }
   | { tag: 'idle'; slot?: string }
   | { tag: 'filler' }
   | { tag: 'playing'; url: string; mime: string; duration: number; booking_id?: number; asset_id?: number; filler_seconds: number; idle_seconds: number; is_default: boolean };
 
-async function playerFetch(path: string, opts?: RequestInit) {
-  const res = await fetch(`${BASE}${path}`, opts);
+async function fetchPlayerState(deviceId: string) {
+  const res = await fetch(`${BASE}/api/player/${deviceId}`);
   const body = await res.json();
+  // 404 means the device was removed — same outcome as losing its screen
+  if (res.status === 404) return { paired: false } as Record<string, unknown>;
   // BE wraps in { success, data } or returns fields directly
   return (body.data ?? body) as Record<string, unknown>;
+}
+
+// Creates the device, already paired to the screen the code was generated for.
+async function submitPairingCode(code: string): Promise<string> {
+  const res = await fetch(`${BASE}/api/player/pair`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pairing_code: code }),
+  });
+  const body = await res.json();
+  if (!res.ok) throw new Error(body.errors?.[0] ?? body.error ?? 'Pairing failed');
+  return body.data.device_id;
 }
 
 async function reportPlayed(deviceId: string, bookingId: number, assetId: number, duration: number) {
@@ -35,7 +52,7 @@ async function reportPlayed(deviceId: string, bookingId: number, assetId: number
 }
 
 function parsePlayerData(data: Record<string, unknown>): ViewState {
-  if (data.pairing_code) return { tag: 'unpaired', code: String(data.pairing_code) };
+  if (data.paired === false) return { tag: 'unpaired' };
   if (!data.active) return { tag: 'off_air' };
   const asset = data.asset as (Creative & {
     id?: number;
@@ -63,6 +80,7 @@ function parsePlayerData(data: Record<string, unknown>): ViewState {
 // ─── Player ──────────────────────────────────────────────────────────────────
 
 function Player({ deviceId }: { deviceId: string }) {
+  const navigate = useNavigate();
   const [view, setView] = useState<ViewState>({ tag: 'loading' });
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const playingUrl = useRef<string | null>(null);
@@ -72,12 +90,14 @@ function Player({ deviceId }: { deviceId: string }) {
   const poll = useCallback(async () => {
     clearTimer();
     try {
-      const data = await playerFetch(`/api/player/${deviceId}`);
+      const data = await fetchPlayerState(deviceId);
       const next = parsePlayerData(data);
       setView(next);
 
       if (next.tag === 'unpaired') {
-        timer.current = setTimeout(poll, 5_000);
+        // Screen deleted or device removed — it needs a new code to come back
+        localStorage.removeItem(DEVICE_ID_KEY);
+        navigate('/player', { replace: true });
       } else if (next.tag === 'off_air' || next.tag === 'idle') {
         timer.current = setTimeout(poll, 30_000);
       } else if (next.tag === 'playing') {
@@ -105,7 +125,7 @@ function Player({ deviceId }: { deviceId: string }) {
       setView({ tag: 'off_air' });
       timer.current = setTimeout(poll, 30_000);
     }
-  }, [deviceId]);
+  }, [deviceId, navigate]);
 
   useEffect(() => {
     poll();
@@ -114,7 +134,7 @@ function Player({ deviceId }: { deviceId: string }) {
 
   // ── Screens ──────────────────────────────────────────────────────────────────
 
-  if (view.tag === 'loading') return <Screen />;
+  if (view.tag === 'loading' || view.tag === 'unpaired') return <Screen />;
 
   if (view.tag === 'off_air') return <OffAirScreen />;
 
@@ -132,29 +152,6 @@ function Player({ deviceId }: { deviceId: string }) {
     return (
       <Screen>
         <p className="text-white/40 text-lg font-bold tracking-widest uppercase">adtua</p>
-      </Screen>
-    );
-  }
-
-  // ── Unpaired: show pairing code ─────────────────────────────────────────────
-  if (view.tag === 'unpaired') {
-    return (
-      <Screen>
-        <div className="flex flex-col items-center gap-8">
-          <div className="text-center space-y-1.5">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/30">Adtua Player</p>
-            <p className="text-white/60 text-sm">Enter this code in your space's device manager</p>
-          </div>
-          <div className="flex gap-2.5">
-            {view.code.split('').map((d, i) => (
-              <div key={i}
-                className="w-14 h-16 rounded-xl bg-white/10 border border-white/10 flex items-center justify-center text-3xl font-mono font-bold text-white">
-                {d}
-              </div>
-            ))}
-          </div>
-          <p className="text-white/20 text-xs font-mono">device: {deviceId}</p>
-        </div>
       </Screen>
     );
   }
@@ -206,43 +203,59 @@ function Player({ deviceId }: { deviceId: string }) {
   );
 }
 
-// ─── Registration landing ─────────────────────────────────────────────────────
+// ─── Pairing landing ──────────────────────────────────────────────────────────
 
-function RegisterLanding() {
+function PairingLanding() {
   const navigate = useNavigate();
+  const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
-  const handleRegister = async () => {
+  // Already paired on this device (e.g. after a reboot) — a new code would
+  // create a second device record for the same screen.
+  useEffect(() => {
+    const storedId = localStorage.getItem(DEVICE_ID_KEY);
+    if (storedId) navigate(`/player/${storedId}`, { replace: true });
+  }, [navigate]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (code.length !== 6) return;
     setBusy(true);
     setError('');
     try {
-      const data = await playerFetch('/api/player/register', { method: 'POST' });
-      const id = data.device_id as string | undefined;
-      if (!id) throw new Error('No device_id in response');
-      localStorage.setItem('adtua_player_device_id', id);
+      const id = await submitPairingCode(code);
+      localStorage.setItem(DEVICE_ID_KEY, id);
       navigate(`/player/${id}`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Registration failed');
+      setError(e instanceof Error ? e.message : 'Pairing failed');
+      setCode('');
       setBusy(false);
     }
   };
 
   return (
     <Screen>
-      <div className="flex flex-col items-center gap-6 text-center">
+      <form onSubmit={handleSubmit} className="flex flex-col items-center gap-6 text-center">
         <div className="space-y-1">
           <p className="text-2xl font-bold text-white tracking-tight">Adtua Player</p>
-          <p className="text-white/40 text-sm">Virtual browser display for testing</p>
+          <p className="text-white/40 text-sm">Enter the code from your screen's page in the Adtua dashboard</p>
         </div>
+        <InputOTP maxLength={6} pattern={REGEXP_ONLY_DIGITS} value={code} onChange={setCode} autoFocus>
+          <InputOTPGroup>
+            {[0, 1, 2, 3, 4, 5].map(i => (
+              <InputOTPSlot key={i} index={i} className="h-14 w-12 border-white/20 text-2xl font-mono text-white" />
+            ))}
+          </InputOTPGroup>
+        </InputOTP>
         <button
-          onClick={handleRegister}
-          disabled={busy}
+          type="submit"
+          disabled={busy || code.length !== 6}
           className="px-7 py-3 bg-[#3a47c2] hover:bg-[#e67700] text-white rounded-xl font-medium transition-colors disabled:opacity-50">
-          {busy ? 'Registering…' : 'Register new device'}
+          {busy ? 'Pairing…' : 'Pair this device'}
         </button>
         {error && <p className="text-red-400 text-sm">{error}</p>}
-      </div>
+      </form>
     </Screen>
   );
 }
@@ -285,6 +298,6 @@ function Watermark() {
 export default function PlayerPage() {
   const { deviceId } = useParams<{ deviceId?: string }>();
 
-  if (!deviceId) return <RegisterLanding />;
+  if (!deviceId) return <PairingLanding />;
   return <Player deviceId={deviceId} />;
 }

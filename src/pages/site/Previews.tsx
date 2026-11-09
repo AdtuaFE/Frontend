@@ -7,9 +7,19 @@ import adSoda from "@/assets/site/ad-soda.jpg";
 
 function UpArrow() {
   return (
-    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M12 19V5M5 12l7-7 7 7" />
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="m5 12 7-7 7 7" />
+      <path d="M12 19V5" />
     </svg>
+  );
+}
+
+function TitleWithExample({ title, size }: { title: string; size?: number }) {
+  return (
+    <span className="ui-row" style={{ gap: 8 }}>
+      <b className="ui-t" style={size ? { fontSize: size } : undefined}>{title}</b>
+      <span className="tag ex">Example</span>
+    </span>
   );
 }
 
@@ -32,6 +42,7 @@ export function HeroCluster() {
           <div className="ui-row" style={{ gap: 10 }}>
             <b style={{ fontSize: 22, lineHeight: "30px", fontWeight: 600 }}>Limestone Lane Café</b>
             <span className="tag green">Live</span>
+            <span className="tag ex">Example</span>
           </div>
           <span className="ui-sub">Café · Downtown Bloomington, IN · 2 screens</span>
         </div>
@@ -106,7 +117,7 @@ export function OwnerPreviews() {
   return (
     <div className="ow-grid">
       <div className="ui ui-wk" style={{ height: 320 }} role="img" aria-label="Preview of time slots and prices in Adtua. Monday to Friday: 7 to 11 AM at 60 dollars a day, 72 percent booked, and 11 AM to 3 PM at 50 dollars a day, 48 percent booked. Saturday and Sunday: 8 AM to 2 PM at 90 dollars a day, 65 percent booked. No ads at other times.">
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}><b className="ui-t" style={{ fontSize: 18 }}>Time slots and prices</b><span className="ui-sub">Both screens use the same slots. Times are Eastern Time.</span></div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}><TitleWithExample title="Time slots and prices" size={18} /><span className="ui-sub">Both screens use the same slots. Times are Eastern Time.</span></div>
         <div className="wk-r">
           <span className="wk-d">Mon–Fri</span>
           <div className="wk-tr">
@@ -124,10 +135,10 @@ export function OwnerPreviews() {
             <div className="seg off" style={{ flex: 10 }}><i>2 PM–12 AM</i>No ads</div>
           </div>
         </div>
-        <span className="ui-sub">Prices are per day. Advertisers buy 15-second plays and pay their share.</span>
+        <span className="ui-sub">Prices are per day for each block. Advertisers book 15-second plays and split the price.</span>
       </div>
       <div className="ui ui-earn" style={{ height: 357 }} role="img" aria-label="Preview of earnings in Adtua: 1,248 dollars earned in October, up from 1,010 dollars in September. Monthly earnings from May to October: 310, 540, 720, 860, 1,010 and 1,248 dollars. The window screen earned 742 dollars and the dining room TV 506 dollars.">
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}><b className="ui-t" style={{ fontSize: 18 }}>Earnings</b><span className="ui-sub">October · both screens</span></div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}><TitleWithExample title="Earnings" size={18} /><span className="ui-sub">October · both screens</span></div>
         <div className="mc-row"><b className="mc-v" style={{ fontSize: 32, lineHeight: "40px" }}>$1,248</b><span className="mc-s good"><UpArrow />$238 more than September</span></div>
         <Bars bars={[[24, "May"], [42, "Jun"], [55, "Jul"], [66, "Aug"], [78, "Sep"], [96, "Oct", true]]} />
         <div className="earn-split"><div><span>Window screen</span><b>$742</b></div><div><span>Dining room TV</span><b>$506</b></div></div>
@@ -139,7 +150,7 @@ export function OwnerPreviews() {
 export function PayoutPreview() {
   return (
     <div className="ui pay-ui" role="img" aria-label="Example October payout in Adtua for Limestone Lane Café on the Premium plan: you earn 1,248 dollars from 12 bookings across 2 screens. The window screen earned 742 dollars from 7 bookings and its morning rush sold out. The dining room TV earned 506 dollars from 5 bookings and its Friday lunch slot sold out. Bookings totaled 2,270 dollars and Adtua's fee was 1,022 dollars.">
-      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}><b className="ui-t">Payout · October</b><span className="ui-sub">Limestone Lane Café · 2 screens · Premium plan</span></div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}><TitleWithExample title="Payout · October" /><span className="ui-sub">Limestone Lane Café · 2 screens · Premium plan</span></div>
       <div className="pay-hero">
         <span className="ui-sub" style={{ color: "#1A1D25", fontWeight: 500 }}>You earn</span>
         <b>$1,248.00</b>

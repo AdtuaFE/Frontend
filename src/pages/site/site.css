@@ -62,7 +62,7 @@
 /* email form */
 .wl .done{animation:pop .5s cubic-bezier(.22,1,.36,1) both}
 @keyframes pop{from{opacity:0;transform:translateY(10px) scale(.98)}}
-.wl .tick-p{stroke-dasharray:20;stroke-dashoffset:20;animation:draw .5s cubic-bezier(.22,1,.36,1) .2s forwards}
+.wl .tick-p{stroke-dasharray:10;stroke-dashoffset:10;animation:draw .5s cubic-bezier(.22,1,.36,1) .2s forwards}
 @keyframes draw{to{stroke-dashoffset:0}}
 .wl .err{font-size:15px;font-weight:500;animation:pop .3s cubic-bezier(.22,1,.36,1) both}
 @media (max-width:520px){.wl form button.btn{flex:1 1 100%!important}}
@@ -218,15 +218,33 @@
   .wl .cluster{margin:32px 0 -369.6px -560px;transform:scale(.34)}
   .wl .ow-grid{transform:scale(.3);margin-top:-210px}
   .wl section{scroll-margin-top:0}
-  .wl #screens{padding-top:88px!important;padding-bottom:88px!important;gap:40px!important}
-  .wl #setup,.wl #paid{padding-top:88px!important}
-  .wl #faq{padding-top:88px!important;padding-bottom:72px!important}
+  .wl #screens{padding-top:72px!important;padding-bottom:72px!important;gap:40px!important}
+  .wl #setup,.wl #paid{padding-top:80px!important}
+  .wl #faq{padding-top:80px!important;padding-bottom:56px!important}
   .wl .cards{gap:12px}
   .wl .cards > div{min-height:0!important;display:grid!important;grid-template-columns:minmax(0,1fr) 112px;align-items:center;gap:16px!important;padding:20px!important}
   .wl .cards h3{font-size:20px!important}
   .wl .cards p{font-size:15px;line-height:1.5}
   .wl .card-art{margin:0;height:104px;border-radius:12px}
   .wl [data-rv="banner"]{padding-top:72px!important;padding-bottom:72px!important}
+}
+
+/* screens split into "Ready at launch" and "Coming later"; "Example" tags; consent line */
+.wl h4{margin:0;font-family:'Bricolage Grotesque',sans-serif;text-wrap:balance}
+.wl .tag.ex{background:#F1F2F7;color:#4A4D56}
+.wl .srow{display:flex;flex-direction:column;gap:20px}
+.wl .srow-h{font-size:24px;line-height:1.2;font-weight:700;color:#15173A}
+.wl .cards.later{grid-template-columns:repeat(3,minmax(0,1fr))}
+.wl .cards.later > div{background:#F4F5FC;border-radius:20px;padding:24px;display:flex;flex-direction:column;gap:8px}
+.wl .consent{font-size:14px;color:#3A3D5C}
+.wl .consent a{color:#3A47C2;font-weight:600}
+@media (max-width:700px){
+  .wl .cards.later{grid-template-columns:minmax(0,1fr);gap:8px}
+  .wl .cards.later > div{display:flex!important;flex-direction:column;align-items:flex-start!important;gap:4px!important;padding:16px 20px!important}
+  .wl .srow{gap:14px}
+  .wl #screens{gap:32px!important}
+  .wl .qa-q{padding:14px 0}
+  .wl #faq .split,.wl #faq{gap:24px}
 }
 
 /* contact */

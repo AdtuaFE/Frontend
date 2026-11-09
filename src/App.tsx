@@ -16,7 +16,9 @@ import Dashboard from "./pages/Dashboard";
 import Browse from "./pages/Browse";
 import MySpaces from "./pages/MySpaces";
 import AddSpace from "./pages/AddSpace";
-import CampaignDetail from "./pages/CampaignDetail";
+import Campaigns from "./pages/Campaigns";
+import CampaignForm from "./pages/CampaignForm";
+import CampaignRoute from "./pages/CampaignPage";
 import BookingDetail from "./pages/BookingDetail";
 import SpaceDetail from "./pages/SpaceDetail";
 import BrowseCampaigns from "./pages/BrowseCampaigns";
@@ -47,13 +49,15 @@ const App = () => (
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/browse" element={<ProtectedRoute><Browse /></ProtectedRoute>} />
             <Route path="/spaces" element={<ProtectedRoute requiredRole="broadcaster"><MySpaces /></ProtectedRoute>} />
-            <Route path="/campaigns/:id" element={<ProtectedRoute><CampaignDetail /></ProtectedRoute>} />
+            <Route path="/campaigns/new" element={<ProtectedRoute requiredRole="advertiser"><CampaignForm /></ProtectedRoute>} />
+            <Route path="/campaigns/:id/edit" element={<ProtectedRoute requiredRole="advertiser"><CampaignForm /></ProtectedRoute>} />
+            <Route path="/campaigns/:id" element={<ProtectedRoute><CampaignRoute /></ProtectedRoute>} />
             <Route path="/bookings/:id" element={<ProtectedRoute><BookingDetail /></ProtectedRoute>} />
             <Route path="/spaces/new" element={<ProtectedRoute requiredRole="broadcaster"><AddSpace /></ProtectedRoute>} />
             <Route path="/spaces/:id" element={<ProtectedRoute><SpaceDetail /></ProtectedRoute>} />
             <Route
               path="/campaigns"
-              element={<ProtectedRoute requiredRole="advertiser"><BrowseCampaigns /></ProtectedRoute>}
+              element={<ProtectedRoute requiredRole="advertiser"><Campaigns /></ProtectedRoute>}
             />
             <Route
               path="/campaigns/marketplace"

@@ -13,9 +13,17 @@ import { useDebounced } from "@/hooks/use-debounced";
 import { spotsFor } from "@/lib/creative";
 import { api } from "@/lib/api";
 
+type AcceptSlot = {
+  slot_id: number;
+  play_count: number;
+  daily_playbacks_allocated: number;
+  ceiling: number;
+  unused_remainder: number;
+  reserved_price: number | string;
+};
 type AcceptPreview = {
   spots_consumed: number;
-  spaces: { space_id: number; total_price: number | string }[];
+  spaces: { space_id: number; total_price: number | string; slots: AcceptSlot[] }[];
 };
 type AcceptResult = AcceptPreview & { offer: Offer; measured_duration_seconds?: number };
 

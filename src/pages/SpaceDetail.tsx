@@ -478,7 +478,7 @@ const SpaceDetail = () => {
                             const label = slots.find(s => s.id === bs.slot_id)?.label ?? `Slot #${bs.slot_id}`;
                             return (
                               <span key={bs.slot_id} className="rounded-md bg-muted px-2 py-0.5 text-xs">
-                                {label} · {bs.daily_playbacks_allocated} plays/day
+                                {label} · {bs.daily_playbacks_allocated} spots/day
                               </span>
                             );
                           })}
@@ -734,7 +734,7 @@ const SpaceDetail = () => {
                           className="flex items-center justify-between text-xs text-muted-foreground">
                           <span>Booking #{b.booking_id}</span>
                           <span>
-                            {b.used_today} / {b.daily_playbacks_allocated} played
+                            {b.used_today} / {b.daily_playbacks_allocated} spots used
                             {" · "}
                             <span className={b.remaining_today === 0 ? "text-green-600" : ""}>
                               {b.remaining_today} remaining

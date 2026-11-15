@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  campaignFormErrors, campaignMoney, campaignRows, daysInclusive, fmtMoney, fmtRange, playsPerDay, scheduleNote,
+  campaignFormErrors, campaignMoney, campaignRows, daysInclusive, fmtMoney, fmtRange, offerHolds, scheduleNote, spotsPerDay,
   type Booking, type Offer,
 } from "./campaignData";
 
@@ -75,8 +75,8 @@ describe("helpers", () => {
     expect(fmtMoney(1248.5)).toBe("$1,248.50");
   });
 
-  it("adds up plays a day across a booking's slots", () => {
-    expect(playsPerDay(booking(1, { booking_slots: [{ slot_id: 1, daily_playbacks_allocated: 30 }, { slot_id: 2, daily_playbacks_allocated: 10 }] }))).toBe(40);
+  it("adds up spots a day across a booking's slots", () => {
+    expect(spotsPerDay(booking(1, { booking_slots: [{ slot_id: 1, daily_playbacks_allocated: 30 }, { slot_id: 2, daily_playbacks_allocated: 10 }] }))).toBe(40);
   });
 });
 
@@ -92,5 +92,30 @@ describe("campaignFormErrors", () => {
     expect(campaignFormErrors({ ...valid, total_budget: "0" }).total_budget).toBe("Set a budget above $0");
     expect(campaignFormErrors({ ...valid, start_date: "" }).start_date).toBe("Pick a start date");
     expect(campaignFormErrors({ ...valid, end_date: "2026-11-01" }).end_date).toBe("End date must be after the start date");
+  });
+});
+
+describe("offerHolds", () => {
+  const offer = (id: number, broadcaster_id: number, created_at: string, status: Offer["status"] = "pending"): Offer =>
+    ({ id, campaign_id: 1, broadcaster_id, status, message: null, created_at });
+  const held = (id: number, broadcaster_id: number, created_at: string, campaign_id = 1): Booking =>
+    ({ id, campaign_id, space_id: id, broadcaster_id, status: "offer_pending", start_date: "2026-12-01", end_date: "2026-12-05", total_price: 50, created_at });
+
+  it("takes the held bookings from the same broadcaster on the same campaign", () => {
+    const a = offer(1, 7, "2026-11-08T10:00:00.000Z");
+    const holds = [held(10, 7, "2026-11-08T10:00:00.400Z"), held(11, 7, "2026-11-08T10:00:00.600Z"), held(12, 8, "2026-11-08T10:00:00.500Z"), held(13, 7, "2026-11-08T10:00:00.500Z", 2)];
+    expect(offerHolds(a, [a], holds).map(b => b.id)).toEqual([10, 11]);
+  });
+
+  it("splits two pending offers from one broadcaster by when each was made", () => {
+    const first = offer(1, 7, "2026-11-08T10:00:00.000Z"), second = offer(2, 7, "2026-11-08T15:00:00.000Z");
+    const holds = [held(10, 7, "2026-11-08T10:00:00.300Z"), held(11, 7, "2026-11-08T15:00:00.300Z")];
+    expect(offerHolds(first, [first, second], holds).map(b => b.id)).toEqual([10]);
+    expect(offerHolds(second, [first, second], holds).map(b => b.id)).toEqual([11]);
+  });
+
+  it("ignores bookings that aren't held by an offer", () => {
+    const a = offer(1, 7, "2026-11-08T10:00:00.000Z");
+    expect(offerHolds(a, [a], [{ ...held(10, 7, "2026-11-08T10:00:00.300Z"), status: "accepted" }])).toEqual([]);
   });
 });

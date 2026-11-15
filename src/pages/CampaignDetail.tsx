@@ -32,7 +32,7 @@ type Offer = {
   id: number;
   campaign_id: number;
   broadcaster_id: number;
-  status: "pending" | "accepted" | "rejected" | "cancelled";
+  status: "pending" | "accepted" | "rejected" | "cancelled" | "expired";
   message: string | null;
   created_at: string;
   spaces: OfferSpace[];
@@ -51,6 +51,7 @@ const OFFER_BADGE: Record<string, string> = {
   accepted:  "bg-green-100 text-green-700",
   rejected:  "bg-red-100 text-red-700",
   cancelled: "bg-muted text-muted-foreground",
+  expired:   "bg-muted text-muted-foreground",
 };
 
 const NEXT_STATUSES: Record<string, { value: string; label: string; variant?: "default" | "outline" }[]> = {

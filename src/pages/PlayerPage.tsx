@@ -18,7 +18,7 @@ type ViewState =
   | { tag: 'off_air' }
   | { tag: 'idle'; slot?: string }
   | { tag: 'filler' }
-  | { tag: 'playing'; url: string; mime: string; duration: number; booking_id?: number; asset_id?: number; filler_seconds: number; idle_seconds: number; is_default: boolean };
+  | { tag: 'playing'; url: string; mime: string; duration: number; booking_id?: number; asset_id?: number; slot_id?: number; filler_seconds: number; idle_seconds: number; is_default: boolean };
 
 async function fetchPlayerState(deviceId: string) {
   const res = await fetch(`${BASE}/api/player/${deviceId}`);
@@ -41,12 +41,13 @@ async function submitPairingCode(code: string): Promise<string> {
   return body.data.device_id;
 }
 
-async function reportPlayed(deviceId: string, bookingId: number, assetId: number, duration: number) {
+// The backend needs the slot a play belongs to, to pay the broadcaster and refund unplayed slots.
+async function reportPlayed(deviceId: string, bookingId: number, assetId: number, slotId: number, duration: number) {
   try {
     await fetch(`${BASE}/api/player/${deviceId}/played`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ booking_id: bookingId, asset_id: assetId, duration_seconds: duration, completed: true }),
+      body: JSON.stringify({ booking_id: bookingId, asset_id: assetId, slot_id: slotId, duration_seconds: duration, completed: true }),
     });
   } catch { /* best effort */ }
 }
@@ -71,6 +72,7 @@ function parsePlayerData(data: Record<string, unknown>): ViewState {
     duration: asset.duration_seconds ?? 15,
     booking_id: asset.booking_id,
     asset_id: asset.id,
+    slot_id: (data.slot as { id?: number } | null | undefined)?.id,
     filler_seconds: asset.filler_seconds ?? 0,
     idle_seconds: asset.idle_seconds ?? 0,
     is_default: asset.is_default ?? false,
@@ -105,8 +107,8 @@ function Player({ deviceId }: { deviceId: string }) {
         if (!mime.startsWith('video/')) {
           // Images/GIFs: hold for duration then finish
           timer.current = setTimeout(async () => {
-            if (!is_default && next.booking_id && next.asset_id) {
-              await reportPlayed(deviceId, next.booking_id, next.asset_id, duration);
+            if (!is_default && next.booking_id && next.asset_id && next.slot_id) {
+              await reportPlayed(deviceId, next.booking_id, next.asset_id, next.slot_id, duration);
             }
             if (is_default && idle_seconds > 0) {
               setView({ tag: 'off_air' });
@@ -157,7 +159,7 @@ function Player({ deviceId }: { deviceId: string }) {
   }
 
   // ── Playing ─────────────────────────────────────────────────────────────────
-  const { url, mime, duration, booking_id, asset_id, filler_seconds, idle_seconds, is_default } = view;
+  const { url, mime, duration, booking_id, asset_id, slot_id, filler_seconds, idle_seconds, is_default } = view;
   const isVideo = mime.startsWith('video/');
 
   if (isVideo) {
@@ -172,8 +174,8 @@ function Player({ deviceId }: { deviceId: string }) {
           playsInline
           onPlay={e => { (e.target as HTMLVideoElement).muted = false; }}
           onEnded={async () => {
-            if (!is_default && booking_id && asset_id) {
-              await reportPlayed(deviceId, booking_id, asset_id, duration);
+            if (!is_default && booking_id && asset_id && slot_id) {
+              await reportPlayed(deviceId, booking_id, asset_id, slot_id, duration);
             }
             if (is_default && idle_seconds > 0) {
               setView({ tag: 'off_air' });

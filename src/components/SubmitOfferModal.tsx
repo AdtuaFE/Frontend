@@ -291,7 +291,7 @@ export function SubmitOfferModal({ open, onOpenChange, campaignId, campaignBudge
                                                       </label>
                                                       {slotChecked && (
                                                         <div className="mt-1.5 flex items-center gap-2">
-                                                          <span className="text-xs text-muted-foreground shrink-0">Daily plays</span>
+                                                          <span className="text-xs text-muted-foreground shrink-0">Max daily plays</span>
                                                           <Input
                                                             type="number" min="1"
                                                             max={slot.daily_capacity_playbacks}

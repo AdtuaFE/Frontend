@@ -15,6 +15,8 @@ import {
 import {
   SCREEN_ALLOWANCE_KEY, isVisibleScreen, limitMessage, screensLeft, useScreenAllowance,
 } from "@/lib/screenAllowance";
+import { useBilling } from "@/lib/billing";
+import { BuyScreensButton } from "@/components/BuyScreensButton";
 
 // Adds one screen to a space that already exists, with the same screen and schedule steps as
 // the add-space wizard, and creates its time slots along with it.
@@ -46,6 +48,7 @@ const AddScreen = () => {
     enabled: !!id,
   });
   const { data: allowance } = useScreenAllowance(!!user);
+  const { data: billing } = useBilling(!!user);
 
   const isOwner = !!user && !!space && user.id === space.broadcaster_id;
   const takenNames = (allowance?.screens ?? [])
@@ -133,7 +136,9 @@ const AddScreen = () => {
       : !space.is_active
         ? "This space is deactivated. Reactivate it before adding screens."
         : allowance && left === 0
-          ? `${limitMessage(allowance.allowance)} You're using all of them.`
+          ? billing?.plan === "premium"
+            ? `You're using all ${allowance.allowance} screens you've paid for.`
+            : `${limitMessage(allowance.allowance)} You're using all of them.`
           : null;
 
   return (
@@ -159,11 +164,19 @@ const AddScreen = () => {
           <div className="flex flex-col items-start gap-3 rounded-[24px] border border-[#e8e8e8] bg-white p-8 text-sm text-[#4a5565]">
             <p>{blocked}</p>
             {allowance && left === 0 && isOwner && space?.is_active && (
-              <p>
-                Delete a screen from one of your spaces, or{" "}
-                <Link to="/settings?tab=plans" className="font-semibold text-[#3a47c2] underline">upgrade your plan</Link>
-                {" "}to add another.
-              </p>
+              billing?.plan === "premium" && billing.block_purchase ? (
+                <>
+                  <p>Delete a screen from one of your spaces, or add more. You'll see the price before paying.</p>
+                  {/* Once paid, the allowance refreshes and this page opens the form by itself. */}
+                  <BuyScreensButton purchase={billing.block_purchase} />
+                </>
+              ) : (
+                <p>
+                  Delete a screen from one of your spaces, or{" "}
+                  <Link to="/settings/upgrade/broadcaster" className="font-semibold text-[#3a47c2] underline">upgrade to Premium</Link>
+                  {" "}to add another.
+                </p>
+              )
             )}
             <button type="button" onClick={() => navigate(`/spaces/${spaceId}`)}
               className="font-semibold text-[#3a47c2]">

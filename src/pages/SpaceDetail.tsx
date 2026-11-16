@@ -20,6 +20,8 @@ import { toast } from "sonner";
 import { EditSpaceModal } from "@/components/EditSpaceModal";
 import { CreateBookingModal, type SpaceInfo } from "@/components/CreateBookingModal";
 import { ScreenPairingCode } from "@/components/ScreenPairingCode";
+import { BuyScreensButton } from "@/components/BuyScreensButton";
+import { useBilling } from "@/lib/billing";
 import {
   SCREEN_ALLOWANCE_KEY, isVisibleScreen, limitMessage, screenStatus, screensLeft, useScreenAllowance,
   type BroadcasterScreen,
@@ -225,6 +227,7 @@ const SpaceDetail = () => {
   // The owner's view of screens includes ones that are off (over the plan's limit, or the space
   // is deactivated), which the public list above leaves out.
   const { data: screenAllowance } = useScreenAllowance(isOwner);
+  const { data: billing } = useBilling(isOwner);
   const ownedScreens = (screenAllowance?.screens ?? [])
     .filter(s => s.space_id === Number(id) && isVisibleScreen(s));
   const screensLeftOnPlan = screenAllowance ? screensLeft(screenAllowance) : 0;
@@ -826,13 +829,22 @@ const SpaceDetail = () => {
                 This space is deactivated, so its screens are off. Reactivate it to add or run screens.
               </p>
             ) : screensLeftOnPlan === 0 && (
-              <p className="text-xs text-muted-foreground">
-                {limitMessage(screenAllowance.allowance)} Delete a screen or{" "}
-                <button className="font-semibold underline" onClick={() => navigate("/settings?tab=plans")}>
-                  upgrade
-                </button>{" "}
-                to add another.
-              </p>
+              billing?.plan === "premium" && billing.block_purchase ? (
+                <div className="flex flex-wrap items-center gap-3">
+                  <p className="text-xs text-muted-foreground">
+                    You're using all {screenAllowance.allowance} screens you've paid for. Delete a screen, or add more:
+                  </p>
+                  <BuyScreensButton size="sm" purchase={billing.block_purchase} />
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  {limitMessage(screenAllowance.allowance)} Delete a screen or{" "}
+                  <button className="font-semibold underline" onClick={() => navigate("/settings/upgrade/broadcaster")}>
+                    upgrade to Premium
+                  </button>{" "}
+                  to add another.
+                </p>
+              )
             )}
 
             {ownedScreens.length === 0 ? (

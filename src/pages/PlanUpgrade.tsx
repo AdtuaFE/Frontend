@@ -12,6 +12,7 @@ import { useAuth } from "@/context/AuthContext";
 import { formatDate } from "@/lib/dates";
 import { PAID_PLANS, cardBrand, chargeFor, nextRenewal, subscribe, type Billing, type PaidTier, type Role } from "@/lib/plans";
 import { toast } from "sonner";
+import { BroadcasterCheckout } from "@/components/settings/BroadcasterCheckout";
 
 const inputCn = "h-10 rounded-lg border-[#d7dce3] bg-white text-sm shadow-none focus-visible:ring-[#3a47c2]";
 
@@ -29,6 +30,8 @@ export default function PlanUpgrade() {
   if (roleParam !== "advertiser" && roleParam !== "broadcaster") return <Navigate to="/settings?tab=plans" replace />;
   const role: Role = roleParam;
   if (!user.roles.includes(role)) return <Navigate to="/settings?tab=plans" replace />;
+  // Broadcaster Premium is real (simulated) billing; the advertiser plan below is still a placeholder.
+  if (role === "broadcaster") return <BroadcasterCheckout />;
 
   const tier: PaidTier = role === "advertiser" ? "premium" : searchParams.get("tier") === "bundle" ? "bundle" : "solo";
   const plan = PAID_PLANS[tier];

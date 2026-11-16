@@ -17,9 +17,12 @@ type Props = {
   onChange: (screens: ScreenDraft[]) => void;
   onBack: () => void;
   onNext: () => void;
+  /** Label for the next button; defaults to "Next". */
+  nextLabel?: string;
+  nextDisabled?: boolean;
 };
 
-export function StepSchedule({ screens, errors, onChange, onBack, onNext }: Props) {
+export function StepSchedule({ screens, errors, onChange, onBack, onNext, nextLabel, nextDisabled }: Props) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   const patchScreen = (id: string, p: Partial<ScreenDraft>) =>
@@ -137,7 +140,7 @@ export function StepSchedule({ screens, errors, onChange, onBack, onNext }: Prop
         );
       })}
 
-      <StepNav onBack={onBack} onNext={onNext} />
+      <StepNav onBack={onBack} onNext={onNext} nextLabel={nextLabel} nextDisabled={nextDisabled} />
     </div>
   );
 }

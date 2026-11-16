@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { getPlanState, isPaid as isPaidTier } from "@/lib/plans";
+import { SCREEN_ALLOWANCE_KEY, screensLeft, useScreenAllowance } from "@/lib/screenAllowance";
 import { AppLayout } from "@/components/AppLayout";
 import { loadWizardData } from "@/pages/Onboarding";
 import { SecondaryButton, Steps } from "@/components/addspace/primitives";
@@ -15,7 +16,8 @@ import { StepScreens } from "@/components/addspace/StepScreens";
 import { StepSchedule } from "@/components/addspace/StepSchedule";
 import { StepReview } from "@/components/addspace/StepReview";
 import {
-  STEPS, clearDraft, emptyDraft, loadDraft, newId, saveDraft, slotErrors, toCreateSpacePayload, toScreenRequests,
+  STEPS, clearDraft, emptyDraft, loadDraft, newId, saveDraft, screenNameError, slotErrors, toCreateSpacePayload,
+  toScreenRequests,
   type PhotoDraft, type ScreenDraft, type SpaceDraft, type StepKey,
 } from "@/components/addspace/types";
 
@@ -42,6 +44,9 @@ const AddSpace = () => {
   const previewUrlsRef = useRef<Set<string>>(new Set());
 
   const broadcasterPaid = user ? isPaidTier(getPlanState(user.id, "broadcaster").tier) : false;
+
+  // How many screens the plan still has room for, so the screens step can warn before publishing.
+  const { data: screenAllowance } = useScreenAllowance(!!user);
 
   useEffect(() => {
     const saved = loadDraft();
@@ -126,8 +131,11 @@ const AddSpace = () => {
     }
 
     if (which === "screens") {
-      draft.screens.forEach(screen => {
-        if (!screen.name.trim()) e[`screen.${screen.id}.name`] = "Screen name is required";
+      draft.screens.forEach((screen, i) => {
+        // Earlier screens' names only, so the second of two duplicates is the one flagged.
+        const taken = draft.screens.slice(0, i).map(s => s.name);
+        const nameError = screenNameError(screen.name, taken);
+        if (nameError) e[`screen.${screen.id}.name`] = nameError;
         if (!screen.displayType) e[`screen.${screen.id}.displayType`] = "Pick a display type";
       });
     }
@@ -190,6 +198,9 @@ const AddSpace = () => {
       // Screens are created one by one because the space page lists them in creation order;
       // each screen's slots start as soon as it exists, without waiting on earlier screens.
       let screensFailed = 0;
+      // The backend says why a screen was refused (usually the plan's screen limit); show
+      // that rather than a bare count.
+      let screenError: string | null = null;
       const slotJobs: Promise<boolean>[] = [];
       for (const screen of toScreenRequests(draft)) {
         try {
@@ -202,8 +213,9 @@ const AddSpace = () => {
               api.post(`/api/spaces/${created.id}/screens/${createdScreen.id}/slots`, slot).then(() => true, () => false),
             );
           }
-        } catch {
+        } catch (err) {
           screensFailed += 1;
+          screenError ??= err instanceof Error ? err.message : null;
         }
       }
       const slotsFailed = (await Promise.all(slotJobs)).filter(ok => !ok).length;
@@ -212,7 +224,10 @@ const AddSpace = () => {
           screensFailed && `${screensFailed} screen(s)`,
           slotsFailed && `${slotsFailed} time slot(s)`,
         ].filter(Boolean).join(" and ");
-        toast.error(`Space published, but ${parts} failed to save. Add them from the space page.`);
+        toast.error(`Space published, but ${parts} failed to save.`, {
+          description: screenError ?? "Add them from the space page.",
+          duration: 10_000,
+        });
       }
 
       // Images need the space id, so they go up after creation. A failed upload
@@ -242,6 +257,7 @@ const AddSpace = () => {
 
       clearDraft();
       await queryClient.invalidateQueries({ queryKey: ["spaces-mine"] });
+      await queryClient.invalidateQueries({ queryKey: SCREEN_ALLOWANCE_KEY });
       toast.success("Space published");
       navigate(`/spaces/${created.id}`);
     } catch (err) {
@@ -303,6 +319,10 @@ const AddSpace = () => {
           {step === "screens" && (
             <StepScreens
               screens={draft.screens}
+              allowance={screenAllowance && {
+                allowance: screenAllowance.allowance,
+                left: screensLeft(screenAllowance),
+              }}
               errors={errors}
               onChange={setScreens}
               onBack={back}

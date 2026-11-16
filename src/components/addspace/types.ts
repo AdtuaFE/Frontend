@@ -177,6 +177,25 @@ export function slotMinutes(slot: TimeSlot): number {
   return end > start ? end - start : 24 * 60 - start + end;
 }
 
+/** Same limits the API enforces on a screen's label. */
+export const SCREEN_NAME_MIN = 2;
+export const SCREEN_NAME_MAX = 50;
+
+/**
+ * Why a screen name would be rejected, or null if it's fine. `taken` is every other name
+ * already used in the same space; names are compared ignoring case and surrounding spaces.
+ */
+export function screenNameError(name: string, taken: string[] = []): string | null {
+  const trimmed = name.trim();
+  if (!trimmed) return "Screen name is required";
+  if (trimmed.length < SCREEN_NAME_MIN) return `Use at least ${SCREEN_NAME_MIN} characters`;
+  if (trimmed.length > SCREEN_NAME_MAX) return `Keep it to ${SCREEN_NAME_MAX} characters or fewer`;
+  if (!/[\p{L}\p{N}]/u.test(trimmed)) return "Include at least one letter or number";
+  const key = trimmed.toLowerCase();
+  if (taken.some(t => t.trim().toLowerCase() === key)) return "This space already has a screen with this name";
+  return null;
+}
+
 /** A slot's name, or its position when left blank — as the form shows it. */
 export function slotLabel(slot: TimeSlot, index: number): string {
   return slot.name.trim() || `Time Slot ${index + 1}`;

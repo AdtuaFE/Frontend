@@ -9,6 +9,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ProfileModal } from "@/components/ProfileModal";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getPlanState, isPaid } from "@/lib/plans";
+import { useBilling } from "@/lib/billing";
 import { userRoles } from "@/lib/roles";
 import logo from "@/assets/adtua-logo.svg";
 
@@ -64,13 +65,17 @@ export function AppLayout({
   // Plan state comes from localStorage; read it once per user, not on every re-render
   // (the controlled search input re-renders this on each keystroke).
   const userId = user?.id;
+  // The broadcaster plan comes from real billing; the advertiser plan is still the local placeholder.
+  const { data: billing } = useBilling(isBroadcaster);
+  const broadcasterPaid = billing?.plan === "premium";
   const paidByRole = useMemo(
     () => userId == null
       ? []
-      : [isAdvertiser && "advertiser", isBroadcaster && "broadcaster"]
-          .filter((r): r is "advertiser" | "broadcaster" => !!r)
-          .map(r => isPaid(getPlanState(userId, r).tier)),
-    [userId, isAdvertiser, isBroadcaster],
+      : [
+          ...(isAdvertiser ? [isPaid(getPlanState(userId, "advertiser").tier)] : []),
+          ...(isBroadcaster ? [broadcasterPaid] : []),
+        ],
+    [userId, isAdvertiser, isBroadcaster, broadcasterPaid],
   );
   const hasAnyPaid = paidByRole.some(Boolean);
   const hasUnpaidRole = paidByRole.some(p => !p);

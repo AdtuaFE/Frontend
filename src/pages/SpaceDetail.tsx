@@ -20,6 +20,10 @@ import { toast } from "sonner";
 import { EditSpaceModal } from "@/components/EditSpaceModal";
 import { CreateBookingModal, type SpaceInfo } from "@/components/CreateBookingModal";
 import { ScreenPairingCode } from "@/components/ScreenPairingCode";
+import {
+  SCREEN_ALLOWANCE_KEY, isVisibleScreen, limitMessage, screenStatus, screensLeft, useScreenAllowance,
+  type BroadcasterScreen,
+} from "@/lib/screenAllowance";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -170,6 +174,11 @@ const SpaceDetail = () => {
   const [pendingDeactivateId, setPendingDeactivateId] = useState<string | null>(null);
   const [deactivating, setDeactivating] = useState(false);
 
+  // Screen state
+  const [pendingDeleteScreen, setPendingDeleteScreen] = useState<BroadcasterScreen | null>(null);
+  const [deletingScreen, setDeletingScreen] = useState(false);
+  const [defaultingScreenId, setDefaultingScreenId] = useState<number | null>(null);
+
   // ── Queries ────────────────────────────────────────────────────────────────
 
   const { data: space, isLoading, isError } = useQuery<Space>({
@@ -212,6 +221,13 @@ const SpaceDetail = () => {
     })),
   });
   const usageSlots: UsageSlot[] = usageQueries.flatMap(q => q.data?.slots ?? []);
+
+  // The owner's view of screens includes ones that are off (over the plan's limit, or the space
+  // is deactivated), which the public list above leaves out.
+  const { data: screenAllowance } = useScreenAllowance(isOwner);
+  const ownedScreens = (screenAllowance?.screens ?? [])
+    .filter(s => s.space_id === Number(id) && isVisibleScreen(s));
+  const screensLeftOnPlan = screenAllowance ? screensLeft(screenAllowance) : 0;
 
   const { data: devices = [] } = useQuery<Device[]>({
     queryKey: ["space-devices", Number(id)],
@@ -320,6 +336,44 @@ const SpaceDetail = () => {
       toast.error(err instanceof Error ? err.message : "Update failed");
     } finally {
       setSlotSaving(false);
+    }
+  };
+
+  const refreshScreens = () => Promise.all([
+    queryClient.invalidateQueries({ queryKey: ["space-screens", Number(id)] }),
+    queryClient.invalidateQueries({ queryKey: SCREEN_ALLOWANCE_KEY }),
+    queryClient.invalidateQueries({ queryKey: ["space-devices", Number(id)] }),
+  ]);
+
+  const handleDeleteScreen = async () => {
+    if (!space || !pendingDeleteScreen) return;
+    setDeletingScreen(true);
+    try {
+      await api.delete(`/api/spaces/${space.id}/screens/${pendingDeleteScreen.id}`);
+      await refreshScreens();
+      toast.success(`${pendingDeleteScreen.label} deleted`);
+    } catch (err) {
+      toast.error("Couldn't delete the screen", {
+        description: err instanceof Error ? err.message : undefined,
+      });
+    } finally {
+      setDeletingScreen(false);
+      setPendingDeleteScreen(null);
+    }
+  };
+
+  const handleMakeDefault = async (screen: BroadcasterScreen) => {
+    setDefaultingScreenId(screen.id);
+    try {
+      await api.put("/api/broadcaster/default-screen", { screen_id: screen.id });
+      await refreshScreens();
+      toast.success(`${screen.label} is now your default screen`);
+    } catch (err) {
+      toast.error("Couldn't change the default screen", {
+        description: err instanceof Error ? err.message : undefined,
+      });
+    } finally {
+      setDefaultingScreenId(null);
     }
   };
 
@@ -750,6 +804,83 @@ const SpaceDetail = () => {
           </div>
         )}
 
+        {/* ── Screens ─────────────────────────────────────────────────────────── */}
+        {isOwner && screenAllowance && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-semibold">Screens</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {screenAllowance.active_count} of {screenAllowance.allowance} running screen
+                  {screenAllowance.allowance === 1 ? "" : "s"} used across all your spaces
+                </p>
+              </div>
+              <Button size="sm" variant="outline" disabled={!space.is_active || screensLeftOnPlan === 0}
+                onClick={() => navigate(`/spaces/${space.id}/screens/new`)}>
+                <Plus className="h-4 w-4 mr-1" /> Add screen
+              </Button>
+            </div>
+
+            {!space.is_active ? (
+              <p className="text-xs text-muted-foreground">
+                This space is deactivated, so its screens are off. Reactivate it to add or run screens.
+              </p>
+            ) : screensLeftOnPlan === 0 && (
+              <p className="text-xs text-muted-foreground">
+                {limitMessage(screenAllowance.allowance)} Delete a screen or{" "}
+                <button className="font-semibold underline" onClick={() => navigate("/settings?tab=plans")}>
+                  upgrade
+                </button>{" "}
+                to add another.
+              </p>
+            )}
+
+            {ownedScreens.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No screens in this space yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {ownedScreens.map(screen => {
+                  const status = screenStatus(screen);
+                  return (
+                    <div key={screen.id}
+                      className="rounded-xl border bg-card p-4 flex items-center justify-between gap-4">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-medium truncate">{screen.label}</span>
+                          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                            status.tone === "default"
+                              ? "bg-[rgba(58,71,194,0.1)] text-[#3a47c2]"
+                              : status.tone === "running"
+                                ? "bg-green-100 text-green-700"
+                                : "bg-muted text-muted-foreground"
+                          }`}>
+                            {status.label}
+                          </span>
+                        </div>
+                        {status.hint && <p className="text-xs text-muted-foreground mt-0.5">{status.hint}</p>}
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {!screen.is_default && screen.deactivated_reason !== "space" && (
+                          <Button variant="outline" size="sm" disabled={defaultingScreenId === screen.id}
+                            onClick={() => handleMakeDefault(screen)}>
+                            <Star className="h-4 w-4 mr-1" />
+                            {defaultingScreenId === screen.id ? "Saving…" : "Make default"}
+                          </Button>
+                        )}
+                        <Button variant="outline" size="sm"
+                          className="text-red-600 hover:text-red-700 hover:border-red-300"
+                          onClick={() => setPendingDeleteScreen(screen)}>
+                          <Trash2 className="h-4 w-4 mr-1" /> Delete
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ── Screen devices ──────────────────────────────────────────────────── */}
         {isOwner && (
           <div className="space-y-4">
@@ -870,6 +1001,28 @@ const SpaceDetail = () => {
             <AlertDialogAction onClick={handleDeleteImage}
               className="bg-red-600 text-white hover:bg-red-700">
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete screen */}
+      <AlertDialog open={!!pendingDeleteScreen}
+        onOpenChange={open => { if (!open) setPendingDeleteScreen(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete "{pendingDeleteScreen?.label}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The screen stops playing and no longer counts toward your plan's screen limit. Its time
+              slots, paired devices and booking history are kept.
+              {pendingDeleteScreen?.is_default && " It's your default screen, so your next screen becomes the default."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep screen</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteScreen} disabled={deletingScreen}
+              className="bg-red-600 text-white hover:bg-red-700">
+              {deletingScreen ? "Deleting…" : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { emptyDraft, emptyScreen, slotErrors, toScreenRequests, type SpaceDraft, type TimeSlot } from "./types";
+import { emptyDraft, emptyScreen, screenNameError, slotErrors, toScreenRequests, type SpaceDraft, type TimeSlot } from "./types";
 
 function draftWith(screens: SpaceDraft["screens"]): SpaceDraft {
   return { ...emptyDraft(), screens };
@@ -121,5 +121,31 @@ describe("slotErrors", () => {
       slot("d", { startTime: "11:00", endTime: "12:00" }),
     ]);
     expect(errors).toEqual({ "slot.d.time": "Mon already has 3 time slots" });
+  });
+});
+
+describe("screenNameError", () => {
+  it("accepts a normal name", () => {
+    expect(screenNameError("Lobby screen")).toBeNull();
+  });
+
+  it("requires a name", () => {
+    expect(screenNameError("   ")).toMatch(/required/);
+  });
+
+  it("enforces the length limits on the trimmed name", () => {
+    expect(screenNameError(" A ")).toMatch(/at least 2/);
+    expect(screenNameError("x".repeat(51))).toMatch(/50 characters/);
+    expect(screenNameError(`  ${"x".repeat(50)}  `)).toBeNull();
+  });
+
+  it("needs a letter or number", () => {
+    expect(screenNameError("---")).toMatch(/letter or number/);
+    expect(screenNameError("Écran 2")).toBeNull();
+  });
+
+  it("rejects a name already used in the space, ignoring case and spaces", () => {
+    expect(screenNameError(" lobby ", ["Lobby"])).toMatch(/already has/);
+    expect(screenNameError("Lobby 2", ["Lobby"])).toBeNull();
   });
 });

@@ -16,6 +16,7 @@ import Dashboard from "./pages/Dashboard";
 import Browse from "./pages/Browse";
 import MySpaces from "./pages/MySpaces";
 import AddSpace from "./pages/AddSpace";
+import AddScreen from "./pages/AddScreen";
 import Campaigns from "./pages/Campaigns";
 import CampaignForm from "./pages/CampaignForm";
 import CampaignRoute from "./pages/CampaignPage";
@@ -55,6 +56,7 @@ const App = () => (
             <Route path="/bookings/:id" element={<ProtectedRoute><BookingDetail /></ProtectedRoute>} />
             <Route path="/spaces/new" element={<ProtectedRoute requiredRole="broadcaster"><AddSpace /></ProtectedRoute>} />
             <Route path="/spaces/:id" element={<ProtectedRoute><SpaceDetail /></ProtectedRoute>} />
+            <Route path="/spaces/:id/screens/new" element={<ProtectedRoute requiredRole="broadcaster"><AddScreen /></ProtectedRoute>} />
             <Route
               path="/campaigns"
               element={<ProtectedRoute requiredRole="advertiser"><Campaigns /></ProtectedRoute>}

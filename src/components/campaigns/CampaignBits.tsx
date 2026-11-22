@@ -1,7 +1,7 @@
 import { forwardRef, type ComponentType, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
-  Archive, Check, ChevronLeft, Clock, Inbox, Info, Pause, Pencil, Play, CalendarClock, type LucideProps,
+  Archive, Bell, CalendarCheck, ChevronRight, CircleCheck, CircleX, Clock, OctagonAlert, Pause, Pencil, Play, TimerOff, TriangleAlert, type LucideProps,
 } from "lucide-react";
 import { Button, type ButtonProps } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -12,11 +12,11 @@ import type { CampaignStatus, RowStatus } from "./campaignData";
 type Tone = "green" | "neutral" | "indigo" | "amber" | "red";
 
 const TONE: Record<Tone, string> = {
-  green: "bg-[#edfaf0] text-[#016d36]",
-  neutral: "bg-[#f1f2f7] text-[#4a4d56]",
-  indigo: "bg-[#f2f5ff] text-[#3a47c2]",
-  amber: "bg-[#fef4e8] text-[#7c5003]",
-  red: "bg-[#fef3f1] text-[#aa0f16]",
+  green: "bg-surface-success text-text-success",
+  neutral: "bg-surface-muted text-text-secondary",
+  indigo: "bg-surface-brand-subtle text-text-brand",
+  amber: "bg-surface-warning text-text-warning",
+  red: "bg-surface-danger text-text-danger",
 };
 
 export function Badge({ tone, icon: Icon, children }: { tone: Tone; icon: ComponentType<LucideProps>; children: ReactNode }) {
@@ -32,7 +32,7 @@ const CAMPAIGN_BADGE: Record<CampaignStatus, { tone: Tone; icon: ComponentType<L
   active: { tone: "green", icon: Play, label: "Active" },
   draft: { tone: "neutral", icon: Pencil, label: "Draft" },
   paused: { tone: "amber", icon: Pause, label: "Paused" },
-  completed: { tone: "indigo", icon: Check, label: "Completed" },
+  completed: { tone: "neutral", icon: CircleCheck, label: "Completed" },
   archived: { tone: "neutral", icon: Archive, label: "Archived" },
 };
 
@@ -42,17 +42,51 @@ export function CampaignStatusBadge({ status }: { status: CampaignStatus }) {
 }
 
 const ROW_BADGE: Record<RowStatus, { tone: Tone; icon: ComponentType<LucideProps>; label: string }> = {
-  not_approved: { tone: "red", icon: Info, label: "Not approved" },
-  new_offer: { tone: "indigo", icon: Inbox, label: "New offer" },
-  pending: { tone: "amber", icon: Clock, label: "Pending" },
+  new_offer: { tone: "indigo", icon: Bell, label: "New offer" },
+  pending: { tone: "amber", icon: Clock, label: "Waiting" },
+  scheduled: { tone: "neutral", icon: CalendarCheck, label: "Scheduled" },
   playing: { tone: "green", icon: Play, label: "Playing" },
-  scheduled: { tone: "indigo", icon: CalendarClock, label: "Scheduled" },
-  done: { tone: "neutral", icon: Check, label: "Finished" },
+  done: { tone: "neutral", icon: CircleCheck, label: "Completed" },
+  declined: { tone: "red", icon: CircleX, label: "Declined" },
+  expired: { tone: "neutral", icon: TimerOff, label: "Expired" },
 };
 
 export function RowStatusBadge({ status }: { status: RowStatus }) {
   const b = ROW_BADGE[status];
   return <Badge tone={b.tone} icon={b.icon}>{b.label}</Badge>;
+}
+
+/* ---------- plain status text (no pill): colored icon and word ---------- */
+
+const TEXT_TONE: Record<Tone, string> = {
+  green: "text-[#016D36]",
+  neutral: "text-[#4A4D56]",
+  indigo: "text-[#3A47C2]",
+  amber: "text-[#7C5003]",
+  red: "text-[#AA0F16]",
+};
+
+function StatusText({ tone, icon: Icon, size, children }: {
+  tone: Tone; icon: ComponentType<LucideProps>; size: "md" | "sm"; children: ReactNode;
+}) {
+  return (
+    <span className={cn("inline-flex shrink-0 items-center gap-1 font-medium", size === "md" ? "text-sm" : "text-xs", TEXT_TONE[tone])}>
+      <Icon className="size-4 shrink-0" aria-hidden="true" />
+      {children}
+    </span>
+  );
+}
+
+/** Campaign status as plain text: next to the title (14px) and in the campaigns list. */
+export function CampaignStatusText({ status }: { status: CampaignStatus }) {
+  const b = CAMPAIGN_BADGE[status] ?? CAMPAIGN_BADGE.draft;
+  return <StatusText tone={b.tone} icon={b.icon} size="md">{b.label}</StatusText>;
+}
+
+/** Booking row status as plain text (12px). */
+export function RowStatusText({ status }: { status: RowStatus }) {
+  const b = ROW_BADGE[status];
+  return <StatusText tone={b.tone} icon={b.icon} size="sm">{b.label}</StatusText>;
 }
 
 /* ---------- alerts ---------- */
@@ -63,16 +97,17 @@ export function Alert({ tone, title, children, action }: {
   children: ReactNode;
   action?: ReactNode;
 }) {
+  const Icon = tone === "error" ? OctagonAlert : TriangleAlert;
   return (
     <div
       role={tone === "error" ? "alert" : "status"}
       className={cn(
-        "grid w-full grid-cols-[20px_minmax(0,1fr)] gap-3 rounded-xl border-[0.8px] bg-[#fef3f1] p-4",
-        tone === "error" ? "border-[#c92324]" : "border-[#976205]",
+        "grid w-full grid-cols-[20px_minmax(0,1fr)] gap-3 rounded-xl p-4",
+        tone === "error" ? "bg-surface-danger" : "bg-surface-warning",
       )}>
-      <Info className={cn("mt-0.5 size-5", tone === "error" ? "text-[#aa0f16]" : "text-[#7c5003]")} aria-hidden="true" />
+      <Icon className={cn("mt-0.5 size-5", tone === "error" ? "text-text-danger" : "text-text-warning")} aria-hidden="true" />
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1 text-[#1a1d25]">
+        <div className="flex flex-col gap-1 text-text-primary">
           <p className="text-base font-semibold leading-6">{title}</p>
           <p className="text-sm leading-5">{children}</p>
         </div>
@@ -84,12 +119,15 @@ export function Alert({ tone, title, children, action }: {
 
 /* ---------- layout pieces ---------- */
 
-export function Breadcrumb({ current }: { current: string }) {
+export function Breadcrumb({ current, parent }: { current: string; parent?: { label: string; to: string } }) {
+  const sep = <ChevronRight className="size-3.5 shrink-0 text-text-tertiary" aria-hidden="true" />;
+  const link = "truncate text-text-tertiary transition-colors hover:text-text-brand";
   return (
     <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-sm">
-      <Link to="/campaigns" className="text-[#656972] transition-colors hover:text-[#3a47c2]">Campaigns</Link>
-      <ChevronLeft className="size-3.5 text-[#656972]" aria-hidden="true" />
-      <span className="truncate font-medium text-[#1a1d25]">{current}</span>
+      <Link to="/campaigns" className={link}>Campaigns</Link>
+      {parent && (<>{sep}<Link to={parent.to} className={link}>{parent.label}</Link></>)}
+      {sep}
+      <span className="truncate font-medium text-text-primary">{current}</span>
     </nav>
   );
 }
@@ -109,9 +147,9 @@ export const CampaignButton = forwardRef<HTMLButtonElement, CampaignButtonProps>
       className={cn(
         "flex gap-1.5 rounded-lg border-[0.8px] font-medium shadow-none [&_svg]:size-4",
         size === "sm" ? "h-8 pl-[10.8px] pr-[12.8px] text-[13px]" : "h-10 pl-[14.8px] pr-[16.8px] text-sm",
-        variant === "primary" && "border-transparent bg-[#3a47c2] text-white hover:bg-[#2f3a9e]",
-        variant === "secondary" && "border-[#d2d4d9] bg-white text-[#1a1d25] hover:bg-[#f8faff] hover:text-[#1a1d25]",
-        variant === "danger" && "border-transparent bg-[#c92324] text-white hover:bg-[#a81d1e]",
+        variant === "primary" && "border-transparent bg-text-brand text-white hover:bg-[#2f3a9e]",
+        variant === "secondary" && "border-[#d2d4d9] bg-white text-text-primary hover:bg-surface-subtle hover:text-text-primary",
+        variant === "danger" && "border-transparent bg-border-danger text-white hover:bg-[#a81d1e]",
         className,
       )}
       {...props}

@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ChevronRight, Ellipsis, Globe, Lock, Pause, Pencil, Play, Search } from "lucide-react";
+import { ChevronRight, Ellipsis, Globe, Lock, Pause, Pencil, Play, Rocket, Search, Trash2 } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -11,10 +11,10 @@ import {
 import {
   AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Alert, Breadcrumb, CampaignButton, CampaignStatusBadge, RowStatusBadge } from "@/components/campaigns/CampaignBits";
+import { Alert, Breadcrumb, CampaignButton, CampaignStatusText, RowStatusText } from "@/components/campaigns/CampaignBits";
 import { campaignToast } from "@/components/campaigns/campaignToast";
 import {
-  campaignMoney, campaignRows, fmtMoney, fmtRange, scheduleNote, spotsPerDay,
+  campaignMoney, campaignRows, fmtCampaignMoney, fmtRange, scheduleNote, spotsPerDay,
   type Booking, type Campaign, type CampaignRow, type CampaignStatus, type Money, type Offer,
 } from "@/components/campaigns/campaignData";
 import { useAuth } from "@/context/AuthContext";
@@ -35,7 +35,7 @@ export default function CampaignRoute() {
   if (isLoading) {
     return (
       <AppLayout activeNav="campaigns">
-        <p className="py-40 text-center text-sm text-[#656972]">Loading campaign…</p>
+        <p className="py-40 text-center text-sm text-text-tertiary">Loading campaign…</p>
       </AppLayout>
     );
   }
@@ -43,82 +43,72 @@ export default function CampaignRoute() {
   return <CampaignDetail />;
 }
 
-function SpendCard({ budget, money, note, hasActivity }: { budget: number; money: Money; note: string; hasActivity: boolean }) {
+function Amount({ value }: { value: number }) {
+  const [whole, cents] = fmtCampaignMoney(value).split(".");
+  return (
+    <span className="tabular-nums">
+      {whole}<span className="align-top text-base leading-6">.{cents}</span>
+    </span>
+  );
+}
+
+function SpendCard({ budget, money, note, completed }: { budget: number; money: Money; note: string; completed: boolean }) {
   const pct = (n: number) => `${budget > 0 ? Math.min(100, (n / budget) * 100) : 0}%`;
   const legend = [
-    { key: "spent", label: "Spent", value: money.spent, sub: "Plays that already ran", dot: "bg-[#232c7b]" },
-    { key: "booked", label: "Booked", value: money.booked, sub: "Accepted, still to play", dot: "bg-[#3a47c2]" },
-    { key: "waiting", label: "Waiting", value: money.waiting, sub: "Held until broadcasters answer", dot: "bg-[#cad6fe]" },
-    { key: "left", label: "Left to spend", value: money.left, sub: "Ready for new bookings", dot: "bg-[#f1f2f7] ring-1 ring-inset ring-[#d2d4d9]" },
+    { key: "spent", label: "Spent", value: money.spent, sub: "Plays that already ran", dot: "bg-budget-spent" },
+    { key: "booked", label: "Booked", value: money.booked, sub: "Accepted, still to play", dot: "bg-budget-booked" },
+    { key: "waiting", label: "On hold", value: money.waiting, sub: "Held until broadcasters answer", dot: "bg-budget-hold" },
+    { key: "left", label: "Left to spend", value: money.left, sub: "Ready for new bookings", dot: "bg-budget-left ring-1 ring-inset ring-[#d2d4d9]" },
   ];
   return (
-    <section className="flex w-full flex-col gap-5 rounded-xl border-[0.8px] border-[#e3e5ea] bg-white p-6">
+    <section className="flex w-full flex-col gap-5 rounded-xl border-[0.8px] border-border-default bg-white p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex flex-col gap-2">
-          <p className="text-[13px] font-medium leading-[18px] text-[#656972]">Left to spend</p>
+          <p className="text-[13px] font-medium leading-[18px] text-text-tertiary">{completed ? "Spent" : "Left to spend"}</p>
           <p className="flex items-end gap-1.5">
-            <span className="text-[32px] font-semibold leading-10 tracking-[-0.64px] text-[#1a1d25]">{fmtMoney(Math.round(money.left))}</span>
-            <span className="pb-1 text-base leading-6 text-[#656972]">of {fmtMoney(budget)}</span>
+            <span className="text-[32px] font-semibold leading-10 tracking-[-0.64px] text-text-primary">
+              <Amount value={completed ? money.spent : money.left} />
+            </span>
+            <span className="pb-1 text-base leading-6 tabular-nums text-text-tertiary">of {fmtCampaignMoney(budget)} budget</span>
           </p>
         </div>
-        <p className="max-w-[364px] text-right text-[13px] leading-[18px] text-[#4a4d56]">{note}</p>
+        <p className="max-w-[364px] text-right text-[13px] leading-[18px] text-text-secondary">{note}</p>
       </div>
-      <div className="flex h-2.5 w-full gap-0.5 overflow-hidden rounded-[5px] bg-[#f1f2f7]" aria-hidden="true">
-        {money.spent > 0 && <div className="h-full bg-[#232c7b]" style={{ width: pct(money.spent) }} />}
-        {money.booked > 0 && <div className="h-full bg-[#3a47c2]" style={{ width: pct(money.booked) }} />}
-        {money.waiting > 0 && <div className="h-full bg-[#cad6fe]" style={{ width: pct(money.waiting) }} />}
+      <div className="flex h-3 w-full overflow-hidden rounded-md bg-budget-left" aria-hidden="true">
+        {money.spent > 0 && <div className="h-full bg-budget-spent" style={{ width: pct(money.spent) }} />}
+        {money.booked > 0 && <div className="h-full bg-budget-booked" style={{ width: pct(money.booked) }} />}
+        {money.waiting > 0 && <div className="h-full bg-budget-hold" style={{ width: pct(money.waiting) }} />}
       </div>
-      {hasActivity && (
-        <dl className="grid grid-cols-2 gap-x-8 gap-y-4 md:grid-cols-4">
-          {legend.map(l => (
-            <div key={l.key} className="flex flex-col gap-1">
-              <dt className="flex items-center gap-2 text-[13px] leading-[18px] text-[#4a4d56]">
-                <span className={`size-2.5 rounded-[3px] ${l.dot}`} aria-hidden="true" />{l.label}
-              </dt>
-              <dd className="pl-[18px] text-base font-semibold leading-6 text-[#1a1d25]">{fmtMoney(Math.round(l.value))}</dd>
-              <dd className="pl-[18px] text-[13px] leading-[18px] text-[#656972]">{l.sub}</dd>
-            </div>
-          ))}
-        </dl>
-      )}
+      <dl className="grid grid-cols-2 gap-x-8 gap-y-4 md:grid-cols-4">
+        {legend.map(l => (
+          <div key={l.key} className="flex flex-col gap-1">
+            <dt className="flex items-center gap-2 text-[13px] leading-[18px] text-text-secondary">
+              <span className={`size-2.5 rounded-[3px] ${l.dot}`} aria-hidden="true" />{l.label}
+            </dt>
+            <dd className="pl-[18px] text-base font-semibold leading-6 tabular-nums text-text-primary">{fmtCampaignMoney(l.value)}</dd>
+            <dd className="pl-[18px] text-[13px] leading-[18px] text-text-tertiary">{l.sub}</dd>
+          </div>
+        ))}
+      </dl>
     </section>
   );
 }
 
-const STEPS = [
-  { title: "Find a space that fits", text: "Search the map. Your dates are already filled in." },
-  { title: "Pick slots and plays a day", text: "Each slot has a price per day set by the broadcaster." },
-  { title: "Add your ad and send the request", text: "Broadcasters have 48 hours to answer. If they don't, the money goes back to your wallet." },
-];
-
-function FirstScreen({ onFind }: { onFind: () => void }) {
+function NoBookings({ onFind }: { onFind: () => void }) {
   return (
-    <div className="flex max-w-[620px] flex-col gap-8 pt-2">
-      <div className="flex flex-col gap-2">
-        <h2 className="text-xl font-semibold leading-7 text-[#1a1d25]">Book your first screen</h2>
-        <p className="text-base leading-6 text-[#4a4d56]">Pick screens and send requests. Nothing plays until a broadcaster has seen your ad and said yes.</p>
+    <div className="flex w-full flex-col items-center gap-4 rounded-xl border-[0.8px] border-border-default bg-white px-6 py-12 text-center">
+      <div className="flex max-w-[420px] flex-col gap-1">
+        <h3 className="text-base font-semibold leading-6 text-text-primary">No bookings yet</h3>
+        <p className="text-sm leading-5 text-text-tertiary">Find screens near your location and send your first booking request. You need an ad first.</p>
       </div>
-      <ol className="flex flex-col gap-4">
-        {STEPS.map((s, i) => (
-          <li key={s.title} className="grid grid-cols-[28px_minmax(0,1fr)] gap-3">
-            <span className="mt-0.5 grid size-7 place-items-center rounded-full bg-[#f2f5ff] text-[13px] font-semibold leading-[18px] text-[#3a47c2]">{i + 1}</span>
-            <span className="flex flex-col">
-              <span className="pt-1 text-sm font-medium leading-5 text-[#1a1d25]">{s.title}</span>
-              <span className="pt-0.5 text-[13px] leading-[18px] text-[#656972]">{s.text}</span>
-            </span>
-          </li>
-        ))}
-      </ol>
-      <div>
-        <CampaignButton size="md" variant="primary" onClick={onFind}><Search aria-hidden="true" />Find screens</CampaignButton>
-      </div>
+      <CampaignButton onClick={onFind}><Search aria-hidden="true" />Find screens</CampaignButton>
     </div>
   );
 }
 
 const COLS = "grid-cols-[minmax(0,1fr)_173px_143px_103px_69px_48px]";
-const headCn = "flex items-center bg-[#f8faff] px-4 py-2.5 text-[13px] font-medium leading-[18px] text-[#656972]";
-const cellCn = "flex items-center px-4 py-3.5 text-sm leading-5 text-[#1a1d25]";
+const headCn = "flex items-center bg-surface-subtle px-4 py-2.5 text-xs font-medium leading-[18px] text-text-tertiary";
+const cellCn = "flex items-center px-4 py-3.5 text-sm leading-5 text-text-primary";
 
 function RowsTable({ campaign, rows, place, onOpen }: {
   campaign: Campaign;
@@ -127,26 +117,25 @@ function RowsTable({ campaign, rows, place, onOpen }: {
   onOpen: (row: CampaignRow) => void;
 }) {
   const groups = [
-    { key: "needs", label: "Needs you", rows: rows.needs, loud: true },
-    { key: "waiting", label: "Waiting on broadcasters", rows: rows.waiting, loud: false },
-    { key: "booked", label: "Booked", rows: rows.booked, loud: false },
+    { key: "needs", label: "Action required", rows: rows.needs },
+    { key: "waiting", label: "Waiting on broadcasters", rows: rows.waiting },
+    { key: "booked", label: "Booked", rows: rows.booked },
+    { key: "ended", label: "Ended", rows: rows.ended },
   ].filter(g => g.rows.length > 0);
 
   return (
-    <div className="w-full self-start overflow-x-auto rounded-xl border-[0.8px] border-[#e3e5ea] bg-white">
+    <div className="w-full self-start overflow-x-auto rounded-xl border-[0.8px] border-border-default bg-white">
       <div role="table" aria-label="Screens in this campaign" className="min-w-[640px]">
-        <div role="row" className={`grid ${COLS} border-b-[0.8px] border-[#e3e5ea]`}>
+        <div role="row" className={`grid ${COLS} border-b-[0.8px] border-border-default`}>
           {["Screen", "Status", "Dates"].map(h => <div key={h} role="columnheader" className={headCn}>{h}</div>)}
-          {["Spots a day", "Total"].map(h => <div key={h} role="columnheader" className={`${headCn} justify-end`}>{h}</div>)}
+          {["Spots a day", "Amount"].map(h => <div key={h} role="columnheader" className={`${headCn} justify-end`}>{h}</div>)}
           <div role="columnheader" className={headCn}><span className="sr-only">Open</span></div>
         </div>
         {groups.map(g => (
           <div key={g.key} role="rowgroup">
-            <div role="row" className="flex items-center gap-2 border-b-[0.8px] border-[#e3e5ea] bg-[#f8faff] px-4 py-2 text-[13px] leading-[18px]">
-              <span role="cell" className="font-medium text-[#4a4d56]">{g.label}</span>
-              {g.loud
-                ? <span className="grid h-5 min-w-5 place-items-center rounded-full bg-[#3a47c2] px-1.5 text-xs font-medium leading-4 text-white">{g.rows.length}</span>
-                : <span className="text-[#656972]">{g.rows.length}</span>}
+            <div role="row" className="flex items-center gap-2 border-b-[0.8px] border-border-default bg-surface-subtle px-4 py-2 text-[13px] leading-[18px]">
+              <span role="cell" className="font-medium text-text-secondary">{g.label}</span>
+              <span className="grid h-5 min-w-5 place-items-center rounded-full bg-surface-muted px-1.5 text-xs font-medium tabular-nums text-text-secondary">{g.rows.length}</span>
             </div>
             {g.rows.map(row => {
               const isOffer = row.kind === "offer";
@@ -159,18 +148,18 @@ function RowsTable({ campaign, rows, place, onOpen }: {
                   type="button"
                   role="row"
                   onClick={() => onOpen(row)}
-                  className={`grid w-full ${COLS} border-b-[0.8px] border-[#f1f2f7] text-left transition-colors last:border-b-0 hover:bg-[#f8faff]`}>
+                  className={`grid w-full ${COLS} border-b-[0.8px] border-border-subtle text-left transition-colors last:border-b-0 hover:bg-surface-subtle`}>
                   <span role="cell" className="flex min-w-0 flex-col justify-center px-4 py-3.5">
-                    <span className="truncate text-sm font-medium leading-5 text-[#1a1d25]">{label}</span>
-                    <span className="truncate pt-0.5 text-[13px] leading-[18px] text-[#656972]">{sub}</span>
+                    <span className="truncate text-sm font-medium leading-5 text-text-primary">{label}</span>
+                    <span className="truncate pt-0.5 text-[13px] leading-[18px] text-text-tertiary">{sub}</span>
                   </span>
-                  <span role="cell" className={cellCn}><RowStatusBadge status={row.status} /></span>
+                  <span role="cell" className={cellCn}><RowStatusText status={row.status} /></span>
                   <span role="cell" className={cellCn}>
                     {isOffer ? fmtRange(campaign.start_date, campaign.end_date) : fmtRange(row.booking.start_date, row.booking.end_date)}
                   </span>
                   <span role="cell" className={`${cellCn} justify-end`}>{isOffer ? "—" : spotsPerDay(row.booking) || "—"}</span>
-                  <span role="cell" className={`${cellCn} justify-end`}>{isOffer ? "—" : fmtMoney(Number(row.booking.total_price))}</span>
-                  <span role="cell" className="flex items-center justify-center"><ChevronRight className="size-4 text-[#656972]" aria-hidden="true" /></span>
+                  <span role="cell" className={`${cellCn} justify-end tabular-nums`}>{isOffer ? "—" : fmtCampaignMoney(Number(row.booking.total_price))}</span>
+                  <span role="cell" className="flex items-center justify-center"><ChevronRight className="size-4 text-text-tertiary" aria-hidden="true" /></span>
                 </button>
               );
             })}
@@ -184,10 +173,10 @@ function RowsTable({ campaign, rows, place, onOpen }: {
 function Detail({ term, children, aside }: { term: string; children: ReactNode; aside?: ReactNode }) {
   return (
     <div className="flex flex-col gap-1">
-      <dt className="text-[13px] leading-[18px] text-[#656972]">{term}</dt>
-      <dd className="flex items-center justify-between gap-3 text-sm leading-5 text-[#1a1d25]">
+      <dt className="text-[13px] leading-[18px] text-text-tertiary">{term}</dt>
+      <dd className="flex items-center justify-between gap-3 text-sm leading-5 text-text-primary">
         <span>{children}</span>
-        {aside && <span className="text-[13px] leading-[18px] text-[#656972]">{aside}</span>}
+        {aside && <span className="text-[13px] leading-[18px] text-text-tertiary">{aside}</span>}
       </dd>
     </div>
   );
@@ -228,7 +217,7 @@ function CampaignPage({ campaign }: { campaign: Campaign }) {
   const budget = Number(campaign.total_budget);
   const money = campaignMoney(budget, bookings);
   const rows = campaignRows(bookings, offers);
-  const hasRows = rows.needs.length + rows.waiting.length + rows.booked.length > 0;
+  const hasRows = rows.needs.length + rows.waiting.length + rows.booked.length + rows.ended.length > 0;
   const { place } = useBookingPlaces(bookings);
   const isPublic = campaign.visibility !== "private";
 
@@ -282,8 +271,8 @@ function CampaignPage({ campaign }: { campaign: Campaign }) {
   const note = !hasRows
     ? "Requests hold money from your wallet until the broadcaster answers."
     : isPublic
-      ? `Offers from broadcasters can't go over ${fmtMoney(Math.round(money.left))}.`
-      : `New requests can't go over ${fmtMoney(Math.round(money.left))}.`;
+      ? `Offers from broadcasters can't go over ${fmtCampaignMoney(money.left)}.`
+      : `New requests can't go over ${fmtCampaignMoney(money.left)}.`;
   const outOfBudget = budget > 0 && money.left <= 0 && (campaign.status === "active" || campaign.status === "paused");
 
   return (
@@ -293,8 +282,8 @@ function CampaignPage({ campaign }: { campaign: Campaign }) {
 
         <div className="flex min-h-10 flex-wrap items-center gap-4">
           <div className="flex min-w-0 flex-1 items-center gap-3">
-            <h1 className="truncate text-2xl font-semibold text-[#1a1d25]">{campaign.name}</h1>
-            <CampaignStatusBadge status={campaign.status} />
+            <h1 className="truncate text-2xl font-semibold text-text-primary">{campaign.name}</h1>
+            <CampaignStatusText status={campaign.status} />
           </div>
           <div className="flex items-center gap-3">
             {campaign.status === "active" && (
@@ -307,16 +296,16 @@ function CampaignPage({ campaign }: { campaign: Campaign }) {
               <CampaignButton variant="primary" onClick={findScreens}><Search aria-hidden="true" />Find screens</CampaignButton>
             )}
             {campaign.status === "paused" && (
-              <CampaignButton variant="primary" disabled={busy} onClick={() => setStatus("active", "Campaign resumed", "paused")}><Play aria-hidden="true" />Resume</CampaignButton>
+              <CampaignButton variant="primary" disabled={busy} onClick={() => setStatus("active", "Campaign resumed", "paused")}><Play aria-hidden="true" />Resume campaign</CampaignButton>
             )}
             {campaign.status === "draft" && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <CampaignButton aria-label="More actions" className="size-8 px-0"><Ellipsis aria-hidden="true" /></CampaignButton>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onSelect={() => setStatus("active", "Campaign is live")}>Make it live</DropdownMenuItem>
-                  <DropdownMenuItem className="text-[#c92324] focus:text-[#c92324]" onSelect={() => setConfirmDelete(true)}>Delete campaign</DropdownMenuItem>
+                <DropdownMenuContent align="end" className="w-52">
+                  <DropdownMenuItem className="gap-2" onSelect={() => setStatus("active", "Campaign is live")}><Rocket className="size-4" aria-hidden="true" />Make it live</DropdownMenuItem>
+                  <DropdownMenuItem className="gap-2 text-text-danger focus:text-text-danger" onSelect={() => setConfirmDelete(true)}><Trash2 className="size-4" aria-hidden="true" />Delete campaign</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
@@ -335,15 +324,21 @@ function CampaignPage({ campaign }: { campaign: Campaign }) {
           </Alert>
         )}
 
-        <SpendCard budget={budget} money={money} note={note} hasActivity={hasRows} />
+        <section className="flex flex-col gap-3">
+          <h2 className="text-base font-semibold leading-6 text-text-primary">Budget</h2>
+          <SpendCard budget={budget} money={money} note={note} completed={campaign.status === "completed"} />
+        </section>
 
         <div className="grid w-full grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1fr)_300px]">
-          {hasRows
-            ? <RowsTable campaign={campaign} rows={rows} place={place} onOpen={row => (row.kind === "offer" ? setOpenOffer(row.offer) : navigate(`/bookings/${row.booking.id}`))} />
-            : <FirstScreen onFind={findScreens} />}
+          <section className="flex min-w-0 flex-col gap-3">
+            <h2 className="text-base font-semibold leading-6 text-text-primary">Bookings</h2>
+            {hasRows
+              ? <RowsTable campaign={campaign} rows={rows} place={place} onOpen={row => (row.kind === "offer" ? setOpenOffer(row.offer) : navigate(`/bookings/${row.booking.id}`))} />
+              : <NoBookings onFind={findScreens} />}
+          </section>
 
-          <aside className="flex flex-col gap-5 self-start rounded-xl bg-[#f8faff] p-5">
-            <h2 className="text-base font-semibold leading-6 text-[#1a1d25]">Details</h2>
+          <aside className="flex flex-col gap-5 self-start rounded-xl bg-surface-subtle p-5">
+            <h2 className="text-base font-semibold leading-6 text-text-primary">Details</h2>
             <dl className="flex flex-col gap-4">
               <Detail term="Dates" aside={scheduleNote(campaign.start_date, campaign.end_date)}>
                 {fmtRange(campaign.start_date, campaign.end_date, true)}
@@ -352,16 +347,16 @@ function CampaignPage({ campaign }: { campaign: Campaign }) {
               <Detail term="Ad">{campaign.ad_type === "video" ? "Video" : "Image"}</Detail>
               {campaign.objective && <Detail term="Description">{campaign.objective}</Detail>}
             </dl>
-            <div className="flex flex-col gap-2.5 border-t-[0.8px] border-[#e3e5ea] pt-4">
+            <div className="flex flex-col gap-2.5 border-t-[0.8px] border-border-default pt-4">
               <div className="flex items-center justify-between">
-                <label htmlFor="c-visibility" className="flex items-center gap-2 text-sm font-medium leading-5 text-[#1a1d25]">
+                <label htmlFor="c-visibility" className="flex items-center gap-2 text-sm font-medium leading-5 text-text-primary">
                   {isPublic ? <Globe className="size-4" aria-hidden="true" /> : <Lock className="size-4" aria-hidden="true" />}
                   {isPublic ? "Public" : "Private"}
                 </label>
                 <Switch id="c-visibility" checked={isPublic} onCheckedChange={on => setVisibility(on ? "public" : "private")}
                   className="data-[state=checked]:bg-[#3a47c2]" />
               </div>
-              <p className="text-[13px] leading-[18px] text-[#4a4d56]">{visibilityNote(campaign)}</p>
+              <p className="text-[13px] leading-[18px] text-text-secondary">{visibilityNote(campaign)}</p>
             </div>
           </aside>
         </div>
@@ -370,8 +365,8 @@ function CampaignPage({ campaign }: { campaign: Campaign }) {
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialogContent className="max-w-[440px] gap-2 rounded-xl p-6">
           <AlertDialogHeader className="space-y-2 text-left">
-            <AlertDialogTitle className="text-xl font-semibold leading-7 text-[#1a1d25]">Delete {campaign.name}?</AlertDialogTitle>
-            <AlertDialogDescription className="text-sm leading-5 text-[#4a4d56]">
+            <AlertDialogTitle className="text-xl font-semibold leading-7 text-text-primary">Delete {campaign.name}?</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm leading-5 text-text-secondary">
               {bookings.length === 0 ? "This draft has no bookings. You can't undo this." : "You can't undo this."}
             </AlertDialogDescription>
           </AlertDialogHeader>

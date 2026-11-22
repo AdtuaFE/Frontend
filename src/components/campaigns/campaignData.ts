@@ -84,12 +84,13 @@ export function fmtRange(start: string, end: string, withYear = false): string {
   return `${day(a, false)} to ${day(b, true)}`;
 }
 
-/** Shown next to the dates: "35 days" before it starts, "Day 12 of 28" while it runs, "Ended" after. */
+/** Shown next to the dates: "Starts Nov 20" before it starts, "Day 12 of 28" while it runs, "Ended Nov 2" after. */
 export function scheduleNote(start: string, end: string, today = new Date()): string {
   const total = daysInclusive(start, end);
   const day = daysFrom(parseDay(start), today) + 1;
-  if (day < 1) return `${total} days`;
-  if (day > total) return "Ended";
+  const short = (iso: string) => parseDay(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  if (day < 1) return `Starts ${short(start)}`;
+  if (day > total) return `Ended ${short(end)}`;
   return `Day ${day} of ${total}`;
 }
 
@@ -102,6 +103,11 @@ export function fmtMoney(n: number): string {
     minimumFractionDigits: Number.isInteger(n) ? 0 : 2,
     maximumFractionDigits: 2,
   });
+}
+
+/** Campaign pages show cents and tabular figures: $183.00. The shared fmtMoney above stays as is. */
+export function fmtCampaignMoney(n: number): string {
+  return n.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 /**
@@ -142,28 +148,29 @@ export function campaignMoney(budget: number, bookings: Booking[], today = new D
 
 /* ---------- table rows ---------- */
 
-export type RowStatus = "not_approved" | "new_offer" | "pending" | "playing" | "scheduled" | "done";
+export type RowStatus = "new_offer" | "pending" | "playing" | "scheduled" | "done" | "declined" | "expired";
 
 export type CampaignRow =
   | { kind: "booking"; status: RowStatus; booking: Booking }
   | { kind: "offer"; status: "new_offer"; offer: Offer };
 
-export type CampaignRows = { needs: CampaignRow[]; waiting: CampaignRow[]; booked: CampaignRow[] };
+export type CampaignRows = { needs: CampaignRow[]; waiting: CampaignRow[]; booked: CampaignRow[]; ended: CampaignRow[] };
 
 /**
- * Groups a campaign's bookings and offers the way its table does. "Needs you" holds offers to
- * answer and requests a broadcaster turned down; cancelled bookings and answered offers drop out
- * (an accepted offer shows up as its booking).
+ * Groups a campaign's bookings and offers the way its table does. "Action required" holds offers
+ * to answer; "Ended" holds completed, declined and expired bookings. Cancelled bookings and
+ * answered offers drop out (an accepted offer shows up as its booking).
  */
 export function campaignRows(bookings: Booking[], offers: Offer[], today = new Date()): CampaignRows {
-  const rows: CampaignRows = { needs: [], waiting: [], booked: [] };
+  const rows: CampaignRows = { needs: [], waiting: [], booked: [], ended: [] };
   for (const offer of offers) {
     if (offer.status === "pending") rows.needs.push({ kind: "offer", status: "new_offer", offer });
   }
   for (const b of bookings) {
-    if (b.status === "rejected") rows.needs.push({ kind: "booking", status: "not_approved", booking: b });
+    if (b.status === "rejected") rows.ended.push({ kind: "booking", status: "declined", booking: b });
+    else if (b.status === "expired") rows.ended.push({ kind: "booking", status: "expired", booking: b });
     else if (b.status === "pending") rows.waiting.push({ kind: "booking", status: "pending", booking: b });
-    else if (b.status === "completed") rows.booked.push({ kind: "booking", status: "done", booking: b });
+    else if (b.status === "completed") rows.ended.push({ kind: "booking", status: "done", booking: b });
     else if (b.status === "accepted" || b.status === "active") {
       const started = daysFrom(parseDay(b.start_date), today) >= 0;
       rows.booked.push({ kind: "booking", status: started ? "playing" : "scheduled", booking: b });
@@ -194,9 +201,9 @@ export function offerHolds(offer: Offer, offers: Offer[], held: Booking[]): Book
   });
 }
 
-/** Bookings that hold a screen: everything but turned-down and cancelled requests. */
+/** Bookings that hold a screen: everything but turned-down, expired and cancelled requests. */
 export function liveBookings(bookings: Booking[]): Booking[] {
-  return bookings.filter(b => b.status !== "rejected" && b.status !== "cancelled");
+  return bookings.filter(b => b.status !== "rejected" && b.status !== "cancelled" && b.status !== "expired");
 }
 
 /* ---------- form ---------- */
@@ -215,9 +222,10 @@ export type CampaignFormValues = {
 /** The same rules POST /api/campaigns enforces, checked before sending. */
 export function campaignFormErrors(f: CampaignFormValues): Partial<Record<keyof CampaignFormValues, string>> {
   const e: Partial<Record<keyof CampaignFormValues, string>> = {};
-  if (!f.name.trim()) e.name = "Give your campaign a name";
+  if (!f.name.trim()) e.name = "Enter a campaign name";
   const budget = Number(f.total_budget);
-  if (!f.total_budget.trim() || !Number.isFinite(budget) || budget <= 0) e.total_budget = "Set a budget above $0";
+  if (!f.total_budget.trim()) e.total_budget = "Enter a budget";
+  else if (!Number.isFinite(budget) || budget <= 0) e.total_budget = "Set a budget above $0";
   if (!f.start_date) e.start_date = "Pick a start date";
   if (!f.end_date) e.end_date = "Pick an end date";
   else if (f.start_date && f.end_date <= f.start_date) e.end_date = "End date must be after the start date";

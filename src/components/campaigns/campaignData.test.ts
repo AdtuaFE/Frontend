@@ -25,9 +25,9 @@ describe("dates", () => {
   });
 
   it("describes where today sits in the schedule", () => {
-    expect(scheduleNote("2026-11-20", "2026-12-24", day("2026-10-25"))).toBe("35 days");
+    expect(scheduleNote("2026-11-20", "2026-12-24", day("2026-10-25"))).toBe("Starts Nov 20");
     expect(scheduleNote("2026-10-06", "2026-11-02", day("2026-10-17"))).toBe("Day 12 of 28");
-    expect(scheduleNote("2026-10-06", "2026-11-02", day("2026-11-03"))).toBe("Ended");
+    expect(scheduleNote("2026-10-06", "2026-11-02", day("2026-11-03"))).toBe("Ended Nov 2");
   });
 });
 
@@ -50,7 +50,7 @@ describe("campaignMoney", () => {
 });
 
 describe("campaignRows", () => {
-  it("groups offers and bookings into needs you, waiting and booked", () => {
+  it("groups offers and bookings into action required, waiting, booked and ended", () => {
     const rows = campaignRows(
       [
         booking(1, { status: "rejected" }),
@@ -59,13 +59,15 @@ describe("campaignRows", () => {
         booking(4, { status: "accepted", start_date: "2026-11-01" }),
         booking(5, { status: "completed" }),
         booking(6, { status: "cancelled" }),
+        booking(7, { status: "expired" }),
       ],
       [offer(10, "pending"), offer(11, "accepted"), offer(12, "rejected")],
       day("2026-10-10"),
     );
-    expect(rows.needs.map(r => r.status)).toEqual(["new_offer", "not_approved"]);
+    expect(rows.needs.map(r => r.status)).toEqual(["new_offer"]);
     expect(rows.waiting.map(r => r.status)).toEqual(["pending"]);
-    expect(rows.booked.map(r => r.status)).toEqual(["playing", "scheduled", "done"]);
+    expect(rows.booked.map(r => r.status)).toEqual(["playing", "scheduled"]);
+    expect(rows.ended.map(r => r.status)).toEqual(["declined", "done", "expired"]);
   });
 });
 
@@ -88,7 +90,8 @@ describe("campaignFormErrors", () => {
   });
 
   it("matches the API's rules", () => {
-    expect(campaignFormErrors({ ...valid, name: "  " }).name).toBe("Give your campaign a name");
+    expect(campaignFormErrors({ ...valid, name: "  " }).name).toBe("Enter a campaign name");
+    expect(campaignFormErrors({ ...valid, total_budget: "" }).total_budget).toBe("Enter a budget");
     expect(campaignFormErrors({ ...valid, total_budget: "0" }).total_budget).toBe("Set a budget above $0");
     expect(campaignFormErrors({ ...valid, start_date: "" }).start_date).toBe("Pick a start date");
     expect(campaignFormErrors({ ...valid, end_date: "2026-11-01" }).end_date).toBe("End date must be after the start date");

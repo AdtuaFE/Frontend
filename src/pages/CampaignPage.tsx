@@ -354,7 +354,7 @@ function CampaignPage({ campaign }: { campaign: Campaign }) {
                   {isPublic ? "Public" : "Private"}
                 </label>
                 <Switch id="c-visibility" checked={isPublic} onCheckedChange={on => setVisibility(on ? "public" : "private")}
-                  className="data-[state=checked]:bg-[#3a47c2]" />
+                  className="data-[state=checked]:bg-brand" />
               </div>
               <p className="text-[13px] leading-[18px] text-text-secondary">{visibilityNote(campaign)}</p>
             </div>

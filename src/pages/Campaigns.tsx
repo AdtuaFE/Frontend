@@ -82,7 +82,7 @@ export default function Campaigns() {
             </CampaignButton>
             <p className="flex items-center gap-2 text-xs text-[#9c9c9c]">
               Free plan includes one space each month.
-              <Link to="/settings?tab=plans" className="text-[13px] font-medium leading-5 text-[#3a47c2] hover:underline">See plans</Link>
+              <Link to="/settings?tab=plans" className="text-[13px] font-medium leading-5 text-text-brand hover:underline">See plans</Link>
             </p>
           </div>
         </div>
@@ -127,7 +127,7 @@ export default function Campaigns() {
               );
             })}
           </div>
-          <label className="flex w-[300px] items-center gap-2 rounded-lg border border-border-default bg-white p-3 focus-within:border-[#3a47c2]">
+          <label className="flex w-[300px] items-center gap-2 rounded-lg border border-border-default bg-white p-3 focus-within:border-brand">
             <Search className="size-4 shrink-0 text-text-tertiary" aria-hidden="true" />
             <span className="sr-only">Search campaigns</span>
             <input
@@ -183,7 +183,7 @@ export default function Campaigns() {
                   onClick={() => navigate(`/campaigns/${c.id}`)}
                   className={`grid ${COLS} cursor-pointer transition-colors hover:bg-surface-subtle ${i < rows.length - 1 ? "border-b-[0.8px] border-border-subtle" : ""}`}>
                   <div role="cell" className={`${cellCn} gap-3`}>
-                    <Link to={`/campaigns/${c.id}`} onClick={e => e.stopPropagation()} className="truncate font-medium hover:text-[#3a47c2]">{c.name}</Link>
+                    <Link to={`/campaigns/${c.id}`} onClick={e => e.stopPropagation()} className="truncate font-medium hover:text-text-brand">{c.name}</Link>
                     {review > 0 && <Badge tone="amber" icon={Info}>{review} to review</Badge>}
                   </div>
                   <div role="cell" className={cellCn}><CampaignStatusText status={c.status} /></div>

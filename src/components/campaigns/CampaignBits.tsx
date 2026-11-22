@@ -59,11 +59,11 @@ export function RowStatusBadge({ status }: { status: RowStatus }) {
 /* ---------- plain status text (no pill): colored icon and word ---------- */
 
 const TEXT_TONE: Record<Tone, string> = {
-  green: "text-[#016D36]",
-  neutral: "text-[#4A4D56]",
-  indigo: "text-[#3A47C2]",
-  amber: "text-[#7C5003]",
-  red: "text-[#AA0F16]",
+  green: "text-text-success",
+  neutral: "text-text-secondary",
+  indigo: "text-text-brand",
+  amber: "text-text-warning",
+  red: "text-text-danger",
 };
 
 function StatusText({ tone, icon: Icon, size, children }: {
@@ -147,7 +147,7 @@ export const CampaignButton = forwardRef<HTMLButtonElement, CampaignButtonProps>
       className={cn(
         "flex gap-1.5 rounded-lg border-[0.8px] font-medium shadow-none [&_svg]:size-4",
         size === "sm" ? "h-8 pl-[10.8px] pr-[12.8px] text-[13px]" : "h-10 pl-[14.8px] pr-[16.8px] text-sm",
-        variant === "primary" && "border-transparent bg-text-brand text-white hover:bg-[#2f3a9e]",
+        variant === "primary" && "border-transparent bg-text-brand text-white hover:bg-brand-hover",
         variant === "secondary" && "border-[#d2d4d9] bg-white text-text-primary hover:bg-surface-subtle hover:text-text-primary",
         variant === "danger" && "border-transparent bg-border-danger text-white hover:bg-[#a81d1e]",
         className,

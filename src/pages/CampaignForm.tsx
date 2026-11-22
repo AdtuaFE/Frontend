@@ -94,10 +94,10 @@ function Choice({ name, checked, onChange, title, children }: { name: string; ch
       <span
         aria-hidden="true"
         className={cn(
-          "mt-px grid size-[18px] shrink-0 place-items-center rounded-full border-[0.8px] peer-focus-visible:ring-2 peer-focus-visible:ring-[#3a47c2] peer-focus-visible:ring-offset-2",
-          checked ? "border-[#3a47c2]" : "border-[#8f929d]",
+          "mt-px grid size-[18px] shrink-0 place-items-center rounded-full border-[0.8px] peer-focus-visible:ring-2 peer-focus-visible:ring-brand peer-focus-visible:ring-offset-2",
+          checked ? "border-brand" : "border-[#8f929d]",
         )}>
-        {checked && <span className="size-2 rounded-full bg-[#3a47c2]" />}
+        {checked && <span className="size-2 rounded-full bg-brand" />}
       </span>
       <span className="flex flex-col gap-1">
         <span className="text-sm font-medium leading-5 text-text-primary">{title}</span>

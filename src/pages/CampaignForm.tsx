@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarSearch, DollarSign, MapPin } from "lucide-react";
+import { CalendarSearch, MapPin, OctagonAlert, X } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Alert, Breadcrumb, CampaignButton, CampaignStatusBadge } from "@/components/campaigns/CampaignBits";
+import { Alert, Breadcrumb, CampaignButton } from "@/components/campaigns/CampaignBits";
 import {
   campaignFormErrors, fmtDate, parseDay, type Campaign, type CampaignFormValues as Form,
 } from "@/components/campaigns/campaignData";
@@ -30,23 +30,30 @@ const fromCampaign = (c: Campaign): Form => ({
   ad_type: c.ad_type === "video" ? "video" : "image",
 });
 
+const FIELD_IDS: Partial<Record<keyof Form, string>> = { name: "c-name", total_budget: "c-budget", start_date: "c-start", end_date: "c-end" };
+const FIELD_LABELS: Partial<Record<keyof Form, string>> = { name: "campaign name", total_budget: "budget", start_date: "start date", end_date: "end date" };
+
 const isoOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 const boxCn = (error?: string) =>
   cn(
-    "flex min-h-[46px] w-full items-center gap-2 rounded-lg border bg-white p-3 text-sm text-[#1a1d25] transition-colors",
-    "focus-within:border-[#3a47c2] focus-within:ring-1 focus-within:ring-[#3a47c2]",
-    error ? "border-red-400" : "border-[#e3e5ea]",
+    "flex min-h-[46px] w-full items-center gap-2 rounded-lg border bg-white p-3 text-sm text-text-primary transition-colors",
+    "focus-within:border-text-brand focus-within:ring-1 focus-within:ring-text-brand",
+    error ? "border-border-danger" : "border-border-default",
   );
 const bareInputCn = "min-w-0 flex-1 bg-transparent outline-none placeholder:text-[#8f929d]";
 
 function Field({ label, htmlFor, hint, error, children }: { label: string; htmlFor?: string; hint?: string; error?: string; children: ReactNode }) {
   return (
     <div className="flex w-full flex-col gap-3">
-      <label htmlFor={htmlFor} className="text-sm font-medium text-[#4a5565]">{label}</label>
+      <label htmlFor={htmlFor} className="text-sm font-medium text-text-secondary">{label}</label>
       <div className="flex w-full flex-col gap-1.5">
         {children}
-        {error ? <p className="text-xs leading-5 text-red-500">{error}</p> : hint ? <p className="text-xs leading-5 text-[#656972]">{hint}</p> : null}
+        {error ? (
+          <p className="flex items-center gap-1.5 text-xs leading-5 text-text-danger">
+            <OctagonAlert className="size-4 shrink-0" aria-hidden="true" />{error}
+          </p>
+        ) : hint ? <p className="text-xs leading-5 text-text-tertiary">{hint}</p> : null}
       </div>
     </div>
   );
@@ -62,7 +69,7 @@ function DateField({ id, label, value, error, onChange, disabledBefore }: {
         <PopoverTrigger asChild>
           <button id={id} type="button" className={cn(boxCn(error), "text-left")}>
             <CalendarSearch className="size-5 shrink-0 text-[#7d808a]" aria-hidden="true" />
-            <span className={value ? "" : "text-[#8f929d]"}>{value ? fmtDate(value) : "Select a date"}</span>
+            <span className={value ? "" : "text-[#8f929d]"}>{value ? fmtDate(value) : "mm/dd/yyyy"}</span>
           </button>
         </PopoverTrigger>
         <PopoverContent align="start" className="w-auto p-0">
@@ -87,14 +94,14 @@ function Choice({ name, checked, onChange, title, children }: { name: string; ch
       <span
         aria-hidden="true"
         className={cn(
-          "mt-px grid size-[18px] shrink-0 place-items-center rounded-full border-[0.8px] peer-focus-visible:ring-2 peer-focus-visible:ring-[#3a47c2] peer-focus-visible:ring-offset-2",
-          checked ? "border-[#3a47c2]" : "border-[#8f929d]",
+          "mt-px grid size-[18px] shrink-0 place-items-center rounded-full border-[0.8px] peer-focus-visible:ring-2 peer-focus-visible:ring-brand peer-focus-visible:ring-offset-2",
+          checked ? "border-brand" : "border-[#8f929d]",
         )}>
-        {checked && <span className="size-2 rounded-full bg-[#3a47c2]" />}
+        {checked && <span className="size-2 rounded-full bg-brand" />}
       </span>
       <span className="flex flex-col gap-1">
-        <span className="text-sm font-medium leading-5 text-[#1a1d25]">{title}</span>
-        <span className="text-[13px] leading-[18px] text-[#656972]">{children}</span>
+        <span className="text-sm font-medium leading-5 text-text-primary">{title}</span>
+        <span className="text-[13px] leading-[18px] text-text-tertiary">{children}</span>
       </span>
     </label>
   );
@@ -102,8 +109,8 @@ function Choice({ name, checked, onChange, title, children }: { name: string; ch
 
 function Card({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="flex w-full flex-col gap-4 rounded-xl border-[0.8px] border-[#e3e5ea] bg-white p-5">
-      <h2 className="text-base font-semibold leading-6 text-[#1a1d25]">{title}</h2>
+    <section className="flex w-full flex-col gap-4 rounded-xl border-[0.8px] border-border-default bg-white p-5">
+      <h2 className="text-base font-semibold leading-6 text-text-primary">{title}</h2>
       {children}
     </section>
   );
@@ -187,17 +194,41 @@ export default function CampaignForm() {
   };
 
   const title = editing ? "Edit campaign" : "Create new campaign";
+  const errorFields = (Object.keys(FIELD_IDS) as (keyof Form)[]).filter(k => errors[k]).map(k => [k, FIELD_LABELS[k] as string] as const);
 
   return (
     <AppLayout activeNav="campaigns">
       <div className="mx-auto flex w-full max-w-[1164px] flex-col gap-6 pb-14 pt-2">
-        <Breadcrumb current={editing ? campaign?.name ?? "Edit campaign" : "Create new campaign"} />
-        <h1 className="min-h-10 text-2xl font-semibold text-[#1a1d25]">{title}</h1>
+        <Breadcrumb
+          current={title}
+          parent={editing ? { label: campaign?.name ?? "Campaign", to: `/campaigns/${id}` } : undefined}
+        />
+        <h1 className="min-h-10 text-2xl font-semibold text-text-primary">{title}</h1>
+
+        {errorFields.length > 0 && (
+          <Alert tone="error" title={`Fix ${errorFields.length} ${errorFields.length === 1 ? "field" : "fields"} to ${editing ? "save your changes" : "create your campaign"}`}>
+            Check{" "}
+            {errorFields.map(([key, label], i) => (
+              <span key={key}>
+                {i > 0 && (i === errorFields.length - 1 ? " and " : ", ")}
+                <a
+                  href={`#${FIELD_IDS[key]}`}
+                  onClick={e => { e.preventDefault(); document.getElementById(FIELD_IDS[key])?.focus(); }}
+                  className="font-medium underline underline-offset-2">
+                  {label}
+                </a>
+              </span>
+            ))}
+            , then {editing ? "save again" : "create the campaign again"}.
+          </Alert>
+        )}
 
         {failure && (
           <div ref={failureRef}>
             <Alert tone="error" title={editing ? "We couldn't save your changes" : "We couldn't create your campaign"}>
-              {failure.message ?? `Everything you entered is still here. Check your connection and select ${editing ? "Save changes" : "Create campaign"} again.`}
+              {editing
+                ? failure.message ?? "Everything you entered is still here. Check your connection and select Save changes again."
+                : "Something went wrong on our side and nothing was saved. Your details are still here. Try again in a moment."}
             </Alert>
           </div>
         )}
@@ -207,7 +238,7 @@ export default function CampaignForm() {
             <div className="flex flex-col gap-6">
               <Field label="Campaign name" htmlFor="c-name" error={errors.name}>
                 <div className={boxCn(errors.name)}>
-                  <input id="c-name" className={bareInputCn} placeholder="Holiday gift guide" value={form.name} onChange={e => set("name", e.target.value)} />
+                  <input id="c-name" className={bareInputCn} placeholder="Campaign name" value={form.name} onChange={e => set("name", e.target.value)} />
                 </div>
               </Field>
               <Field label="Description (optional)" htmlFor="c-desc" hint="Shown to broadcasters on public campaigns.">
@@ -219,22 +250,21 @@ export default function CampaignForm() {
             </div>
 
             <div className="flex flex-col gap-6">
-              <h2 className="text-base font-semibold leading-6 text-[#1a1d25]">Budget and dates</h2>
+              <h2 className="text-base font-semibold leading-6 text-text-primary">Budget and dates</h2>
               <Field label="Total budget" htmlFor="c-budget" hint="The most you'll spend across every booking." error={errors.total_budget}>
                 <div className={boxCn(errors.total_budget)}>
-                  <DollarSign className="size-5 shrink-0 text-[#7d808a]" aria-hidden="true" />
-                  <input id="c-budget" inputMode="decimal" className={bareInputCn} placeholder="2,500" value={form.total_budget}
+                  <input id="c-budget" inputMode="decimal" className={cn(bareInputCn, "tabular-nums")} placeholder="$ 0.00" value={form.total_budget}
                     onChange={e => set("total_budget", e.target.value.replace(/[^\d.]/g, ""))} />
                 </div>
               </Field>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <DateField id="c-start" label="Start date" value={form.start_date} error={errors.start_date} onChange={v => set("start_date", v)} />
+                <DateField id="c-start" label="Start date" value={form.start_date} error={errors.start_date} onChange={v => set("start_date", v)} disabledBefore={isoOf(new Date())} />
                 <DateField id="c-end" label="End date" value={form.end_date} error={errors.end_date} onChange={v => set("end_date", v)} disabledBefore={form.start_date || undefined} />
               </div>
             </div>
 
             <div className="flex flex-col gap-6">
-              <h2 className="text-base font-semibold leading-6 text-[#1a1d25]">Location and ad</h2>
+              <h2 className="text-base font-semibold leading-6 text-text-primary">Location and ad</h2>
               <Field label="Where should people see it" htmlFor="c-where">
                 <div className={boxCn()}>
                   <MapPin className="size-5 shrink-0 text-[#7d808a]" aria-hidden="true" />
@@ -242,7 +272,7 @@ export default function CampaignForm() {
                 </div>
               </Field>
               <fieldset className="flex flex-col gap-4">
-                <legend className="mb-4 text-sm font-medium text-[#4a5565]">Ad type</legend>
+                <legend className="mb-4 text-sm font-medium text-text-secondary">Ad type</legend>
                 <Choice name="ad-type" checked={form.ad_type === "image"} onChange={() => set("ad_type", "image")} title="Image">
                   A still graphic that plays for the length of each spot.
                 </Choice>
@@ -264,10 +294,6 @@ export default function CampaignForm() {
                 </Choice>
               </div>
             </Card>
-            <Card title="Status">
-              <CampaignStatusBadge status={campaign?.status ?? "draft"} />
-              {!editing && <p className="text-sm leading-5 text-[#1a1d25]">New campaigns start as drafts.</p>}
-            </Card>
           </div>
         </div>
 
@@ -280,13 +306,20 @@ export default function CampaignForm() {
       </div>
 
       <AlertDialog open={confirmLeave} onOpenChange={setConfirmLeave}>
-        <AlertDialogContent className="max-w-[440px] gap-2 rounded-xl p-6">
+        <AlertDialogContent className="max-w-[480px] gap-2 rounded-xl p-6">
+          <button
+            type="button"
+            aria-label="Close"
+            onClick={() => setConfirmLeave(false)}
+            className="absolute right-4 top-4 rounded-md p-1 text-text-tertiary transition-colors hover:bg-surface-muted hover:text-text-primary">
+            <X className="size-5" aria-hidden="true" />
+          </button>
           <AlertDialogHeader className="space-y-2 text-left">
-            <AlertDialogTitle className="text-xl font-semibold leading-7 text-[#1a1d25]">
+            <AlertDialogTitle className="pr-8 text-xl font-semibold leading-7 text-text-primary">
               {editing ? "Discard your changes?" : "Discard this campaign?"}
             </AlertDialogTitle>
-            <AlertDialogDescription className="text-sm leading-5 text-[#4a4d56]">
-              {editing ? "You'll lose the changes you made." : "You'll lose what you've entered so far."}
+            <AlertDialogDescription className="text-sm leading-5 text-text-secondary">
+              {editing ? "You'll lose the changes you made." : "You haven't created it yet. If you leave now, the details you entered won't be saved."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="flex justify-end gap-2 pt-8">

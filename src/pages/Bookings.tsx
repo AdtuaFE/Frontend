@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/context/AuthContext";
 import { userRoles } from "@/lib/roles";
 import { api } from "@/lib/api";
+import { BroadcasterBookings, type BroadcasterBooking } from "@/components/booking/BroadcasterBookings";
 
 type Booking = {
   id: number;
@@ -55,6 +56,15 @@ const Bookings = () => {
         <div className="flex items-center justify-center py-40 text-muted-foreground text-sm">
           Loading bookings…
         </div>
+      </AppLayout>
+    );
+  }
+
+  // Broadcasters get the requests view: what's waiting on them, approved and past.
+  if (isBroadcaster && !isAdvertiser) {
+    return (
+      <AppLayout activeNav="bookings">
+        <BroadcasterBookings bookings={broadcasterBookings as unknown as BroadcasterBooking[]} />
       </AppLayout>
     );
   }

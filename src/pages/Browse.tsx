@@ -1,140 +1,74 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Link, useSearchParams } from "react-router-dom";
+import type { DateRange } from "react-day-picker";
+import { List, Map as MapIcon, TriangleAlert } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api";
-import { fmt } from "@/lib/utils";
-import { useQuery } from "@tanstack/react-query";
-import { useNavigate, useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { MapPin, Monitor, Navigation } from "lucide-react";
-import { CreateBookingModal, type SpaceInfo } from "@/components/CreateBookingModal";
-import { LocationAutocomplete } from "@/components/LocationAutocomplete";
+import { campaignMoney, parseDay, type Booking, type Campaign } from "@/components/campaigns/campaignData";
+import {
+  DISTANCES_MI, EMPTY_FILTERS, activeFilterCount, fmtPrice, matches, miToKm, sortSpaces, useSpaceExtras,
+  type Filters, type Space, type SortKey,
+} from "@/components/browse/browseData";
+import { ListingCard, ListingCardSkeleton } from "@/components/browse/ListingCard";
+import { SearchBar, type Place } from "@/components/browse/SearchBar";
+import {
+  AppliedFilters, CampaignChip, DistanceChip, MoreFiltersChip, PriceChip, SortMenu, VenueTypeChip,
+} from "@/components/browse/FilterControls";
+import { BrowseMap, type MapPin } from "@/components/browse/BrowseMap";
+import { Btn, Skeleton, countLabel } from "@/components/browse/primitives";
 
-export type Space = {
-  id: number;
-  broadcaster_id: number;
-  name: string;
-  description: string | null;
-  space_type: string;
-  display_type: string;
-  city: string | null;
-  region: string | null;
-  country: string | null;
-  cpm: number;
-  est_daily_impressions: number | null;
-  is_active: boolean;
-  geo_lat: number | null;
-  geo_lng: number | null;
-  distance_km?: number;
-};
+const DEFAULT_DISTANCE_MI = 5;
 
-export function SpaceCard({
-  space,
-  onBook,
-}: {
-  space: Space;
-  onBook?: (info: SpaceInfo) => void;
-}) {
-  const navigate = useNavigate();
-  return (
-    <Card className="hover:border-[#3a47c2] transition-colors flex flex-col cursor-pointer"
-      onClick={() => navigate(`/spaces/${space.id}`)}>
-      <CardContent className="pt-6 flex flex-col flex-1">
-        <div className="flex items-start justify-between gap-2">
-          <h3 className="font-semibold leading-tight">{space.name}</h3>
-          <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
-            space.is_active ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"
-          }`}>
-            {space.is_active ? "Active" : "Inactive"}
-          </span>
-        </div>
-        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-          <span className="flex items-center gap-1">
-            <Monitor className="h-3.5 w-3.5" />
-            {fmt(space.space_type)}
-          </span>
-          {(space.city || space.region || space.country) && (
-            <span className="flex items-center gap-1">
-              <MapPin className="h-3.5 w-3.5" />
-              {[space.city, space.region, space.country].filter(Boolean).join(", ")}
-            </span>
-          )}
-          {space.distance_km != null && (
-            <span className="flex items-center gap-1 text-[#3a47c2] font-medium">
-              <Navigation className="h-3.5 w-3.5" />
-              {space.distance_km < 1
-                ? `${Math.round(space.distance_km * 1000)} m`
-                : `${space.distance_km.toFixed(1)} km`} away
-            </span>
-          )}
-        </div>
-        {space.description && (
-          <p className="mt-3 text-sm text-muted-foreground line-clamp-2">{space.description}</p>
-        )}
-        <div className="mt-auto pt-4 flex items-center justify-between gap-2">
-          <div className="text-sm">
-            <span className="font-medium text-foreground">${space.cpm} CPM</span>
-            {space.est_daily_impressions != null && (
-              <span className="ml-3 text-muted-foreground">
-                ~{space.est_daily_impressions.toLocaleString()} daily
-              </span>
-            )}
-          </div>
-          {onBook && (
-            <Button
-              size="sm"
-              className="shrink-0 bg-[#3a47c2] text-white hover:bg-[#2f3a9e]"
-              onClick={e => {
-                e.stopPropagation();
-                onBook({ id: space.id, name: space.name, cpm: space.cpm, est_daily_impressions: space.est_daily_impressions });
-              }}>
-              Book
-            </Button>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
+/** "Bloomington" from "Bloomington, Indiana, United States". */
+const shortPlace = (p: Place) => (p.label === "Current location" ? "near you" : `in ${p.label.split(",")[0]}`);
 
-function SectionHeading({ title, count }: { title: string; count: number }) {
-  return (
-    <div className="flex items-baseline gap-3 mb-6">
-      <h2 className="text-2xl font-bold">{title}</h2>
-      <span className="text-sm text-muted-foreground">{count} space{count !== 1 ? "s" : ""}</span>
-    </div>
-  );
-}
+const toIso = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 const Browse = () => {
   const { user } = useAuth();
-  // "Find screens" on a campaign lands here with ?campaign=<id> so booking starts from that campaign.
-  const [searchParams] = useSearchParams();
-  const campaignParam = Number(searchParams.get("campaign")) || undefined;
   const isBroadcaster = user?.roles.includes("broadcaster") ?? false;
   const isAdvertiser = user?.roles.includes("advertiser") ?? false;
 
-  const [bookingSpace, setBookingSpace] = useState<SpaceInfo | null>(null);
-  const [locationQuery, setLocationQuery] = useState("");
-  const [searchCoords, setSearchCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [radius, setRadius] = useState(10);
+  // "Find screens" on a campaign lands here with ?campaign=<id>.
+  const [params, setParams] = useSearchParams();
+  const campaignId = Number(params.get("campaign")) || null;
+  const setCampaignId = (id: number | null) => {
+    const next = new URLSearchParams(params);
+    if (id) next.set("campaign", String(id)); else next.delete("campaign");
+    setParams(next, { replace: true });
+  };
+
+  const [place, setPlace] = useState<Place | null>(null);
+  const [distanceMi, setDistanceMi] = useState(DEFAULT_DISTANCE_MI);
+  const [dates, setDates] = useState<DateRange | undefined>();
+  const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
+  const [sort, setSort] = useState<SortKey>("recommended");
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [hoveredId, setHoveredId] = useState<number | null>(null);
+  const [mapOnly, setMapOnly] = useState(false);
+  const [phoneView, setPhoneView] = useState<"list" | "map">("list");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const { data: allSpaces = [], isLoading } = useQuery<Space[]>({
-    queryKey: ["spaces-search", searchCoords?.lat, searchCoords?.lng, radius],
+  /* ---------- data ---------- */
+
+  const radiusKm = place ? miToKm(distanceMi) : null;
+  const searchKey = place ? `${place.lat},${place.lng},${distanceMi}` : "all";
+
+  const { data: found = [], isLoading } = useQuery<Space[]>({
+    queryKey: ["spaces-search", place?.lat, place?.lng, radiusKm],
     queryFn: () => {
-      const params = new URLSearchParams();
-      if (searchCoords) {
-        params.set("lat", String(searchCoords.lat));
-        params.set("lng", String(searchCoords.lng));
-        params.set("radius", String(radius));
+      const qs = new URLSearchParams();
+      if (place && radiusKm) {
+        qs.set("lat", String(place.lat));
+        qs.set("lng", String(place.lng));
+        qs.set("radius", String(radiusKm));
       }
-      const qs = params.toString();
-      return api.get<Space[]>(`/api/spaces/search${qs ? `?${qs}` : ""}`);
+      return api.get<Space[]>(`/api/spaces/search${qs.toString() ? `?${qs}` : ""}`);
     },
+    placeholderData: prev => prev,
   });
 
   const { data: mySpaces = [] } = useQuery<Space[]>({
@@ -143,105 +77,232 @@ const Browse = () => {
     enabled: isBroadcaster,
   });
 
-  const mySpaceIds = new Set(mySpaces.map(s => s.id));
+  const { data: campaigns = [] } = useQuery<Campaign[]>({
+    queryKey: ["campaigns"],
+    queryFn: () => api.get<Campaign[]>("/api/campaigns"),
+    enabled: isAdvertiser,
+  });
+  const openCampaigns = campaigns.filter(c => c.status !== "completed" && c.status !== "archived");
+  const campaign = campaigns.find(c => c.id === campaignId) ?? null;
+
+  const { data: bookings = [] } = useQuery<Booking[]>({
+    queryKey: ["bookings"],
+    queryFn: () => api.get<Booking[]>("/api/bookings"),
+    enabled: !!campaign,
+  });
+  const leftToSpend = campaign
+    ? campaignMoney(Number(campaign.total_budget) || 0, bookings.filter(b => b.campaign_id === campaign.id)).left
+    : null;
+
+  // Picking a campaign brings its dates, unless dates are already chosen.
+  useEffect(() => {
+    if (campaign && !dates?.from) setDates({ from: parseDay(campaign.start_date), to: parseDay(campaign.end_date) });
+    // Only when the campaign changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [campaign?.id]);
+
+  /* ---------- filter and sort ---------- */
+
   const q = searchQuery.trim().toLowerCase();
-  const matchesQuery = (s: Space) =>
-    !q || s.name.toLowerCase().includes(q) || (s.city ?? "").toLowerCase().includes(q);
+  const mine = useMemo(() => new Set(mySpaces.map(s => s.id)), [mySpaces]);
+  const base = useMemo(
+    () => found.filter(s => !mine.has(s.id) && (!q || s.name.toLowerCase().includes(q) || (s.city ?? "").toLowerCase().includes(q))),
+    [found, mine, q],
+  );
+  const extras = useSpaceExtras(base);
+  const results = sortSpaces(base.filter(s => matches(s, extras.get(s.id), filters)), extras, sort);
+  const countWith = (f: Filters) => base.filter(s => matches(s, extras.get(s.id), f)).length;
 
-  const otherSpaces = allSpaces.filter(s => !mySpaceIds.has(s.id) && matchesQuery(s));
+  const venueCounts = new Map<string, number>();
+  for (const s of base) {
+    if (!s.venue_type || !matches(s, extras.get(s.id), filters, "venueTypes")) continue;
+    venueCounts.set(s.venue_type, (venueCounts.get(s.venue_type) ?? 0) + 1);
+  }
+  const prices = base.map(s => extras.get(s.id)?.fromPrice).filter((p): p is number => p != null);
+  const priceBounds: [number, number] = prices.length ? [Math.min(...prices), Math.max(...prices)] : [0, 100];
+  const avgPrice = prices.length ? prices.reduce((a, b) => a + b, 0) / prices.length : null;
 
-  const clearLocation = () => {
-    setSearchCoords(null);
-    setLocationQuery("");
+  // Distance sort needs a location; fall back when it's cleared.
+  useEffect(() => { if (!place && sort === "distance") setSort("recommended"); }, [place, sort]);
+  // A pin whose space was filtered out shows no card.
+  const selected = selectedId != null && results.some(s => s.id === selectedId) ? selectedId : null;
+
+  const range = dates?.from ? { from: dates.from, to: dates.to ?? dates.from } : null;
+  const hrefFor = (s: Space) => {
+    const qs = new URLSearchParams();
+    if (campaign) qs.set("campaign", String(campaign.id));
+    if (range) { qs.set("start", toIso(range.from)); qs.set("end", toIso(range.to)); }
+    return `/spaces/${s.id}${qs.toString() ? `?${qs}` : ""}`;
   };
 
-  if (isLoading) {
-    return (
-      <AppLayout activeNav="browse" searchValue={searchQuery} onSearchChange={setSearchQuery}
-        searchPlaceholder="Search campaigns, spaces, analytics">
-        <div className="flex items-center justify-center py-40 text-muted-foreground">
-          Loading spaces…
+  const pins: MapPin[] = results
+    .filter(s => s.geo_lat != null && s.geo_lng != null)
+    .map(s => ({ id: s.id, lat: s.geo_lat!, lng: s.geo_lng!, price: extras.get(s.id)?.fromPrice ?? null }));
+
+  const nextDistance = DISTANCES_MI.find(d => d > distanceMi);
+  const filtersSet = activeFilterCount(filters);
+  const loading = isLoading;
+
+  /* ---------- pieces ---------- */
+
+  const card = (s: Space, compact = false) => (
+    <ListingCard key={s.id} space={s} extras={extras.get(s.id)} href={hrefFor(s)} range={range}
+      highlighted={s.id === selected} compactMedia={compact}
+      onHover={h => setHoveredId(h ? s.id : cur => (cur === s.id ? null : cur))} />
+  );
+
+  const countRow = (
+    <div className="flex items-baseline justify-between gap-4">
+      {loading ? (
+        <>
+          <Skeleton className="h-6 w-24" />
+          {campaign && <Skeleton className="h-5 w-40" />}
+        </>
+      ) : (
+        <>
+          <h2 className="m-0 text-base font-semibold leading-6">
+            {countLabel(results.length)}{place ? ` ${shortPlace(place)}` : ""}
+          </h2>
+          {leftToSpend != null && (
+            <span className="whitespace-nowrap text-sm leading-5 text-[#656972]">
+              Left to spend <b className="ml-1 font-medium tabular-nums text-[#1a1d25]">{fmtPrice(leftToSpend)}</b>
+            </span>
+          )}
+        </>
+      )}
+    </div>
+  );
+
+  const empty = (
+    <div className="flex flex-col items-center gap-2 px-6 py-12 text-center">
+      <h3 className="m-0 text-base font-semibold leading-6">No spaces match</h3>
+      <p className="m-0 max-w-[40ch] text-sm leading-5 text-[#4a4d56]">
+        {place
+          ? `Nothing is listed within ${distanceMi} mi${filtersSet ? " with these filters" : ""}. Try a wider distance${filtersSet ? " or fewer filters" : ""}.`
+          : q ? `No spaces match “${searchQuery.trim()}”.`
+          : filtersSet ? "Try fewer filters." : "No spaces are listed yet."}
+      </p>
+      {(filtersSet > 0 || (place && nextDistance)) && (
+        <div className="mt-2 flex gap-2">
+          {filtersSet > 0 && <Btn onClick={() => setFilters(EMPTY_FILTERS)}>Clear filters</Btn>}
+          {place && nextDistance && <Btn onClick={() => setDistanceMi(nextDistance)}>Search within {nextDistance} mi</Btn>}
         </div>
-      </AppLayout>
-    );
-  }
+      )}
+    </div>
+  );
+
+  const list = loading ? (
+    <div aria-busy="true" className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
+      {Array.from({ length: 4 }, (_, i) => <ListingCardSkeleton key={i} />)}
+    </div>
+  ) : results.length === 0 ? empty : (
+    <div className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
+      {results.map(s => card(s))}
+    </div>
+  );
+
+  const map = (className: string, expandable: boolean) => (
+    <BrowseMap
+      className={className}
+      pins={pins}
+      loading={loading}
+      selectedId={selected}
+      hoveredId={hoveredId}
+      onSelect={setSelectedId}
+      center={place}
+      radiusMi={place ? distanceMi : null}
+      searchKey={searchKey}
+      expanded={mapOnly}
+      onToggleExpand={expandable ? () => setMapOnly(m => !m) : undefined}
+      onSearchArea={a => { setPlace({ label: "Map area", lat: a.lat, lng: a.lng }); setDistanceMi(a.radiusMi); }}
+      renderCard={id => {
+        const s = results.find(x => x.id === id);
+        return s ? card(s) : null;
+      }}
+    />
+  );
 
   return (
     <AppLayout activeNav="browse" searchValue={searchQuery} onSearchChange={setSearchQuery}
       searchPlaceholder="Search campaigns, spaces, analytics">
-      <div className="max-w-6xl mx-auto space-y-8">
-        <div>
-          <h1 className="text-3xl font-bold">Browse spaces</h1>
-          <p className="mt-1 text-muted-foreground">Discover available ad spaces from broadcasters.</p>
+      <div className="flex min-w-0 flex-col gap-6 pb-8 pt-2 text-[#1a1d25]">
+        <h1 className="m-0 hidden text-2xl font-semibold leading-8 tracking-[-0.01em] md:block">Browse spaces</h1>
+
+        <div className="hidden md:block">
+          <SearchBar place={place} onPlace={p => { setPlace(p); setSelectedId(null); }} dates={dates} onDates={setDates} />
+        </div>
+        <div className="md:hidden">
+          <SearchBar compact place={place} onPlace={p => { setPlace(p); setSelectedId(null); }} dates={dates} onDates={setDates} />
         </div>
 
-        {/* Location + radius filter */}
-        <div className="rounded-xl border bg-card p-4 flex flex-wrap items-end gap-3">
-          <div className="flex-1 min-w-[200px] space-y-1.5">
-            <Label className="text-xs text-muted-foreground uppercase tracking-wide">Near location</Label>
-            <LocationAutocomplete
-              value={locationQuery}
-              onChange={v => { setLocationQuery(v); if (!v) setSearchCoords(null); }}
-              onSelect={r => { setSearchCoords({ lat: r.lat, lng: r.lng }); setLocationQuery(r.place_name); }}
-              placeholder="Search by city or area…"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground uppercase tracking-wide">Radius</Label>
-            <div className="flex items-center gap-1.5">
-              <Input
-                type="number" min="1" max="500"
-                value={radius}
-                onChange={e => setRadius(Math.max(1, Number(e.target.value)))}
-                disabled={!searchCoords}
-                className="h-10 w-20 rounded-lg border-[#d7dce3] text-sm shadow-none focus-visible:ring-[#3a47c2] disabled:opacity-40"
-              />
-              <span className="text-sm text-muted-foreground">km</span>
+        {campaign && leftToSpend === 0 && (
+          <div role="status" className="grid grid-cols-[24px_minmax(0,1fr)] items-start gap-3 rounded-xl bg-[#fef4e8] p-4">
+            <TriangleAlert aria-hidden className="h-6 w-6 p-0.5 text-[#7c5003]" />
+            <div className="flex flex-col">
+              <h4 className="m-0 text-base font-semibold leading-6">{campaign.name} has no budget left</h4>
+              <p className="m-0 mt-1 text-sm leading-5">Prices still show. Edit the budget to send requests from this campaign.</p>
+              <div className="mt-3">
+                <Link to={`/campaigns/${campaign.id}/edit`}
+                  className="inline-flex h-8 items-center rounded-lg border border-[#d2d4d9] bg-white px-3 text-xs font-medium leading-4 hover:bg-[#f8faff]">
+                  Edit budget
+                </Link>
+              </div>
             </div>
           </div>
-          {searchCoords && (
-            <Button variant="outline" size="sm" onClick={clearLocation} className="h-10">
-              Clear filter
-            </Button>
-          )}
-        </div>
-
-        {searchCoords && (
-          <p className="text-sm text-muted-foreground -mt-4">
-            Showing spaces within <strong>{radius} km</strong> of <strong>{locationQuery}</strong>,
-            sorted by distance.
-          </p>
         )}
 
-        {/* All other spaces */}
-        <div>
-          <SectionHeading title={isBroadcaster ? "Other spaces" : "All spaces"} count={otherSpaces.length} />
-          {otherSpaces.length > 0 ? (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {otherSpaces.map(s => (
-                <SpaceCard
-                  key={s.id}
-                  space={s}
-                  onBook={isAdvertiser ? setBookingSpace : undefined}
-                />
-              ))}
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="-mx-6 flex gap-2 overflow-x-auto px-6 py-0.5 md:mx-0 md:flex-wrap md:overflow-visible md:px-0">
+              {isAdvertiser && (
+                <CampaignChip campaigns={openCampaigns} value={campaign} onChange={setCampaignId} />
+              )}
+              <DistanceChip value={distanceMi} onChange={setDistanceMi} hasLocation={!!place} />
+              <VenueTypeChip filters={filters} onApply={setFilters} countWith={countWith} venueCounts={venueCounts} />
+              <PriceChip filters={filters} onApply={setFilters} countWith={countWith} bounds={priceBounds} average={avgPrice} />
+              <MoreFiltersChip filters={filters} onApply={setFilters} countWith={countWith} distance={distanceMi}
+                onDistance={setDistanceMi} hasLocation={!!place}
+                activeCount={activeFilterCount({ ...filters, venueTypes: [], price: null })} />
+            </div>
+            <div className="hidden shrink-0 md:block">
+              <SortMenu value={sort} onChange={setSort} hasLocation={!!place} />
+            </div>
+          </div>
+          <AppliedFilters filters={filters} onChange={setFilters} />
+        </div>
+
+        {/* Desktop: list and map side by side, or the map alone when expanded. */}
+        <div className="hidden lg:block">
+          {mapOnly ? (
+            <div className="flex flex-col gap-4">
+              {countRow}
+              {map("h-[640px]", true)}
             </div>
           ) : (
-            <div className="flex items-center justify-center py-20 text-muted-foreground">
-              {searchCoords
-                ? `No spaces found within ${radius} km. Try increasing the radius.`
-                : q ? "No spaces match your search." : "No spaces listed yet."}
+            <div className="grid grid-cols-2 items-start gap-6">
+              <div className="flex min-w-0 flex-col gap-4">
+                {countRow}
+                {list}
+              </div>
+              <div className="sticky top-0">
+                {map("h-[min(720px,calc(100vh-120px))] min-h-[480px]", true)}
+              </div>
             </div>
           )}
         </div>
-      </div>
 
-      <CreateBookingModal
-        open={!!bookingSpace}
-        onOpenChange={open => { if (!open) setBookingSpace(null); }}
-        space={bookingSpace}
-        defaultCampaignId={campaignParam}
-      />
+        {/* Phone and tablet: list or map, switched by the floating button. */}
+        <div className="flex flex-col gap-4 lg:hidden">
+          {countRow}
+          {phoneView === "list" ? list : map("h-[calc(100vh-260px)] min-h-[420px]", false)}
+          <div className="sticky bottom-6 z-[1001] flex justify-center">
+            <Btn variant="primary" className="pl-3 shadow-[0_8px_24px_rgba(26,29,37,0.16)]"
+              onClick={() => setPhoneView(v => (v === "list" ? "map" : "list"))}>
+              {phoneView === "list" ? <><MapIcon aria-hidden />Map</> : <><List aria-hidden />List</>}
+            </Btn>
+          </div>
+        </div>
+      </div>
     </AppLayout>
   );
 };

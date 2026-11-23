@@ -5,7 +5,7 @@ import { Plus } from "lucide-react";
 import { api } from "@/lib/api";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
-import { SpaceCard, type Space } from "@/pages/Browse";
+import { SpaceCard, type Space } from "@/components/SpaceCard";
 
 const MySpaces = () => {
   const navigate = useNavigate();

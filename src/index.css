@@ -120,3 +120,50 @@ All colors MUST be HSL.
     @apply bg-background text-foreground font-sans;
   }
 }
+
+/* Browse spaces map: price pins and the searched-location dot (see BrowseMap.tsx). */
+.adtua-pin {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #1a1d25;
+  font: 500 12px/16px "Instrument Sans", system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(26, 29, 37, 0.16);
+  transform: translateX(-50%);
+  cursor: pointer;
+}
+.adtua-pin:hover,
+.adtua-pin--hover {
+  background: #f2f5ff;
+  color: #3a47c2;
+}
+.adtua-pin--on,
+.adtua-pin--on:hover {
+  background: #3a47c2;
+  color: #ffffff;
+}
+.adtua-here {
+  display: block;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border-radius: 999px;
+  background: #3a47c2;
+  border: 3px solid #ffffff;
+  box-shadow: 0 1px 3px rgba(26, 29, 37, 0.16);
+}
+.adtua-map .leaflet-marker-icon:focus-visible .adtua-pin,
+.adtua-map .leaflet-marker-icon:focus-visible {
+  outline: 2px solid #3a47c2;
+  outline-offset: 2px;
+  border-radius: 999px;
+}
+/* Mute the street map so the price pins carry the colour, as in the design. */
+.adtua-map .leaflet-tile-pane {
+  filter: grayscale(1) brightness(1.04) contrast(0.92);
+}

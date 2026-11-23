@@ -21,6 +21,7 @@ import CampaignForm from "./pages/CampaignForm";
 import CampaignRoute from "./pages/CampaignPage";
 import BookingDetail from "./pages/BookingDetail";
 import SpaceDetail from "./pages/SpaceDetail";
+import ReviewRequest from "./pages/ReviewRequest";
 import BrowseCampaigns from "./pages/BrowseCampaigns";
 import Bookings from "./pages/Bookings";
 import NotFound from "./pages/NotFound";
@@ -55,6 +56,7 @@ const App = () => (
             <Route path="/bookings/:id" element={<ProtectedRoute><BookingDetail /></ProtectedRoute>} />
             <Route path="/spaces/new" element={<ProtectedRoute requiredRole="broadcaster"><AddSpace /></ProtectedRoute>} />
             <Route path="/spaces/:id" element={<ProtectedRoute><SpaceDetail /></ProtectedRoute>} />
+            <Route path="/spaces/:id/request" element={<ProtectedRoute requiredRole="advertiser"><ReviewRequest /></ProtectedRoute>} />
             <Route
               path="/campaigns"
               element={<ProtectedRoute requiredRole="advertiser"><Campaigns /></ProtectedRoute>}

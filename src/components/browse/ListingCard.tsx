@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { ChevronLeft, ChevronRight, ImageIcon, MapPin, Monitor, RectangleHorizontal, RectangleVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  availabilityLabel, fmtDistance, fmtPrice, orientation, sizeInches, spaceSubtitle,
+  availabilityLabel, fmtDistance, fmtPlay, orientation, sizeInches, spaceSubtitle,
   type Space, type SpaceExtras,
 } from "./browseData";
 import { Skeleton } from "./primitives";
@@ -105,7 +105,7 @@ export function ListingCard({
         ) : (
           <span className="text-sm leading-5 text-[#4a4d56]">
             {extras.fromPrice != null ? (
-              <>From <b className="text-xl font-semibold leading-7 tabular-nums text-[#1a1d25]">{fmtPrice(extras.fromPrice)}</b> a day</>
+              <>From <b className="text-xl font-semibold leading-7 tabular-nums text-[#1a1d25]">{fmtPlay(extras.fromPrice)}</b> a play</>
             ) : (
               <span className="text-[#656972]">No time slots yet</span>
             )}

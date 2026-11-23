@@ -19,6 +19,7 @@ import { fmt } from "@/lib/utils";
 import { toast } from "sonner";
 import { EditSpaceModal } from "@/components/EditSpaceModal";
 import { CreateBookingModal, type SpaceInfo } from "@/components/CreateBookingModal";
+import { ScreenDetail } from "@/components/booking/ScreenDetail";
 import { ScreenPairingCode } from "@/components/ScreenPairingCode";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -360,6 +361,12 @@ const SpaceDetail = () => {
         </div>
       </AppLayout>
     );
+  }
+
+  // Someone else's space shows the booking flow's screen detail; the owner keeps the manage view.
+  if (!isOwner) {
+    const sorted = [...images].sort((a, b) => Number(b.is_primary) - Number(a.is_primary));
+    return <ScreenDetail space={space} images={sorted.map(i => i.url)} />;
   }
 
   const address = [

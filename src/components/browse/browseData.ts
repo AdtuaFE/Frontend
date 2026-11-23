@@ -1,7 +1,7 @@
 // Types, lookups and the filter/sort rules for the Browse spaces page.
 //
 // GET /api/spaces/search returns bare space rows, so the card details the design shows (photos,
-// the "From $X a day" price, which weekdays a screen plays) come from each space's images,
+// the "From $X a play" price, which weekdays a screen plays) come from each space's images,
 // screens and slots. The queries use the same keys as the space and campaign pages, so they share
 // one cache.
 
@@ -34,12 +34,15 @@ export type Space = {
 
 type SpaceImage = { id: number; url: string; is_primary: boolean };
 type Screen = { id: number; label: string; is_active: boolean };
-type Slot = { id: number; screen_id: number; day_of_week: number; total_price: number | string };
+type Slot = { id: number; screen_id: number; day_of_week: number; total_price: number | string; daily_capacity_playbacks: number };
 
 /** What a listing card needs beyond the space row. `undefined` while it is still loading. */
 export type SpaceExtras = {
   images: string[];
-  /** Cheapest slot's price for a full day, or null when the space has no slots. */
+  /**
+   * Cheapest price of one 15-second play (slot total_price / daily capacity, as the backend
+   * charges), or null when the space has no slots.
+   */
   fromPrice: number | null;
   /** ISO weekdays (1 = Monday) with at least one slot on an active screen. */
   days: Set<number>;
@@ -89,7 +92,7 @@ export function useSpaceExtras(spaces: Space[]): Map<number, SpaceExtras | undef
       if (q?.isLoading) pending = true;
       for (const sl of q?.data ?? []) {
         days.add(sl.day_of_week);
-        const p = Number(sl.total_price);
+        const p = Number(sl.total_price) / (sl.daily_capacity_playbacks || 1);
         if (Number.isFinite(p) && (fromPrice == null || p < fromPrice)) fromPrice = p;
       }
     });
@@ -113,6 +116,12 @@ export function fmtDistance(km: number): string {
 
 export function fmtPrice(n: number): string {
   return n.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/** A per-play price: cents when it's a cent or more, otherwise two significant digits ($0.0075). */
+export function fmtPlay(n: number): string {
+  if (n >= 0.01 || n === 0) return fmtPrice(n);
+  return n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumSignificantDigits: 2 });
 }
 
 /** Inches read from a free-text size label like `55"`, `55 in` or `55-inch`. */

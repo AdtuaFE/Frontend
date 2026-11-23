@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 import type { Campaign } from "@/components/campaigns/campaignData";
 import { fmtRange } from "@/components/campaigns/campaignData";
 import {
-  ALL_DAYS, DAY_LABEL, DISTANCES_MI, EMPTY_FILTERS, SORT_LABEL, venueLabel,
+  ALL_DAYS, DAY_LABEL, DISTANCES_MI, EMPTY_FILTERS, SORT_LABEL, fmtPlay, venueLabel,
   type Filters, type Orientation, type SizeBucket, type SortKey,
 } from "./browseData";
 import {
@@ -146,21 +146,27 @@ export function VenueTypeChip({ filters, onApply, countWith, venueCounts }: {
   );
 }
 
-/* ---------- price a day (range with footer) ---------- */
+/* ---------- price a play (range with footer) ---------- */
 
-const roundUp = (n: number) => Math.max(1, Math.ceil(n));
+/** Slider steps sized to the prices: a hundredth of a cent for sub-cent plays. */
+const stepFor = (hi: number) => (hi < 0.1 ? 0.0001 : hi < 1 ? 0.001 : hi < 10 ? 0.01 : 0.1);
+const snap = (n: number, step: number, up: boolean) => {
+  const v = (up ? Math.ceil(n / step) : Math.floor(n / step)) * step;
+  return Number(v.toFixed(4));
+};
 
 export function PriceChip({ filters, onApply, countWith, bounds, average }: {
   filters: Filters;
   onApply: (f: Filters) => void;
   countWith: CountWith;
-  /** Lowest and highest day prices in the results. */
+  /** Lowest and highest per-play prices in the results. */
   bounds: [number, number];
   average: number | null;
 }) {
   const [open, setOpen] = useState(false);
-  const lo = Math.floor(bounds[0]);
-  const hi = roundUp(bounds[1]);
+  const step = stepFor(bounds[1]);
+  const lo = snap(bounds[0], step, false);
+  const hi = Math.max(snap(bounds[1], step, true), lo + step);
   const [draft, setDraft] = useState<[number, number]>(filters.price ?? [lo, hi]);
   const set = filters.price;
   const isFull = draft[0] <= lo && draft[1] >= hi;
@@ -175,16 +181,16 @@ export function PriceChip({ filters, onApply, countWith, bounds, average }: {
   return (
     <Popover open={open} onOpenChange={o => { setOpen(o); if (o) setDraft(filters.price ?? [lo, hi]); }}>
       <PopoverTrigger asChild>
-        <FilterChip set={!!set}>{set ? `Price: $${set[0]} to $${set[1]}` : "Price"}</FilterChip>
+        <FilterChip set={!!set}>{set ? `Price: ${fmtPlay(set[0])} to ${fmtPlay(set[1])}` : "Price"}</FilterChip>
       </PopoverTrigger>
       <PopoverContent align="start" className={cn(popoverCn, "w-[300px]")}>
-        <div role="dialog" aria-label="Price a day" className="flex flex-col gap-4 p-4">
+        <div role="dialog" aria-label="Price a play" className="flex flex-col gap-4 p-4">
           <div className="flex flex-col gap-1">
-            <span className="text-sm font-medium leading-5">Price a day</span>
-            {average != null && <span className="text-xs leading-4 text-[#656972]">Average is ${average.toFixed(2)} a day</span>}
+            <span className="text-sm font-medium leading-5">Price a play</span>
+            {average != null && <span className="text-xs leading-4 text-[#656972]">Average is {fmtPlay(average)} a play</span>}
           </div>
           <SliderPrimitive.Root
-            min={lo} max={hi} step={1} value={draft} minStepsBetweenThumbs={0}
+            min={lo} max={hi} step={step} value={draft} minStepsBetweenThumbs={0}
             onValueChange={v => setDraft([v[0], v[1]])}
             className="relative mx-2 my-1 flex h-5 touch-none select-none items-center">
             <SliderPrimitive.Track className="relative h-1 grow rounded-sm bg-[#f1f2f7]">
@@ -366,7 +372,7 @@ export function MoreFiltersChip({ filters, onApply, countWith, distance, onDista
 export function AppliedFilters({ filters, onChange }: { filters: Filters; onChange: (f: Filters) => void }) {
   const chips: { label: string; name: string; clear: Partial<Filters> }[] = [];
   if (filters.venueTypes.length) chips.push({ label: `Venue type: ${filters.venueTypes.map(venueLabel).join(", ")}`, name: "Venue type", clear: { venueTypes: [] } });
-  if (filters.price) chips.push({ label: `$${filters.price[0]} to $${filters.price[1]} a day`, name: "Price", clear: { price: null } });
+  if (filters.price) chips.push({ label: `${fmtPlay(filters.price[0])} to ${fmtPlay(filters.price[1])} a play`, name: "Price", clear: { price: null } });
   if (filters.size !== "any") chips.push({ label: SIZES.find(s => s[0] === filters.size)![1], name: "Screen size", clear: { size: "any" } });
   if (filters.orientations.length < 2) chips.push({ label: filters.orientations[0] === "landscape" ? "Landscape" : "Portrait", name: "Orientation", clear: { orientations: EMPTY_FILTERS.orientations } });
   if (filters.formats.length < 2) chips.push({ label: filters.formats[0] === "video" ? "Video ads" : "Image ads", name: "Ad format", clear: { formats: EMPTY_FILTERS.formats } });

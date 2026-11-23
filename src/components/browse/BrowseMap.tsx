@@ -4,7 +4,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { List, Maximize2, Minus, Plus, RefreshCw, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { fmtPrice, miToKm } from "./browseData";
+import { fmtPlay, miToKm } from "./browseData";
 import { Btn } from "./primitives";
 
 export type MapPin = { id: number; lat: number; lng: number; price: number | null };
@@ -155,7 +155,7 @@ export function BrowseMap({
     const m = new Map<number, L.DivIcon>();
     for (const p of pins) {
       const state = p.id === selectedId ? "on" : p.id === hoveredId ? "hover" : "idle";
-      m.set(p.id, pinIcon(p.price != null ? fmtPrice(p.price) : "—", state));
+      m.set(p.id, pinIcon(p.price != null ? fmtPlay(p.price) : "—", state));
     }
     return m;
   }, [pins, selectedId, hoveredId]);

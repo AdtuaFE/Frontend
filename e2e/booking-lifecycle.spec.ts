@@ -16,7 +16,7 @@
  * Space/screen/slot creation is seeded through the API rather than driven through the AddSpace
  * wizard — that wizard (photos, screens, a slot-schedule grid) is its own large surface and isn't
  * what this test is about; see e2e/helpers/seed.ts. Booking creation itself (the feature under
- * test) is still driven for real, through the actual modal.
+ * test) is still driven for real: screen detail, then Review request, then Send request.
  *
  * Run with: npx playwright test booking-lifecycle --headed  (to watch)
  */
@@ -60,48 +60,33 @@ test.describe.serial("Booking lifecycle", () => {
   test("2. Advertiser finds the space and sends a booking request", async ({ page }) => {
     await loginAs(page, ADVERTISER.email, ADVERTISER.password);
 
-    const campaign = await seedCampaign(page, { name: `E2E Booking Campaign ${Date.now()}` });
+    // The screen detail page fills in the campaign's dates (from the 3-day notice cutoff on), so
+    // the campaign has to run long enough for the seeded slot's weekday to fall inside them.
+    const campaign = await seedCampaign(page, { name: `E2E Booking Campaign ${Date.now()}`, end_date: weekWindow(14)[1] });
     await activateCampaign(page, campaign.id);
     state.campaignId = campaign.id;
 
     expect(state.spaceId).toBeGreaterThan(0);
-    await page.goto(`/spaces/${state.spaceId}`);
+    // Opening the screen with ?campaign= picks the campaign and fills in its dates.
+    await page.goto(`/spaces/${state.spaceId}?campaign=${campaign.id}`);
     await page.waitForLoadState("networkidle");
-    await expect(page.getByText(state.spaceName)).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("heading", { level: 1 })).toContainText(state.spaceName, { timeout: 10_000 });
 
-    // Exact text to avoid matching the "Bookings" nav button.
-    const bookBtn = page.getByRole("button", { name: /^book space$/i });
-    await expect(bookBtn).toBeVisible();
-    await bookBtn.click();
+    // The panel's single time slot is picked for us (10 plays a day). The server prices it, and
+    // Review request only turns on once that price is back.
+    const panel = page.getByRole("complementary", { name: /book this screen/i });
+    const review = panel.getByRole("button", { name: /^review request$/i });
+    await expect(review).toBeEnabled({ timeout: 15_000 });
+    await review.click();
 
-    const dialog = page.getByRole("dialog");
-    await expect(dialog).toBeVisible();
+    // Review request: the ad goes up with the request itself (booking creation is multipart).
+    await expect(page).toHaveURL(/\/request$/);
+    await page.locator('input[type="file"]').setInputFiles(path.join(import.meta.dirname, "fixtures", "test-creative.jpg"));
+    const send = page.getByRole("button", { name: /^send request$/i });
+    await expect(send).toBeEnabled({ timeout: 15_000 });
+    await send.click();
 
-    await dialog.getByRole("combobox").first().click();
-    await page.getByRole("option", { name: campaign.name }).click();
-
-    // Ad — now a required field (breaking change from issue #31: booking creation is multipart,
-    // the creative goes up with the request itself).
-    const fileInput = dialog.locator('input[type="file"]');
-    await fileInput.setInputFiles(path.join(import.meta.dirname, "fixtures", "test-creative.jpg"));
-
-    // Pick the slot seeded in step 1 (auto-checked, since it's the only one).
-    const firstSlotCheckbox = dialog.getByRole("checkbox").first();
-    if (!(await firstSlotCheckbox.isChecked())) await firstSlotCheckbox.check();
-    const playsInput = dialog.getByPlaceholder(/e\.g\./i).first();
-    await playsInput.fill("10");
-
-    // Start date must be >= 3 days out; a 7-day window guarantees the seeded slot's
-    // day-of-week occurs at least once in range.
-    const [start, end] = weekWindow(3);
-    await dialog.getByLabel(/start date/i).fill(start);
-    await dialog.getByLabel(/end date/i).fill(end);
-
-    await expect(dialog.getByText(/^total:/i)).toBeVisible({ timeout: 10_000 });
-    await dialog.getByRole("button", { name: /send booking request/i }).click();
-    await expect(dialog).not.toBeVisible({ timeout: 10_000 });
-
-    await expect(page.getByText(/booking request sent/i).first()).toBeVisible({ timeout: 8_000 });
+    await expect(page.getByRole("heading", { name: /^request sent$/i })).toBeVisible({ timeout: 10_000 });
   });
 
   // ─── Step 3: Broadcaster sees and accepts the booking ────────────────────────
@@ -141,7 +126,8 @@ test.describe.serial("Booking lifecycle", () => {
     await page.goto(`/bookings/${state.bookingId}`);
     await page.waitForLoadState("networkidle");
 
-    await expect(page.getByText(/accepted/i).first()).toBeVisible({ timeout: 8_000 });
+    // Approved and not started yet: the advertiser's page calls that Scheduled.
+    await expect(page.getByText(/^scheduled$/i).first()).toBeVisible({ timeout: 8_000 });
 
     const fileInput = page.locator('input[type="file"]').first();
     await expect(fileInput).toBeAttached();

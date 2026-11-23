@@ -37,38 +37,28 @@ test.describe.serial("Per-slot booking review and resolve", () => {
 
   test("2. Advertiser books both slots in one request", async ({ page }) => {
     await loginAs(page, ADVERTISER.email, ADVERTISER.password);
-    const campaign = await seedCampaign(page, { name: `E2E Slot Review Campaign ${Date.now()}` });
+    // Long enough that both seeded weekdays fall inside the dates the page fills in from the campaign.
+    const campaign = await seedCampaign(page, { name: `E2E Slot Review Campaign ${Date.now()}`, end_date: weekWindow(14)[1] });
     await activateCampaign(page, campaign.id);
 
-    await page.goto(`/spaces/${state.spaceId}`);
+    await page.goto(`/spaces/${state.spaceId}?campaign=${campaign.id}`);
     await page.waitForLoadState("networkidle");
-    await page.getByRole("button", { name: /^book space$/i }).click();
 
-    const dialog = page.getByRole("dialog");
-    await expect(dialog).toBeVisible();
-    await dialog.getByRole("combobox").first().click();
-    await page.getByRole("option", { name: campaign.name }).click();
+    // Two time slots on this screen (one per weekday): pick both, 10 plays a day each by default.
+    const panel = page.getByRole("complementary", { name: /book this screen/i });
+    await expect(panel.getByRole("checkbox")).toHaveCount(2, { timeout: 10_000 });
+    for (const label of ["Monday slot", "Tuesday slot"]) await panel.getByRole("checkbox", { name: label }).check({ force: true });
 
-    await dialog.locator('input[type="file"]').setInputFiles(path.join(import.meta.dirname, "fixtures", "test-creative.jpg"));
+    const review = panel.getByRole("button", { name: /^review request$/i });
+    await expect(review).toBeEnabled({ timeout: 15_000 });
+    await review.click();
 
-    // Check both slots and give each a play count.
-    const checkboxes = dialog.getByRole("checkbox");
-    await expect(checkboxes).toHaveCount(2);
-    for (let i = 0; i < 2; i++) {
-      const cb = checkboxes.nth(i);
-      if (!(await cb.isChecked())) await cb.check();
-    }
-    const playsInputs = dialog.getByPlaceholder(/e\.g\./i);
-    await playsInputs.nth(0).fill("10");
-    await playsInputs.nth(1).fill("10");
-
-    const [start, end] = weekWindow(3);
-    await dialog.getByLabel(/start date/i).fill(start);
-    await dialog.getByLabel(/end date/i).fill(end);
-
-    await expect(dialog.getByText(/^total:/i)).toBeVisible({ timeout: 10_000 });
-    await dialog.getByRole("button", { name: /send booking request/i }).click();
-    await expect(dialog).not.toBeVisible({ timeout: 10_000 });
+    await expect(page).toHaveURL(/\/request$/);
+    await page.locator('input[type="file"]').setInputFiles(path.join(import.meta.dirname, "fixtures", "test-creative.jpg"));
+    const send = page.getByRole("button", { name: /^send request$/i });
+    await expect(send).toBeEnabled({ timeout: 15_000 });
+    await send.click();
+    await expect(page.getByRole("heading", { name: /^request sent$/i })).toBeVisible({ timeout: 10_000 });
 
     const res = await page.request.get(`${API}/api/bookings`);
     const bookings: { id: number; space_id: number; status: string; total_price: number }[] = (await res.json()).data;
@@ -101,11 +91,12 @@ test.describe.serial("Per-slot booking review and resolve", () => {
     await page.goto(`/bookings/${state.bookingId}`);
     await page.waitForLoadState("networkidle");
 
-    // Singular phrasing for exactly one turned-down slot: "turned down a time slot".
-    await expect(page.getByText(/turned down a time slot/i)).toBeVisible({ timeout: 8_000 });
-    await page.getByRole("button", { name: /^drop$/i }).click();
+    // The banner names the one time slot that wasn't approved.
+    await expect(page.getByText(/didn't approve a time slot/i)).toBeVisible({ timeout: 8_000 });
+    await page.getByRole("button", { name: /^drop time slot$/i }).click();
 
-    await expect(page.getByText(/^accepted$/i).first()).toBeVisible({ timeout: 8_000 });
+    // What's left is approved and starts at least 3 days out, so the advertiser's page says Scheduled.
+    await expect(page.getByText(/^scheduled$/i).first()).toBeVisible({ timeout: 8_000 });
 
     const res = await page.request.get(`${API}/api/bookings/${state.bookingId}`);
     const booking: { status: string; total_price: number } = (await res.json()).data;

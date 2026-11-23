@@ -44,10 +44,12 @@ export function CampaignStatusBadge({ status }: { status: CampaignStatus }) {
 const ROW_BADGE: Record<RowStatus, { tone: Tone; icon: ComponentType<LucideProps>; label: string }> = {
   not_approved: { tone: "red", icon: Info, label: "Not approved" },
   new_offer: { tone: "indigo", icon: Inbox, label: "New offer" },
-  pending: { tone: "amber", icon: Clock, label: "Pending" },
+  pending: { tone: "amber", icon: Clock, label: "Waiting" },
   playing: { tone: "green", icon: Play, label: "Playing" },
   scheduled: { tone: "indigo", icon: CalendarClock, label: "Scheduled" },
-  done: { tone: "neutral", icon: Check, label: "Finished" },
+  done: { tone: "neutral", icon: Check, label: "Completed" },
+  expired: { tone: "neutral", icon: Info, label: "Expired" },
+  withdrawn: { tone: "neutral", icon: Info, label: "Withdrawn" },
 };
 
 export function RowStatusBadge({ status }: { status: RowStatus }) {

@@ -50,7 +50,7 @@ describe("campaignMoney", () => {
 });
 
 describe("campaignRows", () => {
-  it("groups offers and bookings into needs you, waiting and booked", () => {
+  it("groups offers and bookings into needs you, waiting, approved and ended", () => {
     const rows = campaignRows(
       [
         booking(1, { status: "rejected" }),
@@ -59,13 +59,16 @@ describe("campaignRows", () => {
         booking(4, { status: "accepted", start_date: "2026-11-01" }),
         booking(5, { status: "completed" }),
         booking(6, { status: "cancelled" }),
+        booking(7, { status: "expired" }),
+        booking(8, { status: "accepted", start_date: "2026-09-01", end_date: "2026-09-30" }),
       ],
       [offer(10, "pending"), offer(11, "accepted"), offer(12, "rejected")],
       day("2026-10-10"),
     );
     expect(rows.needs.map(r => r.status)).toEqual(["new_offer", "not_approved"]);
     expect(rows.waiting.map(r => r.status)).toEqual(["pending"]);
-    expect(rows.booked.map(r => r.status)).toEqual(["playing", "scheduled", "done"]);
+    expect(rows.approved.map(r => r.status)).toEqual(["playing", "scheduled"]);
+    expect(rows.ended.map(r => r.status)).toEqual(["done", "withdrawn", "expired", "done"]);
   });
 });
 

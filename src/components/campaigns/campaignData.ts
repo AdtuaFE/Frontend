@@ -37,7 +37,7 @@ export type Booking = {
   end_date: string;
   total_price: number | string;
   created_at?: string;
-  booking_slots?: { id?: number; slot_id: number; daily_playbacks_allocated: number; status?: string }[];
+  booking_slots?: { id?: number; slot_id: number; daily_playbacks_allocated: number; play_count?: number | null; status?: string }[];
 };
 
 /** The list endpoint returns the offer row only; which spaces and slots it covers isn't included. */
@@ -142,31 +142,38 @@ export function campaignMoney(budget: number, bookings: Booking[], today = new D
 
 /* ---------- table rows ---------- */
 
-export type RowStatus = "not_approved" | "new_offer" | "pending" | "playing" | "scheduled" | "done";
+export type RowStatus =
+  | "not_approved" | "new_offer" | "pending" | "playing" | "scheduled" | "done" | "expired" | "withdrawn";
 
 export type CampaignRow =
   | { kind: "booking"; status: RowStatus; booking: Booking }
   | { kind: "offer"; status: "new_offer"; offer: Offer };
 
-export type CampaignRows = { needs: CampaignRow[]; waiting: CampaignRow[]; booked: CampaignRow[] };
+export type CampaignRows = { needs: CampaignRow[]; waiting: CampaignRow[]; approved: CampaignRow[]; ended: CampaignRow[] };
 
 /**
  * Groups a campaign's bookings and offers the way its table does. "Needs you" holds offers to
- * answer and requests a broadcaster turned down; cancelled bookings and answered offers drop out
- * (an accepted offer shows up as its booking).
+ * answer and requests a broadcaster turned down; "Approved" holds what's playing or scheduled;
+ * "Ended" holds what finished, expired or was withdrawn. Answered offers drop out (an accepted
+ * offer shows up as its booking). Playing and Completed come from the dates, not the backend.
  */
 export function campaignRows(bookings: Booking[], offers: Offer[], today = new Date()): CampaignRows {
-  const rows: CampaignRows = { needs: [], waiting: [], booked: [] };
+  const rows: CampaignRows = { needs: [], waiting: [], approved: [], ended: [] };
   for (const offer of offers) {
     if (offer.status === "pending") rows.needs.push({ kind: "offer", status: "new_offer", offer });
   }
   for (const b of bookings) {
     if (b.status === "rejected") rows.needs.push({ kind: "booking", status: "not_approved", booking: b });
     else if (b.status === "pending") rows.waiting.push({ kind: "booking", status: "pending", booking: b });
-    else if (b.status === "completed") rows.booked.push({ kind: "booking", status: "done", booking: b });
+    else if (b.status === "completed") rows.ended.push({ kind: "booking", status: "done", booking: b });
+    else if (b.status === "expired") rows.ended.push({ kind: "booking", status: "expired", booking: b });
+    else if (b.status === "cancelled") rows.ended.push({ kind: "booking", status: "withdrawn", booking: b });
     else if (b.status === "accepted" || b.status === "active") {
-      const started = daysFrom(parseDay(b.start_date), today) >= 0;
-      rows.booked.push({ kind: "booking", status: started ? "playing" : "scheduled", booking: b });
+      if (daysFrom(parseDay(b.end_date), today) > 0) rows.ended.push({ kind: "booking", status: "done", booking: b });
+      else {
+        const started = daysFrom(parseDay(b.start_date), today) >= 0;
+        rows.approved.push({ kind: "booking", status: started ? "playing" : "scheduled", booking: b });
+      }
     }
   }
   return rows;

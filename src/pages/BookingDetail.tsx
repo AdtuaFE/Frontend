@@ -22,6 +22,8 @@ import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api";
 import { spotsFor } from "@/lib/creative";
 import { toast } from "sonner";
+import { AdvertiserBookingView } from "@/components/booking/AdvertiserBookingView";
+import { cardCn } from "@/components/booking/bookingUi";
 
 type SlotStatus = "pending" | "approved" | "rejected" | "dropped" | "rescheduled" | "cancelled";
 
@@ -67,7 +69,7 @@ type Booking = {
 type Campaign = { id: number; name: string; advertiser_id: number };
 type Space = { id: number; name: string; city: string | null; region: string | null; country: string | null };
 type Screen = { id: number; space_id: number; label: string; is_active: boolean };
-type Slot = { id: number; label: string; day_of_week: number; start_time: string; end_time: string };
+type Slot = { id: number; screen_id?: number; label: string; day_of_week: number; start_time: string; end_time: string };
 
 type AssetStatus = "active" | "archived" | "pending_review" | "rejected";
 
@@ -297,6 +299,12 @@ const BookingDetail = () => {
   });
   const slots: Slot[] = slotQueries.flatMap(q => q.data ?? []);
 
+  const { data: spaceImages = [] } = useQuery<{ url: string; is_primary: boolean }[]>({
+    queryKey: ["space-images", booking?.space_id],
+    queryFn: () => api.get(`/api/spaces/${booking!.space_id}/images`),
+    enabled: !!booking,
+  });
+
   const { data: assets = [] } = useQuery<Asset[]>({
     queryKey: ["booking-assets", Number(id)],
     queryFn: () => api.get<Asset[]>(`/api/bookings/${id}/assets`),
@@ -330,7 +338,7 @@ const BookingDetail = () => {
       await api.patch(`/api/bookings/${booking.id}/status`, { status: "cancelled" });
       await queryClient.invalidateQueries({ queryKey: ["booking", booking.id] });
       await queryClient.invalidateQueries({ queryKey: ["bookings"] });
-      toast.success("Booking cancelled");
+      toast.success(isBookingAdvertiser ? "Request withdrawn" : "Booking cancelled");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Cancel failed");
     } finally {
@@ -386,6 +394,26 @@ const BookingDetail = () => {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Couldn't drop the slot");
     } finally {
+      setSlotActioning(null);
+    }
+  };
+
+  // Drops several turned-down slots one after another (the API resolves one slot per call).
+  const handleDropMany = async (slotIds: number[]) => {
+    if (!booking) return;
+    const list = (booking.booking_slots ?? []).filter(bs => slotIds.includes(bs.slot_id));
+    setSlotActioning(list[0]?.slot_id ?? null);
+    let returned = 0;
+    try {
+      for (const bs of list) {
+        await api.post(`/api/bookings/${booking.id}/slots/${bs.slot_id}/resolve`, { action: "drop" });
+        returned += Number(bs.reserved_price) || 0;
+      }
+      toast.success(`Dropped. ${fmtMoney(returned)} went back to your wallet.`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't drop the time slot");
+    } finally {
+      await Promise.all([refreshBooking(), queryClient.invalidateQueries({ queryKey: ["wallet"] })]);
       setSlotActioning(null);
     }
   };
@@ -572,8 +600,178 @@ const BookingDetail = () => {
   const uploadBlockedTitle = pendingSwap ? "Wait until the broadcaster has reviewed the new ad" : undefined;
   const location = [space?.city, space?.region, space?.country].filter(Boolean).join(", ") || null;
 
+  const assetsBlock = (
+    <>
+        {/* Creative assets */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-4">
+            <h2 className="text-lg font-semibold">Creative assets</h2>
+            {!isBookingBroadcaster && (
+              <div className="flex gap-2">
+                <Button
+                  size="sm" variant="outline"
+                  className="gap-1.5"
+                  disabled={uploading || pendingSwap}
+                  title={uploadBlockedTitle}
+                  onClick={() => fileInputRef.current?.click()}>
+                  <Upload className="h-4 w-4" />
+                  {uploading ? "Uploading…" : "Upload file"}
+                </Button>
+                <Button
+                  size="sm" variant="outline"
+                  disabled
+                  title="Available once messaging is enabled"
+                  className="gap-1.5 opacity-40 cursor-not-allowed">
+                  <MessageSquare className="h-4 w-4" />
+                  Promote from message
+                </Button>
+              </div>
+            )}
+          </div>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={ACCEPTED_TYPES}
+            className="hidden"
+            onChange={handleFileChange}
+          />
+
+          {pendingSwap && (isBookingAdvertiser || isBookingBroadcaster) && (
+            <div className="flex gap-2.5 rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
+              <Clock className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+              <p>
+                {isBookingBroadcaster
+                  ? "The advertiser sent a new ad. Approve it to start showing it, or reject it to keep the current one."
+                  : "Your new ad is waiting for the broadcaster to approve it. The current ad keeps playing until then."}
+              </p>
+            </div>
+          )}
+          {isLive && isBookingAdvertiser && assets.length > 0 && !pendingSwap && (
+            <p className="text-xs text-muted-foreground">
+              A new ad has to be the same length as the current one, and the broadcaster approves it before it plays.
+            </p>
+          )}
+
+          {assets.length === 0 ? (
+            isBookingBroadcaster ? (
+              <p className="text-sm text-muted-foreground py-4">
+                No creative assets have been uploaded by the advertiser yet.
+              </p>
+            ) : (
+              <button
+                disabled={uploading}
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full rounded-xl border-2 border-dashed border-[#d7dce3] py-16 flex flex-col items-center gap-3 text-muted-foreground hover:border-[#3a47c2] hover:text-[#3a47c2] transition-colors disabled:pointer-events-none">
+                <Plus className="h-8 w-8" />
+                <div className="text-center">
+                  <p className="font-medium">Upload your first creative</p>
+                  <p className="text-sm mt-0.5">JPEG, PNG, WebP, GIF, MP4, MOV · max 100 MB</p>
+                </div>
+              </button>
+            )
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {assets.map(asset => (
+                <AssetCard
+                  key={asset.id}
+                  asset={asset}
+                  viewer={isBookingBroadcaster ? "broadcaster" : isBookingAdvertiser ? "advertiser" : "other"}
+                  actioning={assetActioning === asset.id}
+                  onArchive={() => handleArchive(asset.id)}
+                  onActivate={() => handleActivate(asset.id)}
+                  onDelete={() => setPendingDeleteId(asset.id)}
+                  onApprove={() => handleReview(asset.id, "approve")}
+                  onReject={() => handleReview(asset.id, "reject")}
+                />
+              ))}
+              {!isBookingBroadcaster && (
+                <button
+                  disabled={uploading || pendingSwap}
+                  title={uploadBlockedTitle}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="rounded-xl border-2 border-dashed border-[#d7dce3] aspect-video flex flex-col items-center justify-center gap-2 text-sm text-muted-foreground hover:border-[#3a47c2] hover:text-[#3a47c2] transition-colors disabled:pointer-events-none">
+                  <Plus className="h-6 w-6" />
+                  Add another
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+    </>
+  );
+  const reviewsBlock = (
+    <>
+        {/* Reviews */}
+        {booking.status === "completed" && (isBookingBroadcaster || isBookingAdvertiser) && (
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold">Review</h2>
+
+            {myReview || reviewSubmitted ? (
+              <div className="rounded-xl border bg-card p-6">
+                <div className="flex items-center gap-1 mb-2">
+                  {[1, 2, 3, 4, 5].map(n => (
+                    <Star key={n}
+                      className={`h-5 w-5 ${n <= (myReview?.rating ?? reviewRating) ? "fill-[#3a47c2] text-[#3a47c2]" : "text-muted-foreground"}`}
+                    />
+                  ))}
+                </div>
+                {myReview?.comment && (
+                  <p className="text-sm text-muted-foreground italic">"{myReview.comment}"</p>
+                )}
+                <p className="mt-2 text-xs text-muted-foreground">Your review has been submitted.</p>
+              </div>
+            ) : canReview ? (
+              <div className="rounded-xl border bg-card p-6 space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  {isBookingAdvertiser
+                    ? "How was your experience with this broadcaster?"
+                    : "How was your experience with this advertiser?"}
+                </p>
+                <StarRating value={reviewRating} onChange={setReviewRating} />
+                <Textarea
+                  placeholder="Share your experience (optional)…"
+                  value={reviewComment}
+                  onChange={e => setReviewComment(e.target.value)}
+                  rows={3}
+                />
+                <Button
+                  disabled={reviewRating === 0 || reviewSubmitting}
+                  onClick={handleReviewSubmit}
+                  className="bg-[#3a47c2] text-white hover:bg-[#2f3a9e]">
+                  {reviewSubmitting ? "Submitting…" : "Submit review"}
+                </Button>
+              </div>
+            ) : null}
+          </div>
+        )}
+    </>
+  );
+
   return (
-    <AppLayout activeNav="home">
+    <AppLayout activeNav={isBookingAdvertiser ? "campaigns" : "home"}>
+      {isBookingAdvertiser ? (
+        <AdvertiserBookingView
+          booking={booking}
+          campaign={campaign}
+          space={space}
+          image={spaceImages.find(i => i.is_primary)?.url ?? spaceImages[0]?.url ?? null}
+          slots={slots}
+          screens={screens}
+          ad={activeAsset ? { url: activeAsset.signed_url, mime: activeAsset.mime_type, seconds: activeAsset.duration_seconds ?? null } : null}
+          onWithdraw={handleCancel}
+          withdrawing={cancelling}
+          onDrop={handleDropMany}
+          onMove={slotId => { const bs = bookingSlots.find(b => b.slot_id === slotId); if (bs) openMove(bs); }}
+          slotBusy={slotActioning !== null}
+          onUpload={() => fileInputRef.current?.click()}
+          uploading={uploading}
+          uploadBlocked={uploadBlockedTitle}
+          adsSection={<section className={`${cardCn} flex flex-col gap-4 p-6`}>{assetsBlock}</section>}
+          reviewsSection={booking.status === "completed" ? <section className={`${cardCn} p-6`}>{reviewsBlock}</section> : null}
+        />
+      ) : (
       <div className="max-w-3xl mx-auto space-y-8">
         <button onClick={() => navigate("/dashboard")}
           className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
@@ -759,147 +957,10 @@ const BookingDetail = () => {
           </div>
         )}
 
-        {/* Creative assets */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between gap-4">
-            <h2 className="text-lg font-semibold">Creative assets</h2>
-            {!isBookingBroadcaster && (
-              <div className="flex gap-2">
-                <Button
-                  size="sm" variant="outline"
-                  className="gap-1.5"
-                  disabled={uploading || pendingSwap}
-                  title={uploadBlockedTitle}
-                  onClick={() => fileInputRef.current?.click()}>
-                  <Upload className="h-4 w-4" />
-                  {uploading ? "Uploading…" : "Upload file"}
-                </Button>
-                <Button
-                  size="sm" variant="outline"
-                  disabled
-                  title="Available once messaging is enabled"
-                  className="gap-1.5 opacity-40 cursor-not-allowed">
-                  <MessageSquare className="h-4 w-4" />
-                  Promote from message
-                </Button>
-              </div>
-            )}
-          </div>
-
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept={ACCEPTED_TYPES}
-            className="hidden"
-            onChange={handleFileChange}
-          />
-
-          {pendingSwap && (isBookingAdvertiser || isBookingBroadcaster) && (
-            <div className="flex gap-2.5 rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
-              <Clock className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-              <p>
-                {isBookingBroadcaster
-                  ? "The advertiser sent a new ad. Approve it to start showing it, or reject it to keep the current one."
-                  : "Your new ad is waiting for the broadcaster to approve it. The current ad keeps playing until then."}
-              </p>
-            </div>
-          )}
-          {isLive && isBookingAdvertiser && assets.length > 0 && !pendingSwap && (
-            <p className="text-xs text-muted-foreground">
-              A new ad has to be the same length as the current one, and the broadcaster approves it before it plays.
-            </p>
-          )}
-
-          {assets.length === 0 ? (
-            isBookingBroadcaster ? (
-              <p className="text-sm text-muted-foreground py-4">
-                No creative assets have been uploaded by the advertiser yet.
-              </p>
-            ) : (
-              <button
-                disabled={uploading}
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full rounded-xl border-2 border-dashed border-[#d7dce3] py-16 flex flex-col items-center gap-3 text-muted-foreground hover:border-[#3a47c2] hover:text-[#3a47c2] transition-colors disabled:pointer-events-none">
-                <Plus className="h-8 w-8" />
-                <div className="text-center">
-                  <p className="font-medium">Upload your first creative</p>
-                  <p className="text-sm mt-0.5">JPEG, PNG, WebP, GIF, MP4, MOV · max 100 MB</p>
-                </div>
-              </button>
-            )
-          ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {assets.map(asset => (
-                <AssetCard
-                  key={asset.id}
-                  asset={asset}
-                  viewer={isBookingBroadcaster ? "broadcaster" : isBookingAdvertiser ? "advertiser" : "other"}
-                  actioning={assetActioning === asset.id}
-                  onArchive={() => handleArchive(asset.id)}
-                  onActivate={() => handleActivate(asset.id)}
-                  onDelete={() => setPendingDeleteId(asset.id)}
-                  onApprove={() => handleReview(asset.id, "approve")}
-                  onReject={() => handleReview(asset.id, "reject")}
-                />
-              ))}
-              {!isBookingBroadcaster && (
-                <button
-                  disabled={uploading || pendingSwap}
-                  title={uploadBlockedTitle}
-                  onClick={() => fileInputRef.current?.click()}
-                  className="rounded-xl border-2 border-dashed border-[#d7dce3] aspect-video flex flex-col items-center justify-center gap-2 text-sm text-muted-foreground hover:border-[#3a47c2] hover:text-[#3a47c2] transition-colors disabled:pointer-events-none">
-                  <Plus className="h-6 w-6" />
-                  Add another
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Reviews */}
-        {booking.status === "completed" && (isBookingBroadcaster || isBookingAdvertiser) && (
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold">Review</h2>
-
-            {myReview || reviewSubmitted ? (
-              <div className="rounded-xl border bg-card p-6">
-                <div className="flex items-center gap-1 mb-2">
-                  {[1, 2, 3, 4, 5].map(n => (
-                    <Star key={n}
-                      className={`h-5 w-5 ${n <= (myReview?.rating ?? reviewRating) ? "fill-[#3a47c2] text-[#3a47c2]" : "text-muted-foreground"}`}
-                    />
-                  ))}
-                </div>
-                {myReview?.comment && (
-                  <p className="text-sm text-muted-foreground italic">"{myReview.comment}"</p>
-                )}
-                <p className="mt-2 text-xs text-muted-foreground">Your review has been submitted.</p>
-              </div>
-            ) : canReview ? (
-              <div className="rounded-xl border bg-card p-6 space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  {isBookingAdvertiser
-                    ? "How was your experience with this broadcaster?"
-                    : "How was your experience with this advertiser?"}
-                </p>
-                <StarRating value={reviewRating} onChange={setReviewRating} />
-                <Textarea
-                  placeholder="Share your experience (optional)…"
-                  value={reviewComment}
-                  onChange={e => setReviewComment(e.target.value)}
-                  rows={3}
-                />
-                <Button
-                  disabled={reviewRating === 0 || reviewSubmitting}
-                  onClick={handleReviewSubmit}
-                  className="bg-[#3a47c2] text-white hover:bg-[#2f3a9e]">
-                  {reviewSubmitting ? "Submitting…" : "Submit review"}
-                </Button>
-              </div>
-            ) : null}
-          </div>
-        )}
+        {assetsBlock}
+        {reviewsBlock}
       </div>
+      )}
 
       {/* Delete asset confirmation */}
       <AlertDialog open={!!pendingDeleteId} onOpenChange={open => { if (!open) setPendingDeleteId(null); }}>

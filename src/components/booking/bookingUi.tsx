@@ -2,8 +2,11 @@
 
 import { Fragment, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { ChevronRight, ImageIcon, Minus, OctagonAlert, Plus, TriangleAlert } from "lucide-react";
+import {
+  CalendarCheck, ChevronRight, CircleCheck, CirclePlay, CircleX, Clock, ImageIcon, Minus, OctagonAlert, Plus, TriangleAlert,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
+import { STATUS_LOOK, type AdvertiserStatus, type StatusTone } from "./bookingStatus";
 
 export function Badge({ tone, children }: { tone: "success" | "warning" | "neutral"; children: ReactNode }) {
   return (
@@ -114,6 +117,94 @@ export function ScreenCell({ image, name, sub }: { image?: string | null; name: 
         {sub && <span className="mt-0.5 block truncate text-xs leading-4 text-[#656972]">{sub}</span>}
       </div>
     </div>
+  );
+}
+
+const TONE_PILL: Record<StatusTone, string> = {
+  warning: "bg-[#fef4e8] text-[#7c5003]",
+  brand: "bg-[#f2f5ff] text-[#3a47c2]",
+  success: "bg-[#edfaf0] text-[#016d36]",
+  neutral: "bg-[#f1f2f7] text-[#4a4d56]",
+  danger: "bg-[#fef3f1] text-[#aa0f16]",
+};
+const TONE_TEXT: Record<StatusTone, string> = {
+  warning: "text-[#7c5003]",
+  brand: "text-[#3a47c2]",
+  success: "text-[#016d36]",
+  neutral: "text-[#4a4d56]",
+  danger: "text-[#aa0f16]",
+};
+const STATUS_ICON: Record<AdvertiserStatus, typeof Clock> = {
+  waiting: Clock,
+  not_approved: TriangleAlert,
+  scheduled: CalendarCheck,
+  playing: CirclePlay,
+  completed: CircleCheck,
+  declined: CircleX,
+  withdrawn: CircleX,
+  expired: CircleX,
+};
+
+/** The header pill: "Waiting", "Scheduled"… */
+export function StatusPill({ status }: { status: AdvertiserStatus }) {
+  const look = STATUS_LOOK[status];
+  return (
+    <span className={cn("inline-flex h-6 items-center whitespace-nowrap rounded px-2 text-xs font-medium leading-4", TONE_PILL[look.tone])}>
+      {look.label}
+    </span>
+  );
+}
+
+/** The table's status: icon and label in the tone's colour. */
+export function StatusText({ status }: { status: AdvertiserStatus }) {
+  const look = STATUS_LOOK[status];
+  const Icon = STATUS_ICON[status];
+  return (
+    <span className={cn("inline-flex items-center gap-1 whitespace-nowrap text-xs font-medium leading-4", TONE_TEXT[look.tone])}>
+      <Icon aria-hidden className="h-4 w-4" />{look.label}
+    </span>
+  );
+}
+
+export function TonePill({ tone, children }: { tone: StatusTone; children: ReactNode }) {
+  return <span className={cn("inline-flex h-5 items-center whitespace-nowrap rounded px-2 text-xs font-medium leading-4", TONE_PILL[tone])}>{children}</span>;
+}
+
+/** The page banner from the booking detail boards. */
+export function Banner({ tone, icon: Icon, title, children, actions }: {
+  tone: "warning" | "info";
+  icon: typeof Clock;
+  title: ReactNode;
+  children?: ReactNode;
+  actions?: ReactNode;
+}) {
+  return (
+    <div role="status" className={cn("grid grid-cols-[24px_minmax(0,1fr)] items-start gap-3 rounded-xl p-4", tone === "warning" ? "bg-[#fef4e8]" : "bg-[#f1f2f7]")}>
+      <Icon aria-hidden className={cn("h-6 w-6 p-0.5", tone === "warning" ? "text-[#7c5003]" : "text-[#4a4d56]")} />
+      <div className="flex min-w-0 flex-col">
+        <h4 className="m-0 text-base font-semibold leading-6 text-[#1a1d25]">{title}</h4>
+        {children && <p className="m-0 mt-1 text-sm leading-5 text-[#1a1d25]">{children}</p>}
+        {actions && <div className="mt-3 flex flex-wrap gap-2">{actions}</div>}
+      </div>
+    </div>
+  );
+}
+
+/** The activity list: newest first, the current step filled. */
+export function Timeline({ items }: { items: { title: string; time?: string; now?: boolean }[] }) {
+  return (
+    <ol className="m-0 flex list-none flex-col p-0">
+      {items.map((it, i) => (
+        <li key={i} className="relative grid grid-cols-[16px_minmax(0,1fr)] gap-3 pb-5 last:pb-0">
+          {i < items.length - 1 && <span aria-hidden className="absolute bottom-0 left-[7px] top-5 w-0.5 bg-[#e3e5ea]" />}
+          <i aria-hidden className={cn("mt-0.5 box-border h-4 w-4 rounded-full border-2", it.now ? "border-[#3a47c2] bg-[#3a47c2]" : "border-[#d2d4d9] bg-white")} />
+          <span>
+            <b className="block text-sm font-medium leading-5 text-[#1a1d25]">{it.title}</b>
+            {it.time && <time className="mt-0.5 block text-xs leading-4 text-[#656972]">{it.time}</time>}
+          </span>
+        </li>
+      ))}
+    </ol>
   );
 }
 

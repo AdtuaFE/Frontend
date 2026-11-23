@@ -1,8 +1,10 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ChevronRight, Ellipsis, Globe, Lock, Pause, Pencil, Play, Search } from "lucide-react";
+import {
+  CalendarCheck, ChevronRight, CircleCheck, CirclePlay, CircleX, Clock, Ellipsis, Inbox, Pause, Pencil, Play, Search, TriangleAlert,
+} from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -11,10 +13,10 @@ import {
 import {
   AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Alert, Breadcrumb, CampaignButton, CampaignStatusBadge, RowStatusBadge } from "@/components/campaigns/CampaignBits";
+import { Alert, Breadcrumb, CampaignButton, CampaignStatusBadge } from "@/components/campaigns/CampaignBits";
 import { campaignToast } from "@/components/campaigns/campaignToast";
 import {
-  campaignMoney, campaignRows, fmtMoney, fmtRange, scheduleNote, spotsPerDay,
+  campaignMoney, campaignRows, fmtRange,
   type Booking, type Campaign, type CampaignRow, type CampaignStatus, type Money, type Offer,
 } from "@/components/campaigns/campaignData";
 import { useAuth } from "@/context/AuthContext";
@@ -22,6 +24,9 @@ import { api } from "@/lib/api";
 import CampaignDetail from "@/pages/CampaignDetail";
 import { OfferDialog } from "@/components/campaigns/OfferDialog";
 import { useBookingPlaces } from "@/components/campaigns/useBookingPlaces";
+import { KeyValues, ScreenCell, TonePill, cardCn } from "@/components/booking/bookingUi";
+import { hoursLeftLabel } from "@/components/booking/bookingStatus";
+import { fmtPrice } from "@/components/browse/browseData";
 
 /** Owners get the campaign page; broadcasters looking at a public campaign keep the offer view. */
 export default function CampaignRoute() {
@@ -43,44 +48,38 @@ export default function CampaignRoute() {
   return <CampaignDetail />;
 }
 
-function SpendCard({ budget, money, note, hasActivity }: { budget: number; money: Money; note: string; hasActivity: boolean }) {
+function SpendCard({ budget, money }: { budget: number; money: Money }) {
   const pct = (n: number) => `${budget > 0 ? Math.min(100, (n / budget) * 100) : 0}%`;
   const legend = [
-    { key: "spent", label: "Spent", value: money.spent, sub: "Plays that already ran", dot: "bg-[#232c7b]" },
-    { key: "booked", label: "Booked", value: money.booked, sub: "Accepted, still to play", dot: "bg-[#3a47c2]" },
-    { key: "waiting", label: "Waiting", value: money.waiting, sub: "Held until broadcasters answer", dot: "bg-[#cad6fe]" },
-    { key: "left", label: "Left to spend", value: money.left, sub: "Ready for new bookings", dot: "bg-[#f1f2f7] ring-1 ring-inset ring-[#d2d4d9]" },
+    { key: "spent", label: "Spent", value: money.spent, dot: "bg-[#232c7b]" },
+    { key: "booked", label: "Scheduled", value: money.booked, dot: "bg-[#3a47c2]" },
+    { key: "waiting", label: "On hold", value: money.waiting, dot: "bg-[#cad6fe]" },
+    { key: "left", label: "Left to spend", value: money.left, dot: "bg-[#f1f2f7] shadow-[inset_0_0_0_1px_#e3e5ea]" },
   ];
   return (
-    <section className="flex w-full flex-col gap-5 rounded-xl border-[0.8px] border-[#e3e5ea] bg-white p-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex flex-col gap-2">
-          <p className="text-[13px] font-medium leading-[18px] text-[#656972]">Left to spend</p>
-          <p className="flex items-end gap-1.5">
-            <span className="text-[32px] font-semibold leading-10 tracking-[-0.64px] text-[#1a1d25]">{fmtMoney(Math.round(money.left))}</span>
-            <span className="pb-1 text-base leading-6 text-[#656972]">of {fmtMoney(budget)}</span>
-          </p>
+    <section className={`${cardCn} flex flex-col gap-6 p-6`}>
+      <div className="flex flex-col gap-1">
+        <span className="text-sm leading-5 text-[#4a4d56]">Left to spend</span>
+        <div className="flex flex-wrap items-baseline gap-2">
+          <span className="text-[32px] font-semibold leading-10 tracking-[-0.01em] tabular-nums text-[#1a1d25]">{fmtPrice(money.left)}</span>
+          <span className="text-sm leading-5 text-[#656972]">of {fmtPrice(budget)} budget</span>
         </div>
-        <p className="max-w-[364px] text-right text-[13px] leading-[18px] text-[#4a4d56]">{note}</p>
       </div>
-      <div className="flex h-2.5 w-full gap-0.5 overflow-hidden rounded-[5px] bg-[#f1f2f7]" aria-hidden="true">
-        {money.spent > 0 && <div className="h-full bg-[#232c7b]" style={{ width: pct(money.spent) }} />}
-        {money.booked > 0 && <div className="h-full bg-[#3a47c2]" style={{ width: pct(money.booked) }} />}
-        {money.waiting > 0 && <div className="h-full bg-[#cad6fe]" style={{ width: pct(money.waiting) }} />}
+      <div role="img" className="flex h-3 gap-1 overflow-hidden rounded bg-[#f1f2f7]"
+        aria-label={`Spent ${fmtPrice(money.spent)}, scheduled ${fmtPrice(money.booked)}, on hold ${fmtPrice(money.waiting)}, left to spend ${fmtPrice(money.left)}`}>
+        {money.spent > 0 && <i className="block h-full bg-[#232c7b]" style={{ width: pct(money.spent) }} />}
+        {money.booked > 0 && <i className="block h-full bg-[#3a47c2]" style={{ width: pct(money.booked) }} />}
+        {money.waiting > 0 && <i className="block h-full bg-[#cad6fe]" style={{ width: pct(money.waiting) }} />}
       </div>
-      {hasActivity && (
-        <dl className="grid grid-cols-2 gap-x-8 gap-y-4 md:grid-cols-4">
-          {legend.map(l => (
-            <div key={l.key} className="flex flex-col gap-1">
-              <dt className="flex items-center gap-2 text-[13px] leading-[18px] text-[#4a4d56]">
-                <span className={`size-2.5 rounded-[3px] ${l.dot}`} aria-hidden="true" />{l.label}
-              </dt>
-              <dd className="pl-[18px] text-base font-semibold leading-6 text-[#1a1d25]">{fmtMoney(Math.round(l.value))}</dd>
-              <dd className="pl-[18px] text-[13px] leading-[18px] text-[#656972]">{l.sub}</dd>
-            </div>
-          ))}
-        </dl>
-      )}
+      <dl className="m-0 grid grid-cols-2 gap-4 md:grid-cols-4">
+        {legend.map(l => (
+          <div key={l.key} className="grid grid-cols-[12px_minmax(0,1fr)] items-center gap-x-2 gap-y-1">
+            <i aria-hidden className={`h-3 w-3 rounded-sm ${l.dot}`} />
+            <dt className="text-sm leading-5 text-[#4a4d56]">{l.label}</dt>
+            <dd className="col-start-2 m-0 text-xl font-semibold leading-7 tabular-nums text-[#1a1d25]">{fmtPrice(l.value)}</dd>
+          </div>
+        ))}
+      </dl>
     </section>
   );
 }
@@ -116,79 +115,118 @@ function FirstScreen({ onFind }: { onFind: () => void }) {
   );
 }
 
-const COLS = "grid-cols-[minmax(0,1fr)_173px_143px_103px_69px_48px]";
-const headCn = "flex items-center bg-[#f8faff] px-4 py-2.5 text-[13px] font-medium leading-[18px] text-[#656972]";
-const cellCn = "flex items-center px-4 py-3.5 text-sm leading-5 text-[#1a1d25]";
+const thCn = "whitespace-nowrap border-b border-[#e3e5ea] bg-[#f8faff] px-4 py-3 text-left text-xs font-medium leading-4 text-[#656972]";
+const tdCn = "border-b border-[#f1f2f7] px-4 py-4 align-top text-sm leading-5 text-[#4a4d56]";
 
-function RowsTable({ campaign, rows, place, onOpen }: {
+const ROW_TEXT: Record<CampaignRow["status"], { label: string; cn: string; icon: typeof Clock }> = {
+  not_approved: { label: "Not approved", cn: "text-[#7c5003]", icon: TriangleAlert },
+  new_offer: { label: "New offer", cn: "text-[#3a47c2]", icon: Inbox },
+  pending: { label: "Waiting", cn: "text-[#7c5003]", icon: Clock },
+  playing: { label: "Playing", cn: "text-[#016d36]", icon: CirclePlay },
+  scheduled: { label: "Scheduled", cn: "text-[#3a47c2]", icon: CalendarCheck },
+  done: { label: "Completed", cn: "text-[#4a4d56]", icon: CircleCheck },
+  expired: { label: "Expired", cn: "text-[#4a4d56]", icon: CircleX },
+  withdrawn: { label: "Withdrawn", cn: "text-[#4a4d56]", icon: CircleX },
+};
+
+function RowStatus({ status }: { status: CampaignRow["status"] }) {
+  const look = ROW_TEXT[status];
+  return <span className={`inline-flex items-center gap-1 whitespace-nowrap text-xs font-medium leading-4 ${look.cn}`}><look.icon aria-hidden className="h-4 w-4" />{look.label}</span>;
+}
+
+function RowsTable({ campaign, rows, place, slot, images, onOpen }: {
   campaign: Campaign;
   rows: ReturnType<typeof campaignRows>;
   place: ReturnType<typeof useBookingPlaces>["place"];
+  slot: ReturnType<typeof useBookingPlaces>["slot"];
+  images: Map<number, string | undefined>;
   onOpen: (row: CampaignRow) => void;
 }) {
+  const [hideEnded, setHideEnded] = useState(false);
   const groups = [
     { key: "needs", label: "Needs you", rows: rows.needs, loud: true },
     { key: "waiting", label: "Waiting on broadcasters", rows: rows.waiting, loud: false },
-    { key: "booked", label: "Booked", rows: rows.booked, loud: false },
+    { key: "approved", label: "Approved", rows: rows.approved, loud: false },
+    { key: "ended", label: "Ended", rows: rows.ended, loud: false },
   ].filter(g => g.rows.length > 0);
 
+  /** Time slot names with plays a day, one line per slot, from the booking's weekday rows. */
+  const slotLines = (b: Booking) => {
+    const seen = new Map<string, number>();
+    for (const bs of b.booking_slots ?? []) {
+      const label = slot(bs.slot_id)?.label ?? `Slot ${bs.slot_id}`;
+      if (!seen.has(label)) seen.set(label, bs.play_count ?? bs.daily_playbacks_allocated);
+    }
+    return [...seen.entries()];
+  };
+
   return (
-    <div className="w-full self-start overflow-x-auto rounded-xl border-[0.8px] border-[#e3e5ea] bg-white">
-      <div role="table" aria-label="Screens in this campaign" className="min-w-[640px]">
-        <div role="row" className={`grid ${COLS} border-b-[0.8px] border-[#e3e5ea]`}>
-          {["Screen", "Status", "Dates"].map(h => <div key={h} role="columnheader" className={headCn}>{h}</div>)}
-          {["Spots a day", "Total"].map(h => <div key={h} role="columnheader" className={`${headCn} justify-end`}>{h}</div>)}
-          <div role="columnheader" className={headCn}><span className="sr-only">Open</span></div>
-        </div>
+    <div className="w-full overflow-x-auto rounded-xl border border-[#e3e5ea] bg-white">
+      <table className="w-full min-w-[880px] border-collapse">
+        <thead>
+          <tr>
+            <th className={thCn}>Screen</th>
+            <th className={thCn}>Time slots</th>
+            <th className={`${thCn} text-right`}>Plays a day</th>
+            <th className={thCn}>Status</th>
+            <th className={thCn}>Answer due</th>
+            <th className={thCn}>Dates</th>
+            <th className={`${thCn} text-right`}>Amount</th>
+            <th className={thCn}><span className="sr-only">Open</span></th>
+          </tr>
+        </thead>
         {groups.map(g => (
-          <div key={g.key} role="rowgroup">
-            <div role="row" className="flex items-center gap-2 border-b-[0.8px] border-[#e3e5ea] bg-[#f8faff] px-4 py-2 text-[13px] leading-[18px]">
-              <span role="cell" className="font-medium text-[#4a4d56]">{g.label}</span>
-              {g.loud
-                ? <span className="grid h-5 min-w-5 place-items-center rounded-full bg-[#3a47c2] px-1.5 text-xs font-medium leading-4 text-white">{g.rows.length}</span>
-                : <span className="text-[#656972]">{g.rows.length}</span>}
-            </div>
-            {g.rows.map(row => {
+          <tbody key={g.key}>
+            <tr>
+              <td colSpan={8} className="border-b border-[#e3e5ea] bg-[#f8faff] px-4 py-2 text-xs font-medium leading-4 text-[#4a4d56]">
+                <span className="flex items-center gap-2">
+                  {g.label}
+                  <span className={`grid h-5 min-w-5 place-items-center rounded-full px-1 text-xs font-medium tabular-nums ${g.loud ? "bg-[#3a47c2] text-white" : "bg-[#f1f2f7] text-[#4a4d56]"}`}>{g.rows.length}</span>
+                  {g.key === "ended" && (
+                    <button type="button" onClick={() => setHideEnded(h => !h)} className="text-xs font-medium text-[#3a47c2] hover:text-[#2e399f] hover:underline hover:underline-offset-[3px]">
+                      {hideEnded ? "Show" : "Hide"}
+                    </button>
+                  )}
+                </span>
+              </td>
+            </tr>
+            {!(g.key === "ended" && hideEnded) && g.rows.map(row => {
               const isOffer = row.kind === "offer";
-              const p = row.kind === "booking" ? place(row.booking) : null;
-              const label = isOffer ? "Offer from a broadcaster" : p!.name;
-              const sub = isOffer ? row.offer.message || "Open it to accept or decline." : p!.screen || "Screen";
+              const b = row.kind === "booking" ? row.booking : null;
+              const p = b ? place(b) : null;
+              const lines = b ? slotLines(b) : [];
+              const due = row.status === "pending" && b?.created_at ? hoursLeftLabel(b.created_at) : null;
+              const voided = row.status === "expired" || row.status === "withdrawn";
               return (
-                <button
-                  key={`${row.kind}-${isOffer ? row.offer.id : row.booking.id}`}
-                  type="button"
-                  role="row"
-                  onClick={() => onOpen(row)}
-                  className={`grid w-full ${COLS} border-b-[0.8px] border-[#f1f2f7] text-left transition-colors last:border-b-0 hover:bg-[#f8faff]`}>
-                  <span role="cell" className="flex min-w-0 flex-col justify-center px-4 py-3.5">
-                    <span className="truncate text-sm font-medium leading-5 text-[#1a1d25]">{label}</span>
-                    <span className="truncate pt-0.5 text-[13px] leading-[18px] text-[#656972]">{sub}</span>
-                  </span>
-                  <span role="cell" className={cellCn}><RowStatusBadge status={row.status} /></span>
-                  <span role="cell" className={cellCn}>
-                    {isOffer ? fmtRange(campaign.start_date, campaign.end_date) : fmtRange(row.booking.start_date, row.booking.end_date)}
-                  </span>
-                  <span role="cell" className={`${cellCn} justify-end`}>{isOffer ? "—" : spotsPerDay(row.booking) || "—"}</span>
-                  <span role="cell" className={`${cellCn} justify-end`}>{isOffer ? "—" : fmtMoney(Number(row.booking.total_price))}</span>
-                  <span role="cell" className="flex items-center justify-center"><ChevronRight className="size-4 text-[#656972]" aria-hidden="true" /></span>
-                </button>
+                <tr key={`${row.kind}-${isOffer ? row.offer.id : b!.id}`} onClick={() => onOpen(row)}
+                  className="cursor-pointer transition-colors hover:bg-[#f8faff]">
+                  <td className={tdCn}>
+                    {isOffer ? (
+                      <ScreenCell name="Offer from a broadcaster" sub={row.offer.message || "Open it to accept or decline."} />
+                    ) : (
+                      <ScreenCell image={images.get(b!.space_id)} name={p!.name} sub={p!.screen || undefined} />
+                    )}
+                  </td>
+                  <td className={tdCn}><span className="flex flex-col gap-2">{lines.length ? lines.map(([l]) => <span key={l}>{l}</span>) : "—"}</span></td>
+                  <td className={`${tdCn} text-right tabular-nums`}><span className="flex flex-col gap-2">{lines.length ? lines.map(([l, n]) => <span key={l}>{n}</span>) : "—"}</span></td>
+                  <td className={tdCn}><RowStatus status={row.status} /></td>
+                  <td className={tdCn}>{due ? <TonePill tone={due.tone}>{due.text}</TonePill> : null}</td>
+                  <td className={`${tdCn} whitespace-nowrap`}>{isOffer ? fmtRange(campaign.start_date, campaign.end_date) : fmtRange(b!.start_date, b!.end_date)}</td>
+                  <td className={`${tdCn} text-right tabular-nums ${voided ? "text-[#656972] line-through" : "font-medium text-[#1a1d25]"}`}>
+                    {isOffer ? "—" : fmtPrice(Number(b!.total_price))}
+                  </td>
+                  <td className={`${tdCn} w-6 pl-0`}>
+                    <button type="button" aria-label={isOffer ? "Open offer" : `Open ${p!.name}`} onClick={e => { e.stopPropagation(); onOpen(row); }}
+                      className="grid h-6 w-6 place-items-center rounded text-[#656972] hover:text-[#1a1d25] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#3a47c2]">
+                      <ChevronRight aria-hidden className="h-4 w-4" />
+                    </button>
+                  </td>
+                </tr>
               );
             })}
-          </div>
+          </tbody>
         ))}
-      </div>
-    </div>
-  );
-}
-
-function Detail({ term, children, aside }: { term: string; children: ReactNode; aside?: ReactNode }) {
-  return (
-    <div className="flex flex-col gap-1">
-      <dt className="text-[13px] leading-[18px] text-[#656972]">{term}</dt>
-      <dd className="flex items-center justify-between gap-3 text-sm leading-5 text-[#1a1d25]">
-        <span>{children}</span>
-        {aside && <span className="text-[13px] leading-[18px] text-[#656972]">{aside}</span>}
-      </dd>
+      </table>
     </div>
   );
 }
@@ -228,8 +266,21 @@ function CampaignPage({ campaign }: { campaign: Campaign }) {
   const budget = Number(campaign.total_budget);
   const money = campaignMoney(budget, bookings);
   const rows = campaignRows(bookings, offers);
-  const hasRows = rows.needs.length + rows.waiting.length + rows.booked.length > 0;
-  const { place } = useBookingPlaces(bookings);
+  const bookingCount = rows.needs.filter(r => r.kind === "booking").length + rows.waiting.length + rows.approved.length + rows.ended.length;
+  const hasRows = rows.needs.length + bookingCount > 0;
+  const { place, slot } = useBookingPlaces(bookings);
+  const spaceIds = [...new Set(bookings.map(b => b.space_id))];
+  const imageQs = useQueries({
+    queries: spaceIds.map(id => ({
+      queryKey: ["space-images", id],
+      queryFn: () => api.get<{ url: string; is_primary: boolean }[]>(`/api/spaces/${id}/images`),
+      staleTime: 60_000,
+    })),
+  });
+  const images = new Map(spaceIds.map((id, i) => {
+    const list = imageQs[i]?.data ?? [];
+    return [id, (list.find(x => x.is_primary) ?? list[0])?.url] as const;
+  }));
   const isPublic = campaign.visibility !== "private";
 
   const refresh = async () => {
@@ -279,11 +330,6 @@ function CampaignPage({ campaign }: { campaign: Campaign }) {
 
   const findScreens = () => navigate(`/browse?campaign=${campaign.id}`);
   const editCampaign = () => navigate(`/campaigns/${campaign.id}/edit`);
-  const note = !hasRows
-    ? "Requests hold money from your wallet until the broadcaster answers."
-    : isPublic
-      ? `Offers from broadcasters can't go over ${fmtMoney(Math.round(money.left))}.`
-      : `New requests can't go over ${fmtMoney(Math.round(money.left))}.`;
   const outOfBudget = budget > 0 && money.left <= 0 && (campaign.status === "active" || campaign.status === "paused");
 
   return (
@@ -335,36 +381,40 @@ function CampaignPage({ campaign }: { campaign: Campaign }) {
           </Alert>
         )}
 
-        <SpendCard budget={budget} money={money} note={note} hasActivity={hasRows} />
-
-        <div className="grid w-full grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1fr)_300px]">
-          {hasRows
-            ? <RowsTable campaign={campaign} rows={rows} place={place} onOpen={row => (row.kind === "offer" ? setOpenOffer(row.offer) : navigate(`/bookings/${row.booking.id}`))} />
-            : <FirstScreen onFind={findScreens} />}
-
-          <aside className="flex flex-col gap-5 self-start rounded-xl bg-[#f8faff] p-5">
-            <h2 className="text-base font-semibold leading-6 text-[#1a1d25]">Details</h2>
-            <dl className="flex flex-col gap-4">
-              <Detail term="Dates" aside={scheduleNote(campaign.start_date, campaign.end_date)}>
-                {fmtRange(campaign.start_date, campaign.end_date, true)}
-              </Detail>
-              <Detail term="Where">{campaign.location || "Anywhere"}</Detail>
-              <Detail term="Ad">{campaign.ad_type === "video" ? "Video" : "Image"}</Detail>
-              {campaign.objective && <Detail term="Description">{campaign.objective}</Detail>}
-            </dl>
-            <div className="flex flex-col gap-2.5 border-t-[0.8px] border-[#e3e5ea] pt-4">
-              <div className="flex items-center justify-between">
-                <label htmlFor="c-visibility" className="flex items-center gap-2 text-sm font-medium leading-5 text-[#1a1d25]">
-                  {isPublic ? <Globe className="size-4" aria-hidden="true" /> : <Lock className="size-4" aria-hidden="true" />}
-                  {isPublic ? "Public" : "Private"}
-                </label>
+        <div className="grid w-full grid-cols-1 items-stretch gap-6 lg:grid-cols-[minmax(0,1fr)_400px]">
+          <SpendCard budget={budget} money={money} />
+          <section className={`${cardCn} flex flex-col gap-4 p-6`}>
+            <h2 className="m-0 text-base font-semibold leading-6 text-[#1a1d25]">Details</h2>
+            <KeyValues rows={[
+              ["Dates", fmtRange(campaign.start_date, campaign.end_date)],
+              ["Location", campaign.location || "Anywhere"],
+              ["Ad", campaign.ad_type === "video" ? "Video" : "Image"],
+            ]} />
+            <div className="flex items-center justify-between gap-4 text-sm leading-5">
+              <label htmlFor="c-visibility" className="text-[#4a4d56]">Visibility</label>
+              <span className="flex items-center gap-3 text-[#1a1d25]">
+                {isPublic ? "Public" : "Private"}
                 <Switch id="c-visibility" checked={isPublic} onCheckedChange={on => setVisibility(on ? "public" : "private")}
                   className="data-[state=checked]:bg-[#3a47c2]" />
-              </div>
-              <p className="text-[13px] leading-[18px] text-[#4a4d56]">{visibilityNote(campaign)}</p>
+              </span>
             </div>
-          </aside>
+            <p className="m-0 text-xs leading-4 text-[#656972]">{visibilityNote(campaign)}</p>
+            {campaign.objective && <p className="m-0 text-sm leading-5 text-[#4a4d56]">{campaign.objective}</p>}
+          </section>
         </div>
+
+        {hasRows ? (
+          <section className="flex flex-col gap-4">
+            <div className="flex items-center justify-between gap-4">
+              <h2 className="m-0 text-base font-semibold leading-6 text-[#1a1d25]">Bookings</h2>
+              <span className="text-sm leading-5 text-[#656972]">{bookingCount} booking{bookingCount === 1 ? "" : "s"}</span>
+            </div>
+            <RowsTable campaign={campaign} rows={rows} place={place} slot={slot} images={images}
+              onOpen={row => (row.kind === "offer" ? setOpenOffer(row.offer) : navigate(`/bookings/${row.booking.id}`))} />
+          </section>
+        ) : (
+          <FirstScreen onFind={findScreens} />
+        )}
       </div>
 
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>

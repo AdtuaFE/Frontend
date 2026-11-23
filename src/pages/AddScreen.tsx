@@ -135,11 +135,7 @@ const AddScreen = () => {
       ? "Only the space's owner can add screens to it."
       : !space.is_active
         ? "This space is deactivated. Reactivate it before adding screens."
-        : allowance && left === 0
-          ? billing?.plan === "premium"
-            ? `You're using all ${allowance.allowance} screens you've paid for.`
-            : `${limitMessage(allowance.allowance)} You're using all of them.`
-          : null;
+        : null;
 
   return (
     <AppLayout activeNav="spaces">
@@ -163,21 +159,6 @@ const AddScreen = () => {
         {blocked ? (
           <div className="flex flex-col items-start gap-3 rounded-[24px] border border-[#e8e8e8] bg-white p-8 text-sm text-[#4a5565]">
             <p>{blocked}</p>
-            {allowance && left === 0 && isOwner && space?.is_active && (
-              billing?.plan === "premium" && billing.block_purchase ? (
-                <>
-                  <p>Delete a screen from one of your spaces, or add more. You'll see the price before paying.</p>
-                  {/* Once paid, the allowance refreshes and this page opens the form by itself. */}
-                  <BuyScreensButton purchase={billing.block_purchase} />
-                </>
-              ) : (
-                <p>
-                  Delete a screen from one of your spaces, or{" "}
-                  <Link to="/settings/upgrade/broadcaster" className="font-semibold text-[#3a47c2] underline">upgrade to Premium</Link>
-                  {" "}to add another.
-                </p>
-              )
-            )}
             <button type="button" onClick={() => navigate(`/spaces/${spaceId}`)}
               className="font-semibold text-[#3a47c2]">
               Back to the space
@@ -185,6 +166,15 @@ const AddScreen = () => {
           </div>
         ) : (
           <div className="flex flex-col gap-8 px-0 lg:px-[212px]">
+            {allowance && left === 0 && (
+              <div className="flex items-start gap-3 rounded-[16px] border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+                <p>
+                  {limitMessage(allowance.allowance)} You are currently using all your running screen slots.
+                  This screen will be created as <strong>inactive</strong>. You can activate it from the space
+                  page later by deactivating another screen or upgrading your plan.
+                </p>
+              </div>
+            )}
             <Steps<AddScreenStep> steps={ADD_SCREEN_STEPS} current={step} furthest={furthest} onStepClick={goTo} />
 
             {step === "screen" && (

@@ -39,9 +39,9 @@ export function screensLeft(summary: Pick<ScreenAllowance, "allowance" | "active
   return Math.max(0, summary.allowance - summary.active_count);
 }
 
-/** A screen the broadcaster deleted is gone from their point of view; the rest are shown. */
-export function isVisibleScreen(screen: BroadcasterScreen): boolean {
-  return screen.deactivated_reason !== "broadcaster";
+/** All screens in the broadcaster's spaces are visible. */
+export function isVisibleScreen(_screen: BroadcasterScreen): boolean {
+  return true;
 }
 
 export type ScreenStatus = { label: string; tone: "default" | "running" | "off"; hint?: string };
@@ -55,7 +55,10 @@ export function screenStatus(screen: BroadcasterScreen): ScreenStatus {
   if (screen.deactivated_reason === "space") {
     return { label: "Off", tone: "off", hint: "This space is deactivated" };
   }
-  return { label: "Off", tone: "off", hint: "Over your plan's screen limit. Upgrade or make it your default to run it" };
+  if (screen.deactivated_reason === "allowance") {
+    return { label: "Off", tone: "off", hint: "Over your plan's screen limit. Upgrade to run it" };
+  }
+  return { label: "Inactive", tone: "off", hint: "Inactive · Activate to put it on air" };
 }
 
 export function limitMessage(allowance: number): string {

@@ -44,14 +44,11 @@ export function StepScreens({
   return (
     <div className="flex w-full flex-col gap-8">
       {allowance && overLimit && (
-        <div className="flex w-full items-start gap-3 rounded-[16px] border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-          <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+        <div className="flex w-full items-start gap-3 rounded-[16px] border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+          <Info className="mt-0.5 size-4 shrink-0" />
           <p>
             {limitMessage(allowance.allowance)}{" "}
-            {allowance.left === 0
-              ? "You're already using all of them, so these screens won't be added."
-              : `You can add ${allowance.left} more, so only the first ${allowance.left} of these will be added.`}{" "}
-            The space itself will still be published.{" "}
+            All screens you create will be saved. Screens beyond your plan's active limit will start as inactive until you activate them.{" "}
             <Link to="/settings?tab=plans" className="font-semibold underline">See plans</Link>
           </p>
         </div>

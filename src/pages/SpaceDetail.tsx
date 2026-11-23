@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
 import {
-  ArrowLeft, Edit2, Trash2, Upload, Star, Plus, ImageIcon, Cpu, Pencil, X, ExternalLink,
+  ArrowLeft, Edit2, Trash2, Upload, Star, Plus, ImageIcon, Cpu, Pencil, X, ExternalLink, Power,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -362,6 +362,25 @@ const SpaceDetail = () => {
     } finally {
       setDeletingScreen(false);
       setPendingDeleteScreen(null);
+    }
+  };
+
+  const [togglingScreenId, setTogglingScreenId] = useState<number | null>(null);
+
+  const handleToggleScreenActive = async (screen: BroadcasterScreen, active: boolean) => {
+    if (!space) return;
+    setTogglingScreenId(screen.id);
+    try {
+      await api.patch(`/api/spaces/${space.id}/screens/${screen.id}`, { is_active: active });
+      await refreshScreens();
+      toast.success(`${screen.label} ${active ? "activated" : "deactivated"}`);
+    } catch (err) {
+      toast.error(`Couldn't ${active ? "activate" : "deactivate"} ${screen.label}`, {
+        description: err instanceof Error ? err.message : undefined,
+        duration: 8000,
+      });
+    } finally {
+      setTogglingScreenId(null);
     }
   };
 
@@ -818,7 +837,7 @@ const SpaceDetail = () => {
                   {screenAllowance.allowance === 1 ? "" : "s"} used across all your spaces
                 </p>
               </div>
-              <Button size="sm" variant="outline" disabled={!space.is_active || screensLeftOnPlan === 0}
+              <Button size="sm" variant="outline" disabled={!space.is_active}
                 onClick={() => navigate(`/spaces/${space.id}/screens/new`)}>
                 <Plus className="h-4 w-4 mr-1" /> Add screen
               </Button>
@@ -832,17 +851,17 @@ const SpaceDetail = () => {
               billing?.plan === "premium" && billing.block_purchase ? (
                 <div className="flex flex-wrap items-center gap-3">
                   <p className="text-xs text-muted-foreground">
-                    You're using all {screenAllowance.allowance} screens you've paid for. Delete a screen, or add more:
+                    You're using all {screenAllowance.allowance} screens you've paid for. Deactivate a screen to run another, or add more:
                   </p>
                   <BuyScreensButton size="sm" purchase={billing.block_purchase} />
                 </div>
               ) : (
                 <p className="text-xs text-muted-foreground">
-                  {limitMessage(screenAllowance.allowance)} Delete a screen or{" "}
+                  {screenAllowance.active_count} of {screenAllowance.allowance} running screen slots used. Deactivate a running screen to activate another, or{" "}
                   <button className="font-semibold underline" onClick={() => navigate("/settings/upgrade/broadcaster")}>
                     upgrade to Premium
                   </button>{" "}
-                  to add another.
+                  to run more.
                 </p>
               )
             )}
@@ -872,11 +891,27 @@ const SpaceDetail = () => {
                         {status.hint && <p className="text-xs text-muted-foreground mt-0.5">{status.hint}</p>}
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
-                        {!screen.is_default && screen.deactivated_reason !== "space" && (
-                          <Button variant="outline" size="sm" disabled={defaultingScreenId === screen.id}
-                            onClick={() => handleMakeDefault(screen)}>
-                            <Star className="h-4 w-4 mr-1" />
-                            {defaultingScreenId === screen.id ? "Saving…" : "Make default"}
+                        {screen.is_active ? (
+                          <>
+                            {!screen.is_default && (
+                              <Button variant="outline" size="sm" disabled={defaultingScreenId === screen.id || togglingScreenId === screen.id}
+                                onClick={() => handleMakeDefault(screen)}>
+                                <Star className="h-4 w-4 mr-1" />
+                                {defaultingScreenId === screen.id ? "Saving…" : "Make default"}
+                              </Button>
+                            )}
+                            <Button variant="outline" size="sm" disabled={togglingScreenId === screen.id}
+                              onClick={() => handleToggleScreenActive(screen, false)}>
+                              <Power className="h-4 w-4 mr-1" />
+                              {togglingScreenId === screen.id ? "Saving…" : "Deactivate"}
+                            </Button>
+                          </>
+                        ) : (
+                          <Button variant="outline" size="sm" disabled={togglingScreenId === screen.id || !space.is_active}
+                            className="text-green-600 hover:text-green-700 hover:border-green-300"
+                            onClick={() => handleToggleScreenActive(screen, true)}>
+                            <Power className="h-4 w-4 mr-1" />
+                            {togglingScreenId === screen.id ? "Saving…" : "Activate"}
                           </Button>
                         )}
                         <Button variant="outline" size="sm"

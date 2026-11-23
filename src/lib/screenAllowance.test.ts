@@ -24,11 +24,8 @@ describe("screensLeft", () => {
 });
 
 describe("isVisibleScreen", () => {
-  it("hides screens the broadcaster deleted", () => {
-    expect(isVisibleScreen(screen({ is_active: false, deactivated_reason: "broadcaster" }))).toBe(false);
-  });
-
-  it("shows screens turned off by the plan or the space", () => {
+  it("shows all screens", () => {
+    expect(isVisibleScreen(screen({ is_active: false, deactivated_reason: "broadcaster" }))).toBe(true);
     expect(isVisibleScreen(screen({ is_active: false, deactivated_reason: "allowance" }))).toBe(true);
     expect(isVisibleScreen(screen({ is_active: false, deactivated_reason: "space" }))).toBe(true);
   });
@@ -43,9 +40,10 @@ describe("screenStatus", () => {
     expect(screenStatus(screen())).toMatchObject({ label: "Running", tone: "running" });
   });
 
-  it("explains why a screen is off", () => {
+  it("explains why a screen is off or inactive", () => {
     expect(screenStatus(screen({ is_active: false, deactivated_reason: "allowance" })).hint).toMatch(/limit/);
     expect(screenStatus(screen({ is_active: false, deactivated_reason: "space" })).hint).toMatch(/space/);
+    expect(screenStatus(screen({ is_active: false, deactivated_reason: "broadcaster" })).hint).toMatch(/Inactive/);
   });
 });
 

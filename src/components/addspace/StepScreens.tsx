@@ -1,23 +1,34 @@
 import { useState } from "react";
-import { ChevronUp, Plus, Info, Trash2, Check } from "lucide-react";
+import { Link } from "react-router-dom";
+import { ChevronUp, Plus, Info, Trash2, Check, AlertTriangle } from "lucide-react";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { AdornedInput, Field, StepNav, TextInput, fieldCn, fieldErrCn } from "./primitives";
-import { AD_FORMATS, DISPLAY_TYPES, emptyScreen, type ScreenDraft } from "./types";
+import { AD_FORMATS, DISPLAY_TYPES, SCREEN_NAME_MAX, emptyScreen, type ScreenDraft } from "./types";
+import { limitMessage } from "@/lib/screenAllowance";
 
 type Props = {
   screens: ScreenDraft[];
+  /** False when adding one screen to an existing space: hides "Add Screen". */
+  allowMultiple?: boolean;
+  /** Label for the next button; defaults to "Next". */
+  nextLabel?: string;
+  /** The plan's screen limit and how many more can be added; absent while loading. */
+  allowance?: { allowance: number; left: number };
   errors: Record<string, string>;
   onChange: (screens: ScreenDraft[]) => void;
   onBack: () => void;
   onNext: () => void;
 };
 
-export function StepScreens({ screens, errors, onChange, onBack, onNext }: Props) {
+export function StepScreens({
+  screens, allowMultiple = true, nextLabel, allowance, errors, onChange, onBack, onNext,
+}: Props) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const overLimit = !!allowance && screens.length > allowance.left;
 
   const patch = (id: string, p: Partial<ScreenDraft>) =>
     onChange(screens.map(s => (s.id === id ? { ...s, ...p } : s)));
@@ -32,6 +43,17 @@ export function StepScreens({ screens, errors, onChange, onBack, onNext }: Props
 
   return (
     <div className="flex w-full flex-col gap-8">
+      {allowance && overLimit && (
+        <div className="flex w-full items-start gap-3 rounded-[16px] border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+          <Info className="mt-0.5 size-4 shrink-0" />
+          <p>
+            {limitMessage(allowance.allowance)}{" "}
+            All screens you create will be saved. Screens beyond your plan's active limit will start as inactive until you activate them.{" "}
+            <Link to="/settings?tab=plans" className="font-semibold underline">See plans</Link>
+          </p>
+        </div>
+      )}
+
       {screens.map((screen, i) => {
         const isOpen = !collapsed[screen.id];
         const title = screen.name.trim() || (screens.length > 1 ? `Screen ${i + 1}` : "Screen");
@@ -68,6 +90,7 @@ export function StepScreens({ screens, errors, onChange, onBack, onNext }: Props
                     <TextInput
                       invalid={!!errors[`screen.${screen.id}.name`]}
                       placeholder="Sports Screen"
+                      maxLength={SCREEN_NAME_MAX}
                       value={screen.name}
                       onChange={e => patch(screen.id, { name: e.target.value })}
                     />
@@ -157,7 +180,7 @@ export function StepScreens({ screens, errors, onChange, onBack, onNext }: Props
         );
       })}
 
-      <div className="flex w-full flex-col items-start justify-center">
+      {allowMultiple && <div className="flex w-full flex-col items-start justify-center">
         <button
           type="button"
           onClick={() =>
@@ -171,9 +194,9 @@ export function StepScreens({ screens, errors, onChange, onBack, onNext }: Props
             text-sm font-semibold text-[#4a5565] transition-colors hover:bg-[#f2f5ff] hover:text-[#3a47c2]">
           <Plus className="size-4" />Add Screen
         </button>
-      </div>
+      </div>}
 
-      <StepNav onBack={onBack} onNext={onNext} />
+      <StepNav onBack={onBack} onNext={onNext} nextLabel={nextLabel} />
     </div>
   );
 }

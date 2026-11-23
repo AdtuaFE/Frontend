@@ -5,6 +5,32 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import { formatDate } from "@/lib/dates";
 import { PAID_PLANS, getPlanState, isPaid, type Role } from "@/lib/plans";
+import { useBilling } from "@/lib/billing";
+
+function BroadcasterConfirmation() {
+  const navigate = useNavigate();
+  const { data: billing, isLoading } = useBilling();
+  if (isLoading) return null;
+  if (!billing?.subscription) return <Navigate to="/settings?tab=plans" replace />;
+  return (
+    <AppLayout activeNav="settings">
+      <div className="max-w-lg mx-auto py-16 flex flex-col items-center gap-4 text-center">
+        <div className="size-14 rounded-xl bg-[rgba(58,71,194,0.1)] flex items-center justify-center">
+          <PartyPopper className="h-6 w-6 text-[#3a47c2]" />
+        </div>
+        <p className="text-xl font-semibold text-[#4a5565]">You're on Premium!</p>
+        <p className="text-sm text-[#767676] leading-relaxed">
+          You can now run up to {billing.allowance} screens, and any your plan had turned off are back on. This month
+          runs until {formatDate(billing.subscription.current_period_end)}. Renew from Plans and Billing before then;
+          we'll remind you 7 days and 48 hours ahead.
+        </p>
+        <Button onClick={() => navigate("/settings?tab=plans")} className="w-full max-w-sm mt-6 bg-[#3a47c2] hover:bg-[#2f3a9e] text-white py-3">
+          Go to Plans and Billing
+        </Button>
+      </div>
+    </AppLayout>
+  );
+}
 
 export default function PlanConfirmation() {
   const { role: roleParam } = useParams<{ role: string }>();
@@ -14,19 +40,14 @@ export default function PlanConfirmation() {
   if (!user) return null;
   if (roleParam !== "advertiser" && roleParam !== "broadcaster") return <Navigate to="/settings?tab=plans" replace />;
   const role: Role = roleParam;
+  if (role === "broadcaster") return <BroadcasterConfirmation />;
   const state = getPlanState(user.id, role);
   if (!isPaid(state.tier) || state.amountPaid == null || !state.renewsAt) return <Navigate to="/settings?tab=plans" replace />;
 
-  const plan = PAID_PLANS[state.tier];
-  const displays = plan.displays;
-  const charged = `Your card was charged $${state.amountPaid.toFixed(2)} today${
-    role === "broadcaster" && displays ? ` for ${displays} display${displays > 1 ? "s" : ""}` : ""
-  }.`;
+  const charged = `Your card was charged $${state.amountPaid.toFixed(2)} today.`;
 
-  // Pills mirror the Figma confirmation frames for each role.
-  const pills = role === "advertiser"
-    ? ["100 impressions / month", "Time slot control", "Broadcaster requests unlocked"]
-    : ["55% revenue split", "Direct offer requests", "Time slot control"];
+  // Pills mirror the Figma advertiser confirmation frame.
+  const pills = ["100 impressions / month", "Time slot control", "Broadcaster requests unlocked"];
 
   return (
     <AppLayout activeNav="settings">

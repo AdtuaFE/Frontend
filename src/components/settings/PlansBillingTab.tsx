@@ -12,6 +12,7 @@ import {
 import { formatDate } from "@/lib/dates";
 import { userRoles } from "@/lib/roles";
 import { ChoosePlanDialog } from "./ChoosePlanDialog";
+import { BroadcasterBilling } from "./BroadcasterBilling";
 import { Pill, Section, SoonTag } from "./SettingsBits";
 
 // Analytics isn't exposed by the API yet, so impressions used are a placeholder (as before).
@@ -82,7 +83,9 @@ export function PlansBillingTab() {
 
   if (!user) return null;
   const roles = ([isAdvertiser && "advertiser", isBroadcaster && "broadcaster"].filter(Boolean)) as Role[];
-  const paidRoles = roles.filter(r => isPaid(plans[r].tier));
+  // The broadcaster plan is real billing now (BroadcasterBilling renders its own card, invoices
+  // and renewal); only the advertiser plan still uses the local placeholder below.
+  const paidRoles = roles.filter(r => r === "advertiser" && isPaid(plans[r].tier));
   const roleTitle = (r: Role) => (isDual ? (r === "advertiser" ? "Advertiser plan" : "Broadcaster plan") : "Current plan");
 
   const confirmCancel = async () => {
@@ -130,41 +133,6 @@ export function PlansBillingTab() {
     </Section>
   );
 
-  const broadcasterSection = (p: PlanState) => (
-    <Section key="broadcaster" title={roleTitle("broadcaster")}
-      description={isDual ? "For listing your screens. Billed separately from your advertiser plan."
-        : isPaid(p.tier) ? "Your plan renews automatically. You can switch or cancel any time." : "You're on Free. Upgrade any time to keep more of each booking."}>
-      {isPaid(p.tier) ? (
-        <>
-          <Stats items={[
-            { term: "Plan", value: `Premium · ${p.tier === "bundle" ? "10 displays" : "1 display"}` },
-            { term: "Price", value: priceLabel(p) },
-            { term: p.cancelsAt ? "Ends" : "Next charge", value: formatDate((p.cancelsAt ?? p.renewsAt)!) },
-          ]} />
-          <div className="flex flex-wrap items-center gap-5">
-            {!p.cancelsAt && (
-              <CampaignButton onClick={() => navigate(`/settings/upgrade/broadcaster?tier=${p.tier === "bundle" ? "solo" : "bundle"}`)}>
-                {p.tier === "bundle" ? "Change to 1 display" : "Change to 10 displays"}
-              </CampaignButton>
-            )}
-            <button type="button" onClick={() => setDialogRole("broadcaster")} className="text-[13px] font-medium leading-5 text-[#3a47c2] hover:underline">Compare plans</button>
-          </div>
-        </>
-      ) : (
-        <>
-          <Stats items={[
-            { term: "Plan", value: "Free" },
-            { term: "Your share", value: `${pct(BROADCASTER_FREE_SHARE)} of each booking` },
-            { term: "Adtua's share", value: pct(1 - BROADCASTER_FREE_SHARE) },
-          ]} />
-          <Upsell onUpgrade={() => setDialogRole("broadcaster")}>
-            {`Premium lets you keep ${pct(BROADCASTER_PAID_SHARE)} of each booking, for $${PAID_PLANS.solo.priceMonthly} a month on 1 display or $${PAID_PLANS.bundle.priceMonthly} on up to 10.`}
-          </Upsell>
-        </>
-      )}
-    </Section>
-  );
-
   const card = paidRoles.map(r => plans[r].card).find(Boolean);
   const invoices = paidRoles
     .flatMap(r => getInvoices(plans[r]).map(inv => ({
@@ -177,7 +145,7 @@ export function PlansBillingTab() {
   return (
     <div className="flex flex-col">
       {isAdvertiser && advertiserSection(plans.advertiser)}
-      {isBroadcaster && broadcasterSection(plans.broadcaster)}
+      {isBroadcaster && <BroadcasterBilling title={roleTitle("broadcaster")} />}
 
       {paidRoles.length > 0 && (
         <>

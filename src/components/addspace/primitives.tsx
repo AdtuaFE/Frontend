@@ -174,20 +174,23 @@ export function StepNav({
 }
 
 /** The 5-step progress bar. Completed steps collapse to a check, per the design. */
-export function Steps({
+export function Steps<K extends string = StepKey>({
   current,
   onStepClick,
   furthest,
+  steps = STEPS as unknown as readonly { key: K; label: string }[],
 }: {
-  current: StepKey;
-  onStepClick: (step: StepKey) => void;
+  current: K;
+  onStepClick: (step: K) => void;
   furthest: number;
+  /** Defaults to the add-space wizard's steps. */
+  steps?: readonly { key: K; label: string }[];
 }) {
-  const currentIndex = STEPS.findIndex(s => s.key === current);
+  const currentIndex = steps.findIndex(s => s.key === current);
 
   return (
     <div className="flex w-full items-center gap-2">
-      {STEPS.map((step, i) => {
+      {steps.map((step, i) => {
         const done = i < currentIndex;
         const active = i === currentIndex;
         const reachable = i <= furthest;

@@ -3,9 +3,19 @@
  *
  * Verifies that each role sees the correct nav items, pages, and content
  * — and cannot access what belongs to the other role.
+ *
+ * The nav redesign (src/components/AppLayout.tsx) replaced a single "Browse" button with a
+ * hover-dropdown for quick actions with separate, always-visible sidebar buttons per role:
+ * Broadcaster gets "My Spaces" and "Marketplace"; Advertiser gets "Browse Spaces" and
+ * "Campaigns". Both also always see "Dashboard" and "Bookings". A dual-role user sees both
+ * roles' items at once, grouped under "Advertiser"/"Broadcaster" headers (open by default —
+ * no hover needed). There is no nav-level "New space" or "New campaign" shortcut any more;
+ * those actions live on the destination pages themselves.
  */
 import { test, expect } from "@playwright/test";
-import { loginAs, logout, BROADCASTER, ADVERTISER, DUAL_ROLE } from "./helpers/auth";
+import { loginAs, BROADCASTER, ADVERTISER, DUAL_ROLE } from "./helpers/auth";
+import { seedSpace } from "./helpers/seed";
+import { sidenav, navItem as nav } from "./helpers/ui";
 
 // ─── Broadcaster visibility ───────────────────────────────────────────────────
 
@@ -14,34 +24,25 @@ test.describe("Broadcaster", () => {
     await loginAs(page, BROADCASTER.email, BROADCASTER.password);
   });
 
-  test("sees Browse with dropdown containing New Space option", async ({ page }) => {
-    const browseBtn = page.getByRole("button", { name: /browse/i }).first();
-    await expect(browseBtn).toBeVisible();
-    await browseBtn.hover();
-    await expect(page.getByRole("button", { name: /browse spaces/i })).toBeVisible();
-    await expect(page.getByRole("button", { name: /new space/i })).toBeVisible();
+  test("sees My Spaces and Marketplace in the nav", async ({ page }) => {
+    await expect(nav(page, "My Spaces")).toBeVisible();
+    await expect(nav(page, "Marketplace")).toBeVisible();
   });
 
-  test("sees Campaigns nav with Browse marketplace option", async ({ page }) => {
-    const campaignsBtn = page.getByRole("button", { name: /campaigns/i });
-    await campaignsBtn.hover();
-    await expect(page.getByRole("button", { name: /browse marketplace/i })).toBeVisible();
+  test("does NOT see Browse Spaces or Campaigns in the nav", async ({ page }) => {
+    await expect(nav(page, "Browse Spaces")).not.toBeVisible();
+    await expect(nav(page, "Campaigns")).not.toBeVisible();
   });
 
-  test("does NOT see All Campaigns or New Campaign in nav", async ({ page }) => {
-    const campaignsBtn = page.getByRole("button", { name: /campaigns/i });
-    await campaignsBtn.hover();
-    await expect(page.getByRole("button", { name: /all campaigns/i })).not.toBeVisible();
-    await expect(page.getByRole("button", { name: /new campaign/i })).not.toBeVisible();
-  });
-
-  test("can reach /browse and sees My Spaces section", async ({ page }) => {
-    await page.goto("/browse");
-    await expect(page.getByRole("heading", { name: /my spaces/i })).toBeVisible();
+  test("can reach /spaces (My Spaces)", async ({ page }) => {
+    await nav(page, "My Spaces").click();
+    await expect(page).toHaveURL(/\/spaces$/);
+    await expect(page).not.toHaveURL(/signin/);
   });
 
   test("can reach /campaigns/marketplace", async ({ page }) => {
-    await page.goto("/campaigns/marketplace");
+    await nav(page, "Marketplace").click();
+    await expect(page).toHaveURL(/\/campaigns\/marketplace/);
     await expect(page).not.toHaveURL(/signin/);
     await expect(page.getByRole("heading", { name: /campaigns/i })).toBeVisible();
   });
@@ -60,37 +61,29 @@ test.describe("Advertiser", () => {
     await loginAs(page, ADVERTISER.email, ADVERTISER.password);
   });
 
-  test("sees Browse as a plain button (no dropdown)", async ({ page }) => {
-    // Advertiser Browse has no dropdown — hover should show no sub-menu
-    const browseBtn = page.getByRole("button", { name: /^browse$/i });
-    await expect(browseBtn).toBeVisible();
-    await browseBtn.hover();
-    await expect(page.getByRole("button", { name: /new space/i })).not.toBeVisible();
+  test("sees Browse Spaces and Campaigns in the nav", async ({ page }) => {
+    await expect(nav(page, "Browse Spaces")).toBeVisible();
+    await expect(nav(page, "Campaigns")).toBeVisible();
   });
 
-  test("sees All Campaigns and New Campaign in Campaigns dropdown", async ({ page }) => {
-    const campaignsBtn = page.getByRole("button", { name: /campaigns/i });
-    await campaignsBtn.hover();
-    await expect(page.getByRole("button", { name: /all campaigns/i })).toBeVisible();
-    await expect(page.getByRole("button", { name: /new campaign/i })).toBeVisible();
-  });
-
-  test("does NOT see Browse marketplace in nav", async ({ page }) => {
-    const campaignsBtn = page.getByRole("button", { name: /campaigns/i });
-    await campaignsBtn.hover();
-    await expect(page.getByRole("button", { name: /browse marketplace/i })).not.toBeVisible();
+  test("does NOT see My Spaces or Marketplace in the nav", async ({ page }) => {
+    await expect(nav(page, "My Spaces")).not.toBeVisible();
+    await expect(nav(page, "Marketplace")).not.toBeVisible();
   });
 
   test("can reach /campaigns and sees their own campaigns", async ({ page }) => {
-    await page.goto("/campaigns");
+    await nav(page, "Campaigns").click();
+    await expect(page).toHaveURL(/\/campaigns$/);
     await expect(page).not.toHaveURL(/signin/);
-    await expect(page.getByRole("heading", { name: /campaigns/i })).toBeVisible();
+    // "Campaigns" once there's at least one, or the empty state's own heading with none yet —
+    // either way, confirms the page rendered rather than redirecting or erroring.
+    await expect(page.getByRole("heading", { name: /campaigns|plan your first campaign/i })).toBeVisible();
   });
 
-  test("can reach /browse and sees spaces (no My Spaces section)", async ({ page }) => {
-    await page.goto("/browse");
-    // Advertiser has no own spaces — My Spaces heading should not appear
-    await expect(page.getByRole("heading", { name: /my spaces/i })).not.toBeVisible();
+  test("can reach /browse", async ({ page }) => {
+    await nav(page, "Browse Spaces").click();
+    await expect(page).toHaveURL(/\/browse/);
+    await expect(page).not.toHaveURL(/signin/);
   });
 });
 
@@ -104,44 +97,24 @@ test.describe("Dual-role user", () => {
     await loginAs(page, DUAL_ROLE.email, DUAL_ROLE.password);
   });
 
-  test("sees both All Campaigns and Browse marketplace in Campaigns dropdown", async ({ page }) => {
-    const campaignsBtn = page.getByRole("button", { name: /campaigns/i });
-    await campaignsBtn.hover();
-    await expect(page.getByRole("button", { name: /all campaigns/i })).toBeVisible();
-    await expect(page.getByRole("button", { name: /browse marketplace/i })).toBeVisible();
-    await expect(page.getByRole("button", { name: /new campaign/i })).toBeVisible();
+  test("sees both roles' nav items at once, grouped by role", async ({ page }) => {
+    await expect(sidenav(page).getByText("Advertiser", { exact: true })).toBeVisible();
+    await expect(sidenav(page).getByText("Broadcaster", { exact: true })).toBeVisible();
+    await expect(nav(page, "Browse Spaces")).toBeVisible();
+    await expect(nav(page, "Campaigns")).toBeVisible();
+    await expect(nav(page, "My Spaces")).toBeVisible();
+    await expect(nav(page, "Marketplace")).toBeVisible();
   });
 
-  test("sees Browse dropdown with New Space option", async ({ page }) => {
-    const browseBtn = page.getByRole("button", { name: /browse/i }).first();
-    await browseBtn.hover();
-    await expect(page.getByRole("button", { name: /new space/i })).toBeVisible();
-  });
-
-  test("sees My Spaces section on Browse page after creating a space", async ({ page }) => {
-    // My Spaces only renders when the broadcaster has at least one space.
-    // Create one via the nav dropdown first.
-    const browseBtn = page.getByRole("button", { name: /browse/i }).first();
-    await browseBtn.hover();
-    await page.getByRole("button", { name: /new space/i }).click();
-    await expect(page.getByRole("dialog")).toBeVisible();
-
-    await page.getByLabel(/space name/i).fill(`Dual E2E Space ${Date.now()}`);
-    await page.getByText("Select type").click();
-    await page.getByRole("option", { name: /digital screen/i }).click();
-    await page.getByText("Select display type").click();
-    await page.getByRole("option", { name: /digital led/i }).click();
-    await page.getByLabel(/^city/i).fill("London");
-    await page.getByLabel(/country/i).fill("UK");
-    await page.getByLabel(/cpm/i).fill("10");
-    const createBtn = page.getByRole("button", { name: /add space/i });
-    await createBtn.scrollIntoViewIfNeeded();
-    await createBtn.click();
-    await expect(page.getByRole("dialog")).not.toBeVisible({ timeout: 10_000 });
-
-    await page.goto("/browse");
+  test("sees their new space on the My Spaces page (/spaces, not /browse)", async ({ page }) => {
+    // My Spaces is its own page now (src/pages/MySpaces.tsx), not a section of Browse —
+    // seeded directly through the API, since the space-creation wizard itself isn't this test's
+    // concern.
+    const space = await seedSpace(page, { name: `E2E Dual Space ${Date.now()}` });
+    await nav(page, "My Spaces").click();
     await page.waitForLoadState("networkidle");
     await expect(page.getByRole("heading", { name: /my spaces/i })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(space.name)).toBeVisible({ timeout: 10_000 });
   });
 });
 

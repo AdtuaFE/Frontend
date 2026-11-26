@@ -501,14 +501,14 @@ Proxies Mapbox geocoding for address autocomplete during space creation. New sin
 Device-facing, but relevant to FE for the broadcaster-side pairing flow:
 
 ```
-POST   /api/player/register                public, no auth — device calls this on boot
-POST   /api/player/pair                     broadcaster, authenticated — completes pairing
+POST   /api/spaces/:id/screens/:screenId/pairing-code   broadcaster — issues a code bound to that screen
+POST   /api/player/pair                     public, no auth — device submits the code, gets its device_id
 GET    /api/player/:deviceId                public — device fetches its own current content
 POST   /api/player/:deviceId/played         public — device reports a play event
 DELETE /api/player/:deviceId                broadcaster — unpair/remove a device
 ```
 
-`POST /api/player/pair` body: `{ "pairing_code": "123456", "screen_id": 5 }` — pairing targets a **screen**, not a space directly (a space may have multiple screens, each with its own paired device).
+The broadcaster starts pairing. `POST .../pairing-code` returns `{ "screen_id": 5, "pairing_code": "123456", "expires_at": "..." }`; the code lasts 10 minutes and requesting again replaces it. The device then sends `POST /api/player/pair` with `{ "pairing_code": "123456" }` and gets back `{ "device_id", "screen_id", "paired_at" }`. The device record is created already paired, so there is no unpaired state. Too many failed codes return 429 with `Retry-After`.
 
 ---
 
